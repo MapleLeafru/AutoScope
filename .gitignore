@@ -3,6 +3,31 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+#################################################################################################################################
+#My ignore
+
+# Visual Studio
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.vscode/
+
+# C# bin/obj
+bin/
+obj/
+
+# Python
+AutoScopeVenv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# SQLite базы (если не хотите коммитить)
+Database/*.db
+#################################################################################################################################
+
 # User-specific files
 *.rsuser
 *.suo

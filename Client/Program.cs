@@ -17,3 +17,4 @@ start.Arguments = corePath;
 start.UseShellExecute = false; // ХЗ
 
 Process.Start(start); // ХЗ но догадываюсь
+// Проверка git 1
