@@ -1,27 +1,26 @@
-# -*- coding: utf-8 -*-
-import sys
+п»їimport sys
 import sqlite3
 import os
 
 print("Python Core work")
 print("Python version:", sys.version)
 
-# argv[0] = core.py, argv[1] = путь к базе
+# argv[0] = core.py, argv[1] = РїСѓС‚СЊ Рє Р±Р°Р·Рµ
 if len(sys.argv) < 2:
-    print("db path error") #Не указан путь к базе данных!
+    print("РќРµ СѓРєР°Р·Р°РЅ РїСѓС‚СЊ Рє Р±Р°Р·Рµ РґР°РЅРЅС‹С…!")
     sys.exit(1)
 
 db_path = sys.argv[1]
 
 if not os.path.exists(db_path):
-    print(f"db file not found: {db_path}") #Файл базы не найден: {db_path}
+    print(f"Р¤Р°Р№Р» Р±Р°Р·С‹ РЅРµ РЅР°Р№РґРµРЅ: {db_path}")
     sys.exit(1)
 
-# подключаемся
+# РїРѕРґРєР»СЋС‡Р°РµРјСЃСЏ
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
-# пример: чтение всех автомобилей
+# РїСЂРёРјРµСЂ: С‡С‚РµРЅРёРµ РІСЃРµС… Р°РІС‚РѕРјРѕР±РёР»РµР№
 cursor.execute("SELECT * FROM cars")
 for row in cursor.fetchall():
     print(row)

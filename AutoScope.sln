@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36518.9 d17.14
+VisualStudioVersion = 17.14.36518.9
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csproj", "{F66EFD8A-49A2-40E0-B9C8-1C77D50F70E1}"
 EndProject
@@ -14,6 +14,24 @@ EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Utils", "Utils\Utils.pyproj", "{0DFDBDA4-ACF9-4EED-8A96-B5D0349B0691}"
 EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Core", "Core\Core.pyproj", "{EA9AE078-9C11-4E5D-B446-5CECC0718C75}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Configs", "Configs", "{36D591C7-65C7-A0D1-1CBC-10CDE441BDC8}"
+	ProjectSection(SolutionItems) = preProject
+		Configs\BaseDataBaseConfig.txt = Configs\BaseDataBaseConfig.txt
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Databases", "Databases", "{7ACE479F-96BF-40CB-B286-D0DA12D0DEF5}"
+	ProjectSection(SolutionItems) = preProject
+		Databases\base.db = Databases\base.db
+		Databases\test.db = Databases\test.db
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Элементы решения", "Элементы решения", "{754FC069-D67B-A9D7-50A1-8D1CA196D8F1}"
+	ProjectSection(SolutionItems) = preProject
+		README.txt = README.txt
+		requirements.lock.txt = requirements.lock.txt
+		requirements.txt = requirements.txt
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
