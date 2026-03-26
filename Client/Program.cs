@@ -7,14 +7,16 @@ Console.WriteLine("C# Клиент запущен");
 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
 string root = Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\..\"));
 
+// Выбор БД
+string selectedDb = Path.Combine(root, @"Databases\base.db");
+
 // Запуск питона
 string pythonPath = Path.Combine(root, @"AutoScopeVenv\Scripts\python.exe");
 string corePath = Path.Combine(root, @"Core\Core.py");
 
 ProcessStartInfo start = new ProcessStartInfo(); // ХЗ но догадываюсь
 start.FileName = pythonPath;
-start.Arguments = corePath;
+start.Arguments = $"\"{corePath}\" \"{selectedDb}\"";
 start.UseShellExecute = false; // ХЗ
 
 Process.Start(start); // ХЗ но догадываюсь
-// Проверка git 1
