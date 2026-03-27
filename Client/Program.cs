@@ -50,8 +50,6 @@ void selectDbForPythonCore()
     coreStart.FileName = PYTHON_PATH;
     coreStart.Arguments = $"\"{pythonCore}\" \"{selectedDb}\"";
     coreStart.UseShellExecute = false;
-    coreStart.RedirectStandardOutput = true;
-    coreStart.RedirectStandardError = true;
 
     using (var process = Process.Start(coreStart))
     {
@@ -113,16 +111,18 @@ void pythonUtils_dbCreate(string dbName)
 {
     string utilsPath = Path.Combine(root, @"Utils\Utils.py");
 
-    ProcessStartInfo start = new ProcessStartInfo();
-    start.FileName = PYTHON_PATH;
+    ProcessStartInfo startUtils_dbCreate = new ProcessStartInfo();
+    startUtils_dbCreate.FileName = PYTHON_PATH;
 
     // команда + аргумент
-    start.Arguments = $"\"{utilsPath}\" dbCreate {dbName}";
-    start.UseShellExecute = false;
-    start.RedirectStandardOutput = true;
-    start.RedirectStandardError = true;
+    startUtils_dbCreate.Arguments = $"\"{utilsPath}\" dbCreate {dbName}";
+    startUtils_dbCreate.UseShellExecute = false;
+    startUtils_dbCreate.RedirectStandardOutput = true;
+    startUtils_dbCreate.RedirectStandardError = true;
+    startUtils_dbCreate.StandardOutputEncoding = System.Text.Encoding.UTF8;
+    startUtils_dbCreate.StandardErrorEncoding = System.Text.Encoding.UTF8;
 
-    using (var process = Process.Start(start))
+    using (var process = Process.Start(startUtils_dbCreate))
     {
         string output = process.StandardOutput.ReadToEnd();
         string error = process.StandardError.ReadToEnd();

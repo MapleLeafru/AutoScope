@@ -1,7 +1,8 @@
-﻿# -*- coding: utf-8 -*-
-import sys
+﻿import sys
 import os
 import sqlite3
+
+sys.stdout.reconfigure(encoding='utf-8')
 
 CONFIG_FILE = r"AutoScope\Configs\BaseDataBaseConfig.txt"
 DB_FOLDER = r"AutoScope\Databases"
@@ -37,21 +38,6 @@ def parse_config(config_file=CONFIG_FILE):
 
 
 # ===================== DB COMMANDS =====================
-
-def db_list():
-    """Вывод списка баз данных"""
-    os.makedirs(DB_FOLDER, exist_ok=True)
-
-    dbs = [f for f in os.listdir(DB_FOLDER) if f.endswith(".db")]
-
-    if not dbs:
-        print("DB_LIST: пусто")
-        return
-
-    print("DB_LIST:")
-    for db in dbs:
-        print(db)
-
 
 def db_create(db_name):
     """Создание базы данных"""
@@ -111,7 +97,6 @@ def main():
         print("Использование:")
         print("  dbCreate <name>")
         print("  dbDelete <name>")
-        print("  dbList")
         return
 
     command = sys.argv[1]
@@ -127,9 +112,6 @@ def main():
             print("ERROR: укажите имя базы")
             return
         db_delete(sys.argv[2])
-
-    elif command == "dbList":
-        db_list()
 
     else:
         print(f"ERROR: неизвестная команда '{command}'")

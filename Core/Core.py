@@ -1,7 +1,8 @@
-﻿# -*- coding: utf-8 -*-
-import sys
+﻿import sys
 import sqlite3
 import os
+
+sys.stdout.reconfigure(encoding='utf-8')
 
 print("Python Core work")
 print("Python version:", sys.version)
