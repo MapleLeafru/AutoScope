@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 
 Console.WriteLine("C# Клиент запущен");
 
-// Корень проекта
-string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-string root = Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\..\"));
-string DB_FOLDER = Path.Combine(root, "Databases"); // Папка с базами
-string PYTHON_PATH = Path.Combine(root, @"AutoScopeVenv\Scripts\python.exe"); // python.exe
+Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+string ROOT_PATH = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\..\")); // Корень проекта
+string DB_PATH = Path.Combine(ROOT_PATH, "Databases"); // Папка с базами
+string CONFIGS_PATH = Path.Combine(ROOT_PATH, "Configs"); // Папка с конфигами
+string PYTHON_PATH = Path.Combine(ROOT_PATH, @"AutoScopeVenv\Scripts\python.exe"); // python.exe
 
 while (true)
 {
@@ -44,7 +46,7 @@ void selectDbForPythonCore()
     Console.WriteLine($"Выбрана база: {Path.GetFileName(selectedDb)}");
 
     // Далее можно запускать Core.py с этой базой
-    string pythonCore = Path.Combine(root, @"Core\Core.py");
+    string pythonCore = Path.Combine(ROOT_PATH, @"Core\Core.py");
 
     ProcessStartInfo coreStart = new ProcessStartInfo();
     coreStart.FileName = PYTHON_PATH;
@@ -109,18 +111,16 @@ void startPythonUtils()
 
 void pythonUtils_dbCreate(string dbName)
 {
-    string utilsPath = Path.Combine(root, @"Utils\Utils.py");
+    string utilsPath = Path.Combine(ROOT_PATH, @"Utils\Utils.py");
 
     ProcessStartInfo startUtils_dbCreate = new ProcessStartInfo();
     startUtils_dbCreate.FileName = PYTHON_PATH;
 
     // команда + аргумент
-    startUtils_dbCreate.Arguments = $"\"{utilsPath}\" dbCreate {dbName}";
+    startUtils_dbCreate.Arguments = $"\"{utilsPath}\" dbCreate {dbName} \"{CONFIGS_PATH}\" \"{DB_PATH}\"";
     startUtils_dbCreate.UseShellExecute = false;
     startUtils_dbCreate.RedirectStandardOutput = true;
     startUtils_dbCreate.RedirectStandardError = true;
-    startUtils_dbCreate.StandardOutputEncoding = System.Text.Encoding.UTF8;
-    startUtils_dbCreate.StandardErrorEncoding = System.Text.Encoding.UTF8;
 
     using (var process = Process.Start(startUtils_dbCreate))
     {
@@ -158,7 +158,7 @@ string databaseScanningAndSelection()
 
 string[] databaseScanning()
 {
-    string[] dbFiles = Directory.Exists(DB_FOLDER) ? Directory.GetFiles(DB_FOLDER, "*.db") : new string[0];
+    string[] dbFiles = Directory.Exists(DB_PATH) ? Directory.GetFiles(DB_PATH, "*.db") : new string[0];
     if (dbFiles.Length == 0)
     {
         Console.WriteLine("Нет доступных баз данных.");

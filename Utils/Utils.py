@@ -4,13 +4,12 @@ import sqlite3
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-CONFIG_FILE = r"AutoScope\Configs\BaseDataBaseConfig.txt"
-DB_FOLDER = r"AutoScope\Databases"
-
+BaseDataBaseConfig_PATH = sys.argv[3] + "\BaseDataBaseConfig.txt"
+DB_PATH = sys.argv[4]
 
 # ===================== CONFIG =====================
 
-def parse_config(config_file=CONFIG_FILE):
+def parse_config(config_file=BaseDataBaseConfig_PATH):
     """Читает конфигурацию таблиц"""
     tables = {}
     current_table = None
@@ -45,9 +44,9 @@ def db_create(db_name):
         print("ERROR: не указано имя базы")
         return
 
-    os.makedirs(DB_FOLDER, exist_ok=True)
+    os.makedirs(DB_PATH, exist_ok=True)
 
-    db_file = os.path.join(DB_FOLDER, f"{db_name}.db")
+    db_file = os.path.join(DB_PATH, f"{db_name}.db")
 
     # если уже существует — пересоздаём
     if os.path.exists(db_file):
@@ -79,7 +78,7 @@ def db_delete(db_name):
         print("ERROR: не указано имя базы")
         return
 
-    db_file = os.path.join(DB_FOLDER, f"{db_name}.db")
+    db_file = os.path.join(DB_PATH, f"{db_name}.db")
 
     if not os.path.exists(db_file):
         print(f"DB_DELETE: база {db_name}.db не найдена")
@@ -92,12 +91,6 @@ def db_delete(db_name):
 # ===================== COMMAND HANDLER =====================
 
 def main():
-    if len(sys.argv) < 2:
-        print("ERROR: не указана команда")
-        print("Использование:")
-        print("  dbCreate <name>")
-        print("  dbDelete <name>")
-        return
 
     command = sys.argv[1]
 
