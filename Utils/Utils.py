@@ -1,15 +1,17 @@
 ﻿import sys
 import os
 import sqlite3
+import json
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-BaseDataBaseConfig_PATH = sys.argv[3] + "\BaseDataBaseConfig.txt"
-DB_PATH = sys.argv[4]
+#BaseDataBaseConfig_PATH = sys.argv[3] + "\BaseDataBaseConfig.txt"
+#DB_PATH = sys.argv[4]
 
 # ===================== CONFIG =====================
 
-def parse_config(config_file=BaseDataBaseConfig_PATH):
+#def parse_config(config_file=BaseDataBaseConfig_PATH):
+def parse_config(config_file):
     """Читает конфигурацию таблиц"""
     tables = {}
     current_table = None
@@ -35,6 +37,15 @@ def parse_config(config_file=BaseDataBaseConfig_PATH):
 
     return tables
 
+# ===================== input json =====================
+
+def read_input_json():
+    try:
+        input_json_data = sys.stdin.read()
+        return json.loads(input_json_data)
+    except Exception as e:
+        print("JSON ERROR:", e)
+        return None
 
 # ===================== DB COMMANDS =====================
 
@@ -56,7 +67,7 @@ def db_create(db_name):
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
 
-    tables = parse_config()
+    tables = parse_config(BaseDataBaseConfig_PATH)
 
     if not tables:
         print("WARNING: конфиг пустой, база создана без таблиц")
@@ -91,20 +102,26 @@ def db_delete(db_name):
 # ===================== COMMAND HANDLER =====================
 
 def main():
+    global BaseDataBaseConfig_PATH
+    global DB_PATH 
 
-    command = sys.argv[1]
+    input_json_data = read_input_json()
+    if not input_json_data:
+        return
+    
+    BaseDataBaseConfig_PATH = input_json_data.get("configPath") + "\BaseDataBaseConfig.txt"
+    DB_PATH = input_json_data.get("dbPath") 
+
+    command = input_json_data.get("command")
+    db_name = input_json_data.get("db_name")
+
+    print("DEBUG JSON:", input_json_data)
 
     if command == "dbCreate":
-        if len(sys.argv) < 3:
-            print("ERROR: укажите имя базы")
-            return
-        db_create(sys.argv[2])
+        db_create(db_name)
 
     elif command == "dbDelete":
-        if len(sys.argv) < 3:
-            print("ERROR: укажите имя базы")
-            return
-        db_delete(sys.argv[2])
+        db_delete(db_name)
 
     else:
         print(f"ERROR: неизвестная команда '{command}'")

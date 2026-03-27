@@ -41,7 +41,7 @@ void modeSelection()
 void selectDbForPythonCore()
 {
     // Режим выбора существующей базы
-    string selectedDb = databaseScanningAndSelection();
+    string selectedDb = dataBaseScanningAndSelection();
 
     Console.WriteLine($"Выбрана база: {Path.GetFileName(selectedDb)}");
 
@@ -117,7 +117,7 @@ void pythonUtils_dbCreate(string dbName)
     startUtils_dbCreate.FileName = PYTHON_PATH;
 
     // Создаём json с параметрами перед запуском
-    /*var pythonUtils_dbCreate_request = new
+    var pythonUtils_dbCreate_request = new
     {
         command = "dbCreate",
         db_name = dbName,
@@ -125,17 +125,18 @@ void pythonUtils_dbCreate(string dbName)
         dbPath = DB_PATH
     }; 
     string pythonUtils_dbCreate_request_json = JsonSerializer.Serialize(pythonUtils_dbCreate_request);
-    startUtils_dbCreate.RedirectStandardInput = true; */
+    startUtils_dbCreate.RedirectStandardInput = true;
 
-    startUtils_dbCreate.Arguments = $"\"{utilsPath}\" dbCreate {dbName} \"{CONFIGS_PATH}\" \"{DB_PATH}\"";
+    //startUtils_dbCreate.Arguments = $"\"{utilsPath}\" dbCreate {dbName} \"{CONFIGS_PATH}\" \"{DB_PATH}\"";
+    startUtils_dbCreate.Arguments = $"\"{utilsPath}\"";
     startUtils_dbCreate.UseShellExecute = false;
     startUtils_dbCreate.RedirectStandardOutput = true;
     startUtils_dbCreate.RedirectStandardError = true;
 
     using (var process = Process.Start(startUtils_dbCreate))
     {
-        //process.StandardInput.WriteLine(pythonUtils_dbCreate_request_json);
-        //process.StandardInput.Close();
+        process.StandardInput.WriteLine(pythonUtils_dbCreate_request_json);
+        process.StandardInput.Close();
 
         string output = process.StandardOutput.ReadToEnd();
         string error = process.StandardError.ReadToEnd();
@@ -149,13 +150,13 @@ void pythonUtils_dbCreate(string dbName)
 
 void pythonUtils_dbDelete(string dbName)
 {
-    databaseScanning();
+    dataBaseScanning();
     Console.WriteLine("Тут пока ничего нет");
 }
 
-string databaseScanningAndSelection()
+string dataBaseScanningAndSelection()
 {
-    string[] dbFiles = databaseScanning();
+    string[] dbFiles = dataBaseScanning();
 
     int selectedIndex = -1;
     while (true)
@@ -169,7 +170,7 @@ string databaseScanningAndSelection()
     return dbFiles[selectedIndex];
 }
 
-string[] databaseScanning()
+string[] dataBaseScanning()
 {
     string[] dbFiles = Directory.Exists(DB_PATH) ? Directory.GetFiles(DB_PATH, "*.db") : new string[0];
     if (dbFiles.Length == 0)
