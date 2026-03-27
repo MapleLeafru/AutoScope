@@ -7,28 +7,15 @@ Console.WriteLine("C# Клиент запущен");
 // Корень проекта
 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
 string root = Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\..\"));
-
-// Папка с базами
-string dbFolder = Path.Combine(root, "Databases");
+string DB_FOLDER = Path.Combine(root, "Databases"); // Папка с базами
+string PYTHON_PATH = Path.Combine(root, @"AutoScopeVenv\Scripts\python.exe"); // python.exe
 
 while (true)
 {
     modeSelection();
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Дальше функции ###################################################################
 void modeSelection()
 {
     // Выбор режима
@@ -42,7 +29,7 @@ void modeSelection()
         Console.Write("Ваш выбор: ");
         if (int.TryParse(Console.ReadLine(), out mode) && (mode == 1 || mode == 2))
             break;
-        Console.WriteLine("Некорректный ввод. Введите 1 или 2.");
+        Console.WriteLine("Некорректный ввод.");
     }
 
     if (mode == 1) { selectDbForPythonCore(); }
@@ -52,37 +39,15 @@ void modeSelection()
 void selectDbForPythonCore()
 {
     // Режим выбора существующей базы
-    string[] dbFiles = Directory.Exists(dbFolder) ? Directory.GetFiles(dbFolder, "*.db") : new string[0];
-    if (dbFiles.Length == 0)
-    {
-        Console.WriteLine("Нет доступных баз данных.");
-        throw new Exception("Нет доступных баз данных.");
-    }
-
-    Console.WriteLine("Выберите базу данных:");
-    for (int i = 0; i < dbFiles.Length; i++)
-        Console.WriteLine($"{i}: {Path.GetFileName(dbFiles[i])}");
-
-    int selectedIndex = -1;
-    while (true)
-    {
-        Console.Write("Введите номер базы: ");
-        string input = Console.ReadLine();
-        if (int.TryParse(input, out selectedIndex) && selectedIndex >= 0 && selectedIndex < dbFiles.Length)
-            break;
-        Console.WriteLine("Некорректный ввод. Попробуйте снова.");
-    }
-
-    string selectedDb = dbFiles[selectedIndex];
+    string selectedDb = databaseScanningAndSelection();
 
     Console.WriteLine($"Выбрана база: {Path.GetFileName(selectedDb)}");
 
     // Далее можно запускать Core.py с этой базой
     string pythonCore = Path.Combine(root, @"Core\Core.py");
-    string pythonExe = Path.Combine(root, @"AutoScopeVenv\Scripts\python.exe");
 
     ProcessStartInfo coreStart = new ProcessStartInfo();
-    coreStart.FileName = pythonExe;
+    coreStart.FileName = PYTHON_PATH;
     coreStart.Arguments = $"\"{pythonCore}\" \"{selectedDb}\"";
     coreStart.UseShellExecute = false;
     coreStart.RedirectStandardOutput = true;
@@ -103,13 +68,56 @@ void selectDbForPythonCore()
 
 void startPythonUtils()
 {
-    // Запускаем Python Utils.py для создания базы
-    string pythonPath = Path.Combine(root, @"AutoScopeVenv\Scripts\python.exe");
+    // Выбор инструмента
+    Console.WriteLine("Выберите инструмент:");
+    Console.WriteLine("1 - Создать новую базу данных");
+    Console.WriteLine("2 - Удалить базу данных");
+
+    int mode = 0;
+    while (true)
+    {
+        Console.Write("Ваш выбор: ");
+        if (int.TryParse(Console.ReadLine(), out mode) && (mode == 1 || mode == 2))
+            break;
+        Console.WriteLine("Некорректный ввод.");
+    }
+
+    string dbName = "";
+    if (mode == 1) {
+        while (true)
+        {
+            Console.WriteLine("Введите название новой базы данных:");
+            dbName = Console.ReadLine();
+            if (dbName != "")
+            {
+                while (true)
+                {
+                    Console.WriteLine($"Подтвердите создание базы данных с названием <{dbName}> y/n:");
+                    string ansver = Console.ReadLine().ToUpper();
+                    if (ansver == "Y") { pythonUtils_dbCreate(dbName); return; }
+                    else if (ansver == "N") { dbName = ""; return; }
+                    Console.WriteLine("Некорректный ввод. Попробуйте снова.");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Введено пустое поле. Желаете продолжить создание базы данных? y/n:");
+                if (Console.ReadLine().ToUpper() != "Y") return;
+            }
+        }
+    }
+    else if (mode == 2) { pythonUtils_dbDelete(dbName); }
+}
+
+void pythonUtils_dbCreate(string dbName)
+{
     string utilsPath = Path.Combine(root, @"Utils\Utils.py");
 
     ProcessStartInfo start = new ProcessStartInfo();
-    start.FileName = pythonPath;
-    start.Arguments = $"\"{utilsPath}\"";
+    start.FileName = PYTHON_PATH;
+
+    // команда + аргумент
+    start.Arguments = $"\"{utilsPath}\" dbCreate {dbName}";
     start.UseShellExecute = false;
     start.RedirectStandardOutput = true;
     start.RedirectStandardError = true;
@@ -124,5 +132,42 @@ void startPythonUtils()
         if (!string.IsNullOrEmpty(error))
             Console.WriteLine("Errors:\n" + error);
     }
-    return;
+}
+
+void pythonUtils_dbDelete(string dbName)
+{
+    databaseScanning();
+    Console.WriteLine("Тут пока ничего нет");
+}
+
+string databaseScanningAndSelection()
+{
+    string[] dbFiles = databaseScanning();
+
+    int selectedIndex = -1;
+    while (true)
+    {
+        Console.Write("Введите номер выбранной базы: ");
+        string input = Console.ReadLine();
+        if (int.TryParse(input, out selectedIndex) && selectedIndex >= 0 && selectedIndex < dbFiles.Length)
+            break;
+        Console.WriteLine("Некорректный ввод. Попробуйте снова.");
+    }
+    return dbFiles[selectedIndex];
+}
+
+string[] databaseScanning()
+{
+    string[] dbFiles = Directory.Exists(DB_FOLDER) ? Directory.GetFiles(DB_FOLDER, "*.db") : new string[0];
+    if (dbFiles.Length == 0)
+    {
+        Console.WriteLine("Нет доступных баз данных.");
+        throw new Exception("Нет доступных баз данных.");
+    }
+
+    Console.WriteLine("Найденые базы данных:");
+    for (int i = 0; i < dbFiles.Length; i++)
+        Console.WriteLine($"{i}: {Path.GetFileName(dbFiles[i])}");
+
+    return dbFiles;
 }
