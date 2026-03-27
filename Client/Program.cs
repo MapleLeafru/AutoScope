@@ -116,7 +116,17 @@ void pythonUtils_dbCreate(string dbName)
     ProcessStartInfo startUtils_dbCreate = new ProcessStartInfo();
     startUtils_dbCreate.FileName = PYTHON_PATH;
 
-    // команда + аргумент
+    // Создаём json с параметрами перед запуском
+    /*var pythonUtils_dbCreate_request = new
+    {
+        command = "dbCreate",
+        db_name = dbName,
+        configPath = CONFIGS_PATH,
+        dbPath = DB_PATH
+    }; 
+    string pythonUtils_dbCreate_request_json = JsonSerializer.Serialize(pythonUtils_dbCreate_request);
+    startUtils_dbCreate.RedirectStandardInput = true; */
+
     startUtils_dbCreate.Arguments = $"\"{utilsPath}\" dbCreate {dbName} \"{CONFIGS_PATH}\" \"{DB_PATH}\"";
     startUtils_dbCreate.UseShellExecute = false;
     startUtils_dbCreate.RedirectStandardOutput = true;
@@ -124,6 +134,9 @@ void pythonUtils_dbCreate(string dbName)
 
     using (var process = Process.Start(startUtils_dbCreate))
     {
+        //process.StandardInput.WriteLine(pythonUtils_dbCreate_request_json);
+        //process.StandardInput.Close();
+
         string output = process.StandardOutput.ReadToEnd();
         string error = process.StandardError.ReadToEnd();
         process.WaitForExit();
