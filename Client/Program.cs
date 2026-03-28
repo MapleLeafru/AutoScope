@@ -31,8 +31,7 @@ void menuModeSelection()
     while (true)
     {
         Console.Write("Ваш выбор: ");
-        if (int.TryParse(Console.ReadLine(), out mode) && mode >= min && mode <= max)
-            break;
+        if (int.TryParse(Console.ReadLine(), out mode) && mode >= min && mode <= max) { Console.WriteLine(); break; }
 
         Console.WriteLine("Некорректный ввод.");
     }
@@ -73,23 +72,23 @@ void menuPythonUtils()
 {
     // Выбор инструмента
     Console.WriteLine("Выберите инструмент:");
-    //Console.WriteLine("0 - Вернуться назад");
+    Console.WriteLine("0 - Вернуться назад");
     Console.WriteLine("1 - Создать новую базу данных");
     Console.WriteLine("2 - Удалить базу данных");
 
     int mode = 0;
-    int min = 1;
+    int min = 0;
     int max = 2;
     while (true)
     {
         Console.Write("Ваш выбор: ");
-        if (int.TryParse(Console.ReadLine(), out mode) && mode >= min && mode <= max)
-            break;
+        if (int.TryParse(Console.ReadLine(), out mode) && mode >= min && mode <= max) { Console.WriteLine(); break; }
 
         Console.WriteLine("Некорректный ввод.");
     }
 
-    if (mode == 1) { preparationPythonUtils_dbCreate();  }
+    if (mode == 0) { return; }
+    else if (mode == 1) { preparationPythonUtils_dbCreate(); }
     else if (mode == 2) { preparationPythonUtils_dbDelete(); }
 }
 
@@ -110,6 +109,7 @@ void preparationPythonUtils_dbCreate()
                 string ansver = Console.ReadLine().ToUpper();
                 if (ansver == "Y") { startPythonUtils_dbCreate(dbName); return; }
                 else if (ansver == "N") { dbName = ""; return; }
+
                 Console.WriteLine("Некорректный ввод. Попробуйте снова.");
             }
         }
