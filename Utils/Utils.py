@@ -15,11 +15,16 @@ DB_NAME = "dev_test_ifyouseeitprogrammbug"
 try:
     input_json_data = sys.stdin.read()
     input_json_data = json.loads(input_json_data)
-    # print("DEBUG JSON:", input_json_data)
+    # print("DEBUG JSON:", input_json_data)                                                                                 # debag
 except Exception as e:
     print("JSON ERROR:", e)
+    input_json_data = {}
 
-BaseDataBaseConfig_PATH = input_json_data.get("configPath") + "\BaseDataBaseConfig.txt"
+BaseDataBaseConfig_PATH = os.path.join(
+    input_json_data.get("configPath", ""),
+    "BaseDataBaseConfig.json"
+)
+
 DB_PATH = input_json_data.get("dbPath") 
 COMMAND = input_json_data.get("command")
 DB_NAME = input_json_data.get("db_name")
@@ -27,30 +32,74 @@ DB_NAME = input_json_data.get("db_name")
 # ===================== CONFIG =====================
 
 def parse_config(config_file=BaseDataBaseConfig_PATH):
-    """Читает конфигурацию таблиц"""
-    tables = {}
-    current_table = None
-
+    """Читает JSON конфигурацию таблиц"""
+    
     if not os.path.exists(config_file):
         print(f"CONFIG ERROR: файл не найден: {config_file}")
-        return tables
+        return {}
 
-    with open(config_file, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
+    try:
+        with open(config_file, encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"CONFIG ERROR: ошибка JSON: {e}")
+        return {}
 
-            if not line or line.startswith("#"):
-                continue
 
-            if line.startswith("[") and line.endswith("]"):
-                current_table = line[1:-1]
-                tables[current_table] = {}
+# ===================== SQL BUILDER =====================
 
-            elif "=" in line and current_table:
-                key, value = map(str.strip, line.split("=", 1))
-                tables[current_table][key] = value
+def build_column_sql(name, params):
+    """Создаёт SQL для одного столбца"""
+    col = [name, params.get("type", "TEXT")]
 
-    return tables
+    if params.get("primary_key"):
+        col.append("PRIMARY KEY")
+
+    if params.get("autoincrement"):
+        col.append("AUTOINCREMENT")
+
+    if params.get("not_null"):
+        col.append("NOT NULL")
+
+    if params.get("unique"):
+        col.append("UNIQUE")
+
+    # --- DEFAULT ---
+    if "default" in params:
+        default = params["default"]
+
+        if default is None:
+            col.append("DEFAULT NULL")
+
+        elif isinstance(default, str):
+            upper = default.upper()
+
+            # спец значения SQLite
+            if upper in ["CURRENT_TIMESTAMP", "TRUE", "FALSE"]:
+                col.append(f"DEFAULT {upper}")
+            else:
+                col.append(f"DEFAULT '{default}'")
+
+        else:
+            col.append(f"DEFAULT {default}")
+
+    # --- CHECK ---
+    if "check" in params:
+        col.append(f"CHECK({params['check']})")
+
+    return " ".join(col)
+
+
+def generate_create_table_sql(table_name, columns):
+    """Генерирует CREATE TABLE"""
+    parts = []
+
+    for col_name, params in columns.items():
+        parts.append(build_column_sql(col_name, params))
+
+    columns_sql = ",\n  ".join(parts)
+
+    return f"CREATE TABLE IF NOT EXISTS {table_name} (\n  {columns_sql}\n);"
 
 
 # ===================== DB COMMANDS =====================
@@ -73,14 +122,14 @@ def db_create(db_name):
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
 
-    tables = parse_config(BaseDataBaseConfig_PATH)
+    config = parse_config()
 
-    if not tables:
+    if not config:
         print("WARNING: конфиг пустой, база создана без таблиц")
     else:
-        for table, fields in tables.items():
-            field_defs = ", ".join([f"{k} {v}" for k, v in fields.items()])
-            sql = f"CREATE TABLE IF NOT EXISTS {table} ({field_defs});"
+        for table_name, columns in config.items():
+            sql = generate_create_table_sql(table_name, columns)
+            # print(f"\n[SQL]\n{sql}")  # удобно для дебага                                                                                 # debag
             cursor.execute(sql)
 
     conn.commit()

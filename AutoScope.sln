@@ -17,7 +17,7 @@ Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Core", "Core\Core.pyproj", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Configs", "Configs", "{36D591C7-65C7-A0D1-1CBC-10CDE441BDC8}"
 	ProjectSection(SolutionItems) = preProject
-		Configs\BaseDataBaseConfig.txt = Configs\BaseDataBaseConfig.txt
+		Configs\BaseDataBaseConfig.json = Configs\BaseDataBaseConfig.json
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Databases", "Databases", "{7ACE479F-96BF-40CB-B286-D0DA12D0DEF5}"
