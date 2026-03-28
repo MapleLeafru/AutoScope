@@ -5,27 +5,19 @@ import json
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-#BaseDataBaseConfig_PATH = sys.argv[3] + "\BaseDataBaseConfig.txt"
-#DB_PATH = sys.argv[4]
-
 # ===================== input json =====================
 
 BaseDataBaseConfig_PATH = None
 DB_PATH = None
-COMMAND = None
-DB_NAME = None
+COMMAND = "dev_command"
+DB_NAME = "dev_test_ifyouseeitprogrammbug"
 
-def read_input_json():
-    try:
-        input_json_data = sys.stdin.read()
-        input_json_data = json.loads(input_json_data)
-        print("DEBUG JSON:", input_json_data)
-        return input_json_data
-    except Exception as e:
-        print("JSON ERROR:", e)
-        return None
-
-input_json_data = read_input_json()
+try:
+    input_json_data = sys.stdin.read()
+    input_json_data = json.loads(input_json_data)
+    # print("DEBUG JSON:", input_json_data)
+except Exception as e:
+    print("JSON ERROR:", e)
 
 BaseDataBaseConfig_PATH = input_json_data.get("configPath") + "\BaseDataBaseConfig.txt"
 DB_PATH = input_json_data.get("dbPath") 
