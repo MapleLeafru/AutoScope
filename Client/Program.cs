@@ -14,11 +14,11 @@ string PYTHON_PATH = Path.Combine(ROOT_PATH, @"AutoScopeVenv\Scripts\python.exe"
 
 while (true)
 {
-    modeSelection();
+    menuModeSelection();
 }
 
 // Дальше функции ###################################################################
-void modeSelection()
+void menuModeSelection()
 {
     // Выбор режима
     Console.WriteLine("Выберите режим:");
@@ -26,16 +26,19 @@ void modeSelection()
     Console.WriteLine("2 - Открыть инструменты");
 
     int mode = 0;
+    int min = 1;
+    int max = 2;
     while (true)
     {
         Console.Write("Ваш выбор: ");
-        if (int.TryParse(Console.ReadLine(), out mode) && (mode == 1 || mode == 2))
+        if (int.TryParse(Console.ReadLine(), out mode) && mode >= min && mode <= max)
             break;
+
         Console.WriteLine("Некорректный ввод.");
     }
 
     if (mode == 1) { selectDbForPythonCore(); }
-    else if (mode == 2) { startPythonUtils(); }
+    else if (mode == 2) { menuPythonUtils(); }
 }
 
 void selectDbForPythonCore()
@@ -66,52 +69,59 @@ void selectDbForPythonCore()
     return;
 }
 
-void startPythonUtils()
+void menuPythonUtils()
 {
     // Выбор инструмента
     Console.WriteLine("Выберите инструмент:");
+    //Console.WriteLine("0 - Вернуться назад");
     Console.WriteLine("1 - Создать новую базу данных");
     Console.WriteLine("2 - Удалить базу данных");
 
     int mode = 0;
+    int min = 1;
+    int max = 2;
     while (true)
     {
         Console.Write("Ваш выбор: ");
-        if (int.TryParse(Console.ReadLine(), out mode) && (mode == 1 || mode == 2))
+        if (int.TryParse(Console.ReadLine(), out mode) && mode >= min && mode <= max)
             break;
+
         Console.WriteLine("Некорректный ввод.");
     }
 
-    string dbName = "";
-    if (mode == 1) {
-        while (true)
-        {
-            Console.WriteLine("Введите название новой базы данных:");
-            dbName = Console.ReadLine();
-            if (dbName != "")
-            {
-                while (true)
-                {
-                    string[] existingDatabases = dataBaseScanning(consoleOutput: false, returnOnlyFileNames: true);
-                    if (existingDatabases.Contains(dbName + ".db")) Console.WriteLine($"База данных с названием <{dbName}> уже существует, пересоздать? y/n:");
-                    else Console.WriteLine($"Подтвердите создание базы данных с названием <{dbName}> y/n:");
-                    string ansver = Console.ReadLine().ToUpper();
-                    if (ansver == "Y") { pythonUtils_dbCreate(dbName); return; }
-                    else if (ansver == "N") { dbName = ""; return; }
-                    Console.WriteLine("Некорректный ввод. Попробуйте снова.");
-                }
-            }
-            else
-            {
-                Console.WriteLine("Введено пустое поле. Желаете продолжить создание базы данных? y/n:");
-                if (Console.ReadLine().ToUpper() != "Y") return;
-            }
-        }
-    }
-    else if (mode == 2) { pythonUtils_dbDelete(dbName); }
+    if (mode == 1) { preparationPythonUtils_dbCreate();  }
+    else if (mode == 2) { preparationPythonUtils_dbDelete(); }
 }
 
-void pythonUtils_dbCreate(string dbName)
+void preparationPythonUtils_dbCreate()
+{
+    string dbName = "";
+    while (true)
+    {
+        Console.WriteLine("Введите название новой базы данных:");
+        dbName = Console.ReadLine();
+        if (dbName != "")
+        {
+            while (true)
+            {
+                string[] existingDatabases = dataBaseScanning(consoleOutput: false, returnOnlyFileNames: true);
+                if (existingDatabases.Contains(dbName + ".db")) { Console.WriteLine($"База данных с названием <{dbName}> уже существует, пересоздать? y/n:"); }
+                else { Console.WriteLine($"Подтвердите создание базы данных с названием <{dbName}> y/n:"); }
+                string ansver = Console.ReadLine().ToUpper();
+                if (ansver == "Y") { startPythonUtils_dbCreate(dbName); return; }
+                else if (ansver == "N") { dbName = ""; return; }
+                Console.WriteLine("Некорректный ввод. Попробуйте снова.");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Введено пустое поле. Желаете продолжить создание базы данных? y/n:");
+            if (Console.ReadLine().ToUpper() != "Y") { return; }
+        }
+    }
+}
+
+    void startPythonUtils_dbCreate(string dbName)
 {
     string utilsPath = Path.Combine(ROOT_PATH, @"Utils\Utils.py");
 
@@ -150,8 +160,9 @@ void pythonUtils_dbCreate(string dbName)
     }
 }
 
-void pythonUtils_dbDelete(string dbName)
+void preparationPythonUtils_dbDelete()
 {
+    string dbName = "";
     dataBaseScanning();
     Console.WriteLine("Тут пока ничего нет");
 }
@@ -172,7 +183,7 @@ string dataBaseScanningAndSelection()
     return dbFiles[selectedIndex];
 }
 
-string[] dataBaseScanning(bool consoleOutput = true, bool returnOnlyFileNames = false) // Возвращает массив путей до бд
+string[] dataBaseScanning(bool consoleOutput = true, bool returnOnlyFileNames = false) // Возвращает массив путей до базы данных
 {
     string[] dbFiles = Directory.Exists(DB_PATH) ? Directory.GetFiles(DB_PATH, "*.db") : new string[0]; // Если  Directory.Exists(DB_PATH) Существует, то Directory.GetFiles(DB_PATH, "*.db"), а если нет, то new string[0]
     if (dbFiles.Length == 0)
