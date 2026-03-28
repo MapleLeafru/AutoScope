@@ -8,10 +8,33 @@ sys.stdout.reconfigure(encoding='utf-8')
 #BaseDataBaseConfig_PATH = sys.argv[3] + "\BaseDataBaseConfig.txt"
 #DB_PATH = sys.argv[4]
 
+# ===================== input json =====================
+
+BaseDataBaseConfig_PATH = None
+DB_PATH = None
+COMMAND = None
+DB_NAME = None
+
+def read_input_json():
+    try:
+        input_json_data = sys.stdin.read()
+        input_json_data = json.loads(input_json_data)
+        print("DEBUG JSON:", input_json_data)
+        return input_json_data
+    except Exception as e:
+        print("JSON ERROR:", e)
+        return None
+
+input_json_data = read_input_json()
+
+BaseDataBaseConfig_PATH = input_json_data.get("configPath") + "\BaseDataBaseConfig.txt"
+DB_PATH = input_json_data.get("dbPath") 
+COMMAND = input_json_data.get("command")
+DB_NAME = input_json_data.get("db_name")
+
 # ===================== CONFIG =====================
 
-#def parse_config(config_file=BaseDataBaseConfig_PATH):
-def parse_config(config_file):
+def parse_config(config_file=BaseDataBaseConfig_PATH):
     """Читает конфигурацию таблиц"""
     tables = {}
     current_table = None
@@ -37,15 +60,6 @@ def parse_config(config_file):
 
     return tables
 
-# ===================== input json =====================
-
-def read_input_json():
-    try:
-        input_json_data = sys.stdin.read()
-        return json.loads(input_json_data)
-    except Exception as e:
-        print("JSON ERROR:", e)
-        return None
 
 # ===================== DB COMMANDS =====================
 
@@ -102,29 +116,15 @@ def db_delete(db_name):
 # ===================== COMMAND HANDLER =====================
 
 def main():
-    global BaseDataBaseConfig_PATH
-    global DB_PATH 
 
-    input_json_data = read_input_json()
-    if not input_json_data:
-        return
-    
-    BaseDataBaseConfig_PATH = input_json_data.get("configPath") + "\BaseDataBaseConfig.txt"
-    DB_PATH = input_json_data.get("dbPath") 
+    if COMMAND == "dbCreate":
+        db_create(DB_NAME)
 
-    command = input_json_data.get("command")
-    db_name = input_json_data.get("db_name")
-
-    print("DEBUG JSON:", input_json_data)
-
-    if command == "dbCreate":
-        db_create(db_name)
-
-    elif command == "dbDelete":
-        db_delete(db_name)
+    elif COMMAND == "dbDelete":
+        db_delete(DB_NAME)
 
     else:
-        print(f"ERROR: неизвестная команда '{command}'")
+        print(f"ERROR: неизвестная команда '{COMMAND}'")
 
 
 # ===================== ENTRY =====================

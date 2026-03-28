@@ -92,7 +92,9 @@ void startPythonUtils()
             {
                 while (true)
                 {
-                    Console.WriteLine($"Подтвердите создание базы данных с названием <{dbName}> y/n:");
+                    string[] existingDatabases = dataBaseScanning(consoleOutput: false, returnOnlyFileNames: true);
+                    if (existingDatabases.Contains(dbName + ".db")) Console.WriteLine($"База данных с названием <{dbName}> уже существует, пересоздать? y/n:");
+                    else Console.WriteLine($"Подтвердите создание базы данных с названием <{dbName}> y/n:");
                     string ansver = Console.ReadLine().ToUpper();
                     if (ansver == "Y") { pythonUtils_dbCreate(dbName); return; }
                     else if (ansver == "N") { dbName = ""; return; }
@@ -170,18 +172,29 @@ string dataBaseScanningAndSelection()
     return dbFiles[selectedIndex];
 }
 
-string[] dataBaseScanning()
+string[] dataBaseScanning(bool consoleOutput = true, bool returnOnlyFileNames = false) // Возвращает массив путей до бд
 {
-    string[] dbFiles = Directory.Exists(DB_PATH) ? Directory.GetFiles(DB_PATH, "*.db") : new string[0];
+    string[] dbFiles = Directory.Exists(DB_PATH) ? Directory.GetFiles(DB_PATH, "*.db") : new string[0]; // Если  Directory.Exists(DB_PATH) Существует, то Directory.GetFiles(DB_PATH, "*.db"), а если нет, то new string[0]
     if (dbFiles.Length == 0)
     {
-        Console.WriteLine("Нет доступных баз данных.");
+        if (consoleOutput) Console.WriteLine("Нет доступных баз данных.");
         throw new Exception("Нет доступных баз данных.");
     }
 
-    Console.WriteLine("Найденые базы данных:");
-    for (int i = 0; i < dbFiles.Length; i++)
-        Console.WriteLine($"{i}: {Path.GetFileName(dbFiles[i])}");
+    if (consoleOutput)
+    {
+        Console.WriteLine("Найденые базы данных:");
+        for (int i = 0; i < dbFiles.Length; i++)
+            Console.WriteLine($"{i}: {Path.GetFileName(dbFiles[i])}");
+    }
+
+    if (returnOnlyFileNames)
+    {
+        string[] dbFilesNames = new string[dbFiles.Length];
+        for (int i = 0; i < dbFiles.Length; i++)
+            dbFilesNames[i] = Path.GetFileName(dbFiles[i]);
+        return dbFilesNames;
+    }
 
     return dbFiles;
 }
