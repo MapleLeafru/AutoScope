@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Xml.Linq;
 
 Console.WriteLine("C# Клиент запущен");
 
@@ -83,7 +84,6 @@ void menuPythonUtils()
     {
         Console.Write("Ваш выбор: ");
         if (int.TryParse(Console.ReadLine(), out mode) && mode >= min && mode <= max) { Console.WriteLine(); break; }
-
         Console.WriteLine("Некорректный ввод.");
     }
 
@@ -121,7 +121,7 @@ void preparationPythonUtils_dbCreate()
     }
 }
 
-    void startPythonUtils_dbCreate(string dbName)
+void startPythonUtils_dbCreate(string dbName)
 {
     string utilsPath = Path.Combine(ROOT_PATH, @"Utils\Utils.py");
 
@@ -139,7 +139,6 @@ void preparationPythonUtils_dbCreate()
     string pythonUtils_dbCreate_request_json = JsonSerializer.Serialize(pythonUtils_dbCreate_request);
     startUtils_dbCreate.RedirectStandardInput = true;
 
-    //startUtils_dbCreate.Arguments = $"\"{utilsPath}\" dbCreate {dbName} \"{CONFIGS_PATH}\" \"{DB_PATH}\"";
     startUtils_dbCreate.Arguments = $"\"{utilsPath}\"";
     startUtils_dbCreate.UseShellExecute = false;
     startUtils_dbCreate.RedirectStandardOutput = true;
@@ -162,9 +161,67 @@ void preparationPythonUtils_dbCreate()
 
 void preparationPythonUtils_dbDelete()
 {
-    string dbName = "";
-    dataBaseScanning();
-    Console.WriteLine("Тут пока ничего нет");
+    string dataBasePathToDelete = "";
+    Console.WriteLine("Выберите номер базы данных для удаления:");
+    string[] existingDatabases = dataBaseScanning();
+
+    int dataBaseNumberToDelete = 0;
+    int min = 0;
+    int max = existingDatabases.Length - 1;
+    while (true)
+    {
+        Console.Write("Ваш выбор: ");
+        if (int.TryParse(Console.ReadLine(), out dataBaseNumberToDelete) && dataBaseNumberToDelete >= min && dataBaseNumberToDelete <= max) { Console.WriteLine(); break; }
+        Console.WriteLine("Некорректный ввод.");
+    }
+    // Добавить удаление на 0
+    dataBasePathToDelete = Path.GetFileName(existingDatabases[dataBaseNumberToDelete]);
+    while (true)
+    {
+        Console.WriteLine($"Вы уверены что хотите удалить базу данных {Path.GetFileName(dataBasePathToDelete)}? Это действие не обратимо y/n:");
+        string ansver = Console.ReadLine().ToUpper();
+        if (ansver == "Y") { startPythonUtils_dbDelete(dataBasePathToDelete); return; }
+        else if (ansver == "N") { return; }
+        Console.WriteLine("Некорректный ввод.");
+    }
+}
+
+void startPythonUtils_dbDelete(string dbName)
+{
+    string utilsPath = Path.Combine(ROOT_PATH, @"Utils\Utils.py");
+
+    ProcessStartInfo startUtils_dbCreate = new ProcessStartInfo();
+    startUtils_dbCreate.FileName = PYTHON_PATH;
+
+    // Создаём json с параметрами перед запуском
+    var pythonUtils_dbCreate_request = new
+    {
+        command = "dbDelete",
+        db_name = dbName,
+        configPath = CONFIGS_PATH,
+        dbPath = DB_PATH
+    };
+    string pythonUtils_dbCreate_request_json = JsonSerializer.Serialize(pythonUtils_dbCreate_request);
+    startUtils_dbCreate.RedirectStandardInput = true;
+
+    startUtils_dbCreate.Arguments = $"\"{utilsPath}\"";
+    startUtils_dbCreate.UseShellExecute = false;
+    startUtils_dbCreate.RedirectStandardOutput = true;
+    startUtils_dbCreate.RedirectStandardError = true;
+
+    using (var process = Process.Start(startUtils_dbCreate))
+    {
+        process.StandardInput.WriteLine(pythonUtils_dbCreate_request_json);
+        process.StandardInput.Close();
+
+        string output = process.StandardOutput.ReadToEnd();
+        string error = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+
+        Console.WriteLine(output);
+        if (!string.IsNullOrEmpty(error))
+            Console.WriteLine("Errors:\n" + error);
+    }
 }
 
 string dataBaseScanningAndSelection()
