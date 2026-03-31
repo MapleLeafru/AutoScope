@@ -4,7 +4,8 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>97d42bb0-b991-4b76-ae58-3fc9990585dc</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>Parsers.py</StartupFile>
+    <StartupFile>
+    </StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,7 +23,8 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Parsers.py" />
+    <Compile Include="BaseDromParser.py" />
+    <Compile Include="BaseAutoRuParser.py" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="..\AutoScopeVenv\">
