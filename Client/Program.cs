@@ -4,6 +4,9 @@ using System.IO;
 using System.Text.Json;
 using System.Xml.Linq;
 
+// Ошибка NETSDK1004 файл ресурсов "...\obj\project.assets.json" не найден. Восстановите пакет NuGet, чтобы создать его.
+// dotnet restore
+
 Console.WriteLine("C# Клиент запущен");
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -30,7 +33,7 @@ void menuModeSelection()
     int max = 2;
     while (true)
     {
-        Console.Write("Ваш выбор: ");
+        Console.Write("Номер выбранного режима: ");
         if (int.TryParse(Console.ReadLine(), out mode) && mode >= min && mode <= max) { Console.WriteLine(); break; }
 
         Console.WriteLine("Некорректный ввод.");
@@ -81,7 +84,7 @@ void menuPythonUtils()
     int max = 2;
     while (true)
     {
-        Console.Write("Ваш выбор: ");
+        Console.Write("Номер выбранного интсрумента: ");
         if (int.TryParse(Console.ReadLine(), out mode) && mode >= min && mode <= max) { Console.WriteLine(); break; }
         Console.WriteLine("Некорректный ввод.");
     }
@@ -96,15 +99,15 @@ void preparationPythonUtils_dbCreate()
     string dataBaseNameToCreate = "";
     while (true)
     {
-        Console.WriteLine("Введите название новой базы данных:");
+        Console.Write("Введите название новой базы данных: ");
         dataBaseNameToCreate = Console.ReadLine();
         if (dataBaseNameToCreate != "")
         {
             while (true)
             {
                 string[] existingDatabases = dataBaseScanning(consoleOutput: false, returnOnlyFileNames: true);
-                if (existingDatabases.Contains(dataBaseNameToCreate + ".db")) { Console.WriteLine($"База данных с названием <{dataBaseNameToCreate}> уже существует, пересоздать? y/n:"); }
-                else { Console.WriteLine($"Подтвердите создание базы данных с названием <{dataBaseNameToCreate}> y/n:"); }
+                if (existingDatabases.Contains(dataBaseNameToCreate + ".db")) { Console.Write($"База данных с названием <{dataBaseNameToCreate}> уже существует, пересоздать? y/n: "); }
+                else { Console.Write($"Подтвердите создание базы данных с названием <{dataBaseNameToCreate}> y/n: "); }
                 string ansver = Console.ReadLine().ToUpper();
                 if (ansver == "Y") { startPythonUtils(dataBaseName: dataBaseNameToCreate, isThereExtension_db:false, commandToRun: "dbCreate"); return; }
                 else if (ansver == "N") { dataBaseNameToCreate = ""; return; }
@@ -114,7 +117,7 @@ void preparationPythonUtils_dbCreate()
         }
         else
         {
-            Console.WriteLine("Введено пустое поле. Желаете продолжить создание базы данных? y/n:");
+            Console.Write("Введено пустое поле. Желаете продолжить создание базы данных? y/n: ");
             if (Console.ReadLine().ToUpper() != "Y") { return; }
         }
     }
@@ -123,7 +126,7 @@ void preparationPythonUtils_dbCreate()
 void preparationPythonUtils_dbDelete()
 {
     string dataBaseNameToDelete = "";
-    Console.WriteLine("Выберите номер базы данных для удаления:");
+    Console.Write("Выберите номер базы данных для удаления: ");
     string[] existingDatabases = dataBaseScanning();
 
     int dataBaseNumberToDelete = 0;
@@ -131,7 +134,7 @@ void preparationPythonUtils_dbDelete()
     int max = existingDatabases.Length - 1;
     while (true)
     {
-        Console.Write("Ваш выбор: ");
+        Console.Write("Номер выбранной базы данных для удаления: ");
         if (int.TryParse(Console.ReadLine(), out dataBaseNumberToDelete) && dataBaseNumberToDelete >= min && dataBaseNumberToDelete <= max) { Console.WriteLine(); break; }
         Console.WriteLine("Некорректный ввод.");
     }
@@ -139,7 +142,7 @@ void preparationPythonUtils_dbDelete()
     dataBaseNameToDelete = Path.GetFileName(existingDatabases[dataBaseNumberToDelete]);
     while (true)
     {
-        Console.WriteLine($"Вы уверены что хотите удалить базу данных {dataBaseNameToDelete}? Это действие не обратимо y/n:");
+        Console.Write($"Вы уверены что хотите удалить базу данных {dataBaseNameToDelete}? Это действие не обратимо y/n: ");
         string ansver = Console.ReadLine().ToUpper();
         if (ansver == "Y") { startPythonUtils(dataBaseName: dataBaseNameToDelete, isThereExtension_db: true , commandToRun: "dbDelete"); return; }
         else if (ansver == "N") { return; }
