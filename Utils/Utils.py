@@ -10,7 +10,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 BaseDataBaseConfig_PATH = None
 DB_PATH = None
 COMMAND = "dev_command"
-DB_NAME = "dev_test_ifyouseeitprogrammbug"
+DB_FILE_NAME = "dev_test_ifyouseeitprogrammbug"
 
 try:
     input_json_data = sys.stdin.read()
@@ -27,7 +27,7 @@ BaseDataBaseConfig_PATH = os.path.join(
 
 DB_PATH = input_json_data.get("dbPath") 
 COMMAND = input_json_data.get("command")
-DB_NAME = input_json_data.get("db_name")
+DB_FILE_NAME = input_json_data.get("dbFileName")
 
 # ===================== CONFIG =====================
 
@@ -104,22 +104,22 @@ def generate_create_table_sql(table_name, columns):
 
 # ===================== DB COMMANDS =====================
 
-def db_create(db_name):
+def db_create(dbFileNameForCrate):
     """Создание базы данных"""
-    if not db_name:
+    if not dbFileNameForCrate:
         print("ERROR: не указано имя базы")
         return
 
     os.makedirs(DB_PATH, exist_ok=True)
 
-    db_file = os.path.join(DB_PATH, f"{db_name}.db")
+    dbFile = os.path.join(DB_PATH, dbFileNameForCrate)
 
     # если уже существует — пересоздаём
-    if os.path.exists(db_file):
-        print(f"DB_CREATE: база {db_name}.db уже существует, пересоздаём...")
-        os.remove(db_file)
+    if os.path.exists(dbFile):
+        print(f"DB_CREATE: база {dbFileNameForCrate} уже существует, пересоздаём...")
+        os.remove(dbFile)
 
-    conn = sqlite3.connect(db_file)
+    conn = sqlite3.connect(dbFile)
     cursor = conn.cursor()
 
     config = parse_config()
@@ -135,23 +135,23 @@ def db_create(db_name):
     conn.commit()
     conn.close()
 
-    print(f"DB_CREATE: база {db_name}.db создана")
+    print(f"DB_CREATE: база {dbFileNameForCrate} создана")
 
 
-def db_delete(db_name):
+def db_delete(dbFileNameForDelete):
     """Удаление базы данных"""
-    if not db_name:
+    if not dbFileNameForDelete:
         print("ERROR: не указано имя базы")
         return
 
-    db_file = os.path.join(DB_PATH, f"{db_name}.db")
+    db_file = os.path.join(DB_PATH, dbFileNameForDelete)
 
     if not os.path.exists(db_file):
-        print(f"DB_DELETE: база {db_name}.db не найдена")
+        print(f"DB_DELETE: база {dbFileNameForDelete} не найдена")
         return
 
     os.remove(db_file)
-    print(f"DB_DELETE: база {db_name}.db удалена")
+    print(f"DB_DELETE: база {dbFileNameForDelete} удалена")
 
 
 # ===================== COMMAND HANDLER =====================
@@ -159,10 +159,10 @@ def db_delete(db_name):
 def main():
 
     if COMMAND == "dbCreate":
-        db_create(DB_NAME)
+        db_create(DB_FILE_NAME)
 
     elif COMMAND == "dbDelete":
-        db_delete(DB_NAME)
+        db_delete(DB_FILE_NAME)
 
     else:
         print(f"ERROR: неизвестная команда '{COMMAND}'")

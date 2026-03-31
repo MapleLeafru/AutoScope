@@ -18,7 +18,6 @@ while (true)
     menuModeSelection();
 }
 
-// Дальше функции ###################################################################
 void menuModeSelection()
 {
     // Выбор режима
@@ -94,21 +93,21 @@ void menuPythonUtils()
 
 void preparationPythonUtils_dbCreate()
 {
-    string dbName = "";
+    string dataBaseNameToCreate = "";
     while (true)
     {
         Console.WriteLine("Введите название новой базы данных:");
-        dbName = Console.ReadLine();
-        if (dbName != "")
+        dataBaseNameToCreate = Console.ReadLine();
+        if (dataBaseNameToCreate != "")
         {
             while (true)
             {
                 string[] existingDatabases = dataBaseScanning(consoleOutput: false, returnOnlyFileNames: true);
-                if (existingDatabases.Contains(dbName + ".db")) { Console.WriteLine($"База данных с названием <{dbName}> уже существует, пересоздать? y/n:"); }
-                else { Console.WriteLine($"Подтвердите создание базы данных с названием <{dbName}> y/n:"); }
+                if (existingDatabases.Contains(dataBaseNameToCreate + ".db")) { Console.WriteLine($"База данных с названием <{dataBaseNameToCreate}> уже существует, пересоздать? y/n:"); }
+                else { Console.WriteLine($"Подтвердите создание базы данных с названием <{dataBaseNameToCreate}> y/n:"); }
                 string ansver = Console.ReadLine().ToUpper();
-                if (ansver == "Y") { startPythonUtils_dbCreate(dbName); return; }
-                else if (ansver == "N") { dbName = ""; return; }
+                if (ansver == "Y") { startPythonUtils(dataBaseName: dataBaseNameToCreate, isThereExtension_db:false, commandToRun: "dbCreate"); return; }
+                else if (ansver == "N") { dataBaseNameToCreate = ""; return; }
 
                 Console.WriteLine("Некорректный ввод. Попробуйте снова.");
             }
@@ -121,47 +120,9 @@ void preparationPythonUtils_dbCreate()
     }
 }
 
-void startPythonUtils_dbCreate(string dbName)
-{
-    string utilsPath = Path.Combine(ROOT_PATH, @"Utils\Utils.py");
-
-    ProcessStartInfo startUtils_dbCreate = new ProcessStartInfo();
-    startUtils_dbCreate.FileName = PYTHON_PATH;
-
-    // Создаём json с параметрами перед запуском
-    var pythonUtils_dbCreate_request = new
-    {
-        command = "dbCreate",
-        db_name = dbName,
-        configPath = CONFIGS_PATH,
-        dbPath = DB_PATH
-    }; 
-    string pythonUtils_dbCreate_request_json = JsonSerializer.Serialize(pythonUtils_dbCreate_request);
-    startUtils_dbCreate.RedirectStandardInput = true;
-
-    startUtils_dbCreate.Arguments = $"\"{utilsPath}\"";
-    startUtils_dbCreate.UseShellExecute = false;
-    startUtils_dbCreate.RedirectStandardOutput = true;
-    startUtils_dbCreate.RedirectStandardError = true;
-
-    using (var process = Process.Start(startUtils_dbCreate))
-    {
-        process.StandardInput.WriteLine(pythonUtils_dbCreate_request_json);
-        process.StandardInput.Close();
-
-        string output = process.StandardOutput.ReadToEnd();
-        string error = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-
-        Console.WriteLine(output);
-        if (!string.IsNullOrEmpty(error))
-            Console.WriteLine("Errors:\n" + error);
-    }
-}
-
 void preparationPythonUtils_dbDelete()
 {
-    string dataBasePathToDelete = "";
+    string dataBaseNameToDelete = "";
     Console.WriteLine("Выберите номер базы данных для удаления:");
     string[] existingDatabases = dataBaseScanning();
 
@@ -175,18 +136,18 @@ void preparationPythonUtils_dbDelete()
         Console.WriteLine("Некорректный ввод.");
     }
     // Добавить удаление на 0
-    dataBasePathToDelete = Path.GetFileName(existingDatabases[dataBaseNumberToDelete]);
+    dataBaseNameToDelete = Path.GetFileName(existingDatabases[dataBaseNumberToDelete]);
     while (true)
     {
-        Console.WriteLine($"Вы уверены что хотите удалить базу данных {Path.GetFileName(dataBasePathToDelete)}? Это действие не обратимо y/n:");
+        Console.WriteLine($"Вы уверены что хотите удалить базу данных {dataBaseNameToDelete}? Это действие не обратимо y/n:");
         string ansver = Console.ReadLine().ToUpper();
-        if (ansver == "Y") { startPythonUtils_dbDelete(dataBasePathToDelete); return; }
+        if (ansver == "Y") { startPythonUtils(dataBaseName: dataBaseNameToDelete, isThereExtension_db: true , commandToRun: "dbDelete"); return; }
         else if (ansver == "N") { return; }
         Console.WriteLine("Некорректный ввод.");
     }
 }
 
-void startPythonUtils_dbDelete(string dbName)
+void startPythonUtils(string dataBaseName, bool isThereExtension_db, string commandToRun)
 {
     string utilsPath = Path.Combine(ROOT_PATH, @"Utils\Utils.py");
 
@@ -194,10 +155,11 @@ void startPythonUtils_dbDelete(string dbName)
     startUtils_dbCreate.FileName = PYTHON_PATH;
 
     // Создаём json с параметрами перед запуском
+    if (!isThereExtension_db) { dataBaseName += ".db"; }
     var pythonUtils_dbCreate_request = new
     {
-        command = "dbDelete",
-        db_name = dbName,
+        command = commandToRun,
+        dbFileName = dataBaseName,
         configPath = CONFIGS_PATH,
         dbPath = DB_PATH
     };
