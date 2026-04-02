@@ -46,7 +46,7 @@ void menuModeSelection()
 void selectDbForPythonCore()
 {
     // Режим выбора существующей базы
-    string selectedDb = dataBaseScanningAndSelection();
+    string selectedDb = dataBaseScanningAndSelection(message: "Выберите базу данных для продолжениея работы");
 
     Console.WriteLine($"Выбрана база: {Path.GetFileName(selectedDb)}");
 
@@ -125,21 +125,9 @@ void preparationPythonUtils_dbCreate()
 
 void preparationPythonUtils_dbDelete()
 {
-    string dataBaseNameToDelete = "";
-    Console.Write("Выберите номер базы данных для удаления: ");
-    string[] existingDatabases = dataBaseScanning();
-
-    int dataBaseNumberToDelete = 0;
-    int min = 0;
-    int max = existingDatabases.Length - 1;
-    while (true)
-    {
-        Console.Write("Номер выбранной базы данных для удаления: ");
-        if (int.TryParse(Console.ReadLine(), out dataBaseNumberToDelete) && dataBaseNumberToDelete >= min && dataBaseNumberToDelete <= max) { Console.WriteLine(); break; }
-        Console.WriteLine("Некорректный ввод.");
-    }
+    string dataBasePathToDelete = dataBaseScanningAndSelection(message: "Выберите номер базы данных для удаления: ");
     // Добавить удаление на 0
-    dataBaseNameToDelete = Path.GetFileName(existingDatabases[dataBaseNumberToDelete]);
+    string dataBaseNameToDelete = Path.GetFileName(dataBasePathToDelete);
     while (true)
     {
         Console.Write($"Вы уверены что хотите удалить базу данных {dataBaseNameToDelete}? Это действие не обратимо y/n: ");
@@ -154,10 +142,17 @@ void startPythonUtils(string dataBaseName, bool isThereExtension_db, string comm
 {
     string utilsPath = Path.Combine(ROOT_PATH, @"Utils\Utils.py");
 
-    ProcessStartInfo startUtils_dbCreate = new ProcessStartInfo();
-    startUtils_dbCreate.FileName = PYTHON_PATH;
-
-    // Создаём json с параметрами перед запуском
+    ProcessStartInfo startUtils = new ProcessStartInfo // Параметры запуска
+    {
+        FileName = PYTHON_PATH,
+        Arguments = $"\"{utilsPath}\"",
+        UseShellExecute = false,
+        RedirectStandardInput = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true
+    };
+    
+    // Создаём json с переменными для передачи перед запуском
     if (!isThereExtension_db) { dataBaseName += ".db"; }
     var pythonUtils_dbCreate_request = new
     {
@@ -167,21 +162,17 @@ void startPythonUtils(string dataBaseName, bool isThereExtension_db, string comm
         dbPath = DB_PATH
     };
     string pythonUtils_dbCreate_request_json = JsonSerializer.Serialize(pythonUtils_dbCreate_request);
-    startUtils_dbCreate.RedirectStandardInput = true;
 
-    startUtils_dbCreate.Arguments = $"\"{utilsPath}\"";
-    startUtils_dbCreate.UseShellExecute = false;
-    startUtils_dbCreate.RedirectStandardOutput = true;
-    startUtils_dbCreate.RedirectStandardError = true;
-
-    using (var process = Process.Start(startUtils_dbCreate))
+    using (var pythonUtilsProcess = Process.Start(startUtils))
     {
-        process.StandardInput.WriteLine(pythonUtils_dbCreate_request_json);
-        process.StandardInput.Close();
+        pythonUtilsProcess.StandardInput.WriteLine(pythonUtils_dbCreate_request_json);
+        pythonUtilsProcess.StandardInput.Close();
 
-        string output = process.StandardOutput.ReadToEnd();
-        string error = process.StandardError.ReadToEnd();
-        process.WaitForExit();
+        string output = pythonUtilsProcess.StandardOutput.ReadToEnd();
+        string error = pythonUtilsProcess.StandardError.ReadToEnd();
+
+        pythonUtilsProcess.WaitForExit();
+        Console.WriteLine("Exit code: " + pythonUtilsProcess.ExitCode);                                     // debag
 
         Console.WriteLine(output);
         if (!string.IsNullOrEmpty(error))
@@ -189,18 +180,20 @@ void startPythonUtils(string dataBaseName, bool isThereExtension_db, string comm
     }
 }
 
-string dataBaseScanningAndSelection()
+string dataBaseScanningAndSelection(string message = "debag: Сообщение не передано в функцию dataBaseScanningAndSelection")
 {
+    Console.WriteLine(message);
+
     string[] dbFiles = dataBaseScanning();
 
-    int selectedIndex = -1;
+    int selectedIndex = 0;
     while (true)
     {
         Console.Write("Введите номер выбранной базы: ");
         string input = Console.ReadLine();
         if (int.TryParse(input, out selectedIndex) && selectedIndex >= 0 && selectedIndex < dbFiles.Length)
             break;
-        Console.WriteLine("Некорректный ввод. Попробуйте снова.");
+        Console.WriteLine("Некорректный ввод.");
     }
     return dbFiles[selectedIndex];
 }
