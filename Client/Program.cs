@@ -14,7 +14,7 @@ Console.OutputEncoding = System.Text.Encoding.UTF8;
 string ROOT_PATH = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\..\")); // Корень проекта
 string DB_PATH = Path.Combine(ROOT_PATH, "Databases"); // Папка с базами
 string CONFIGS_PATH = Path.Combine(ROOT_PATH, "Configs"); // Папка с конфигами
-string PYTHON_PATH = Path.Combine(ROOT_PATH, @"AutoScopeVenv\Scripts\python.exe"); // python.exe
+string PYTHON_PATH = Path.Combine(ROOT_PATH, @"Python\python.exe"); // python.exe
 
 while (true)
 {
