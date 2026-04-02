@@ -7,6 +7,8 @@ using System.Xml.Linq;
 // Ошибка NETSDK1004 файл ресурсов "...\obj\project.assets.json" не найден. Восстановите пакет NuGet, чтобы создать его.
 // dotnet restore
 
+// На проде удалить ненужные пакеты: pip, setuptools wheel (если ты не будем ставить пакеты на проде) для того что бы уменьшить размер приложения, подробнее у gpt
+
 Console.WriteLine("C# Клиент запущен");
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -172,7 +174,7 @@ void startPythonUtils(string dataBaseName, bool isThereExtension_db, string comm
         string error = pythonUtilsProcess.StandardError.ReadToEnd();
 
         pythonUtilsProcess.WaitForExit();
-        Console.WriteLine("Exit code: " + pythonUtilsProcess.ExitCode);                                     // debag
+        //Console.WriteLine("Exit code: " + pythonUtilsProcess.ExitCode);                                     // debag
 
         Console.WriteLine(output);
         if (!string.IsNullOrEmpty(error))
