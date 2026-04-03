@@ -3,18 +3,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Xml.Linq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
-// Ошибка NETSDK1004 файл ресурсов "...\obj\project.assets.json" не найден. Восстановите пакет NuGet, чтобы создать его.
-// dotnet restore
-// python -m compileall AutoScope\Utils - компилирует файлы питона, после того как скачал на новую машину
-
-//import sys
-//!{sys.executable} -m pip install -r "../requirements.txt"
-//!{sys.executable} -m pip freeze > "../requirements.lock.txt"
-
-// На проде удалить ненужные пакеты: pip, setuptools wheel (если ты не будем ставить пакеты на проде) для того что бы уменьшить размер приложения, подробнее у gpt
-
-Console.WriteLine("C# Клиент запущен");
+/*========================================================ProgramParams========================================================*/
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 
@@ -22,6 +13,10 @@ string ROOT_PATH = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDir
 string DB_PATH = Path.Combine(ROOT_PATH, "Databases"); // Папка с базами
 string CONFIGS_PATH = Path.Combine(ROOT_PATH, "Configs"); // Папка с конфигами
 string PYTHON_PATH = Path.Combine(ROOT_PATH, @"Python\python.exe"); // python.exe
+
+Console.WriteLine("C# Клиент запущен");
+
+/*========================================================ProgramStart========================================================*/
 
 while (true)
 {
@@ -35,20 +30,13 @@ void menuModeSelection()
     Console.WriteLine("1 - Выбрать базу данных");
     Console.WriteLine("2 - Открыть инструменты");
 
-    int mode = 0;
-    int min = 1;
-    int max = 2;
-    while (true)
-    {
-        Console.Write("Номер выбранного режима: ");
-        if (int.TryParse(Console.ReadLine(), out mode) && mode >= min && mode <= max) { Console.WriteLine(); break; }
-
-        Console.WriteLine("Некорректный ввод.");
-    }
-
-    if (mode == 1) { selectDbForPythonCore(); }
-    else if (mode == 2) { menuPythonUtils(); }
+    int modeNumber = selectingMenuNumber(min: 1, max: 2, "Номер выбранного режима: ");
+    
+    if (modeNumber == 1) { selectDbForPythonCore(); }
+    else if (modeNumber == 2) { menuPythonUtils(); }
 }
+
+/*========================================================PythonCore========================================================*/
 
 void selectDbForPythonCore()
 {
@@ -78,6 +66,8 @@ void selectDbForPythonCore()
     return;
 }
 
+/*========================================================PythonUtils========================================================*/
+
 void menuPythonUtils()
 {
     // Выбор инструмента
@@ -86,19 +76,11 @@ void menuPythonUtils()
     Console.WriteLine("1 - Создать новую базу данных");
     Console.WriteLine("2 - Удалить базу данных");
 
-    int mode = 0;
-    int min = 0;
-    int max = 2;
-    while (true)
-    {
-        Console.Write("Номер выбранного интсрумента: ");
-        if (int.TryParse(Console.ReadLine(), out mode) && mode >= min && mode <= max) { Console.WriteLine(); break; }
-        Console.WriteLine("Некорректный ввод.");
-    }
+    int toolNumber = selectingMenuNumber(min: 0, max: 1, "Номер выбранного интсрумента: ");
 
-    if (mode == 0) { return; }
-    else if (mode == 1) { preparationPythonUtils_dbCreate(); }
-    else if (mode == 2) { preparationPythonUtils_dbDelete(); }
+    if (toolNumber == 0) { return; }
+    else if (toolNumber == 1) { preparationPythonUtils_dbCreate(); }
+    else if (toolNumber == 2) { preparationPythonUtils_dbDelete(); }
 }
 
 void preparationPythonUtils_dbCreate()
@@ -187,7 +169,20 @@ void startPythonUtils(string dataBaseName, bool isThereExtension_db, string comm
     }
 }
 
-string dataBaseScanningAndSelection(string message = "debag: Сообщение не передано в функцию dataBaseScanningAndSelection")
+/*========================================================UniversalFunctions========================================================*/
+
+int selectingMenuNumber(int min, int max, string message = "messageEror_selectingMenuNumber")
+{
+    int selectedNumber = 0;
+    while (true)
+    {
+        Console.Write(message);
+        if (int.TryParse(Console.ReadLine(), out selectedNumber) && selectedNumber >= min && selectedNumber <= max) { Console.WriteLine(); return selectedNumber; }
+        Console.WriteLine("Некорректный ввод.");
+    }
+}
+
+string dataBaseScanningAndSelection(string message = "messageEror_dataBaseScanningAndSelection")
 {
     Console.WriteLine(message);
 
