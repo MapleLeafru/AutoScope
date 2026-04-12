@@ -12,6 +12,7 @@ Console.OutputEncoding = System.Text.Encoding.UTF8;
 string ROOT_PATH = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\..\")); // Корень проекта
 string DB_PATH = Path.Combine(ROOT_PATH, "Databases"); // Папка с базами
 string CONFIGS_PATH = Path.Combine(ROOT_PATH, "Configs"); // Папка с конфигами
+string PARSERS_PATH = Path.Combine(ROOT_PATH, "Parsers"); // Папка с парсерами
 string PYTHON_PATH = Path.Combine(ROOT_PATH, @"Python\python.exe"); // python.exe
 
 Console.WriteLine("C# Клиент запущен");
@@ -32,8 +33,76 @@ void menuModeSelection()
 
     int modeNumber = selectingMenuNumber(min: 1, max: 2, "Номер выбранного режима: ");
     
-    if (modeNumber == 1) { selectDbForPythonCore(); }
+    if (modeNumber == 1) { startPythonPipelineManager(); }
     else if (modeNumber == 2) { menuPythonUtils(); }
+}
+
+/*========================================================PythonPipelineManager========================================================*/
+
+void startPythonPipelineManager()
+{
+    string pipelineManagerPath = Path.Combine(ROOT_PATH, @"PipelineManager\PipelineManager.py");
+
+    Console.WriteLine("=== Запуск Pipeline ===");
+
+    // Выбор базы данных
+    string selectedDataBase = dataBaseScanningAndSelection(message: "Выберите базу данных для продолжениея работы");
+    Console.WriteLine($"Выбрана база: {Path.GetFileName(selectedDataBase)}");
+    Console.WriteLine();
+
+    // Выбор парсера
+    string selectedParser = parserScanningAndSelection(message: "Выберите парсер для продолжениея работы");
+    Console.WriteLine($"Выбран парсер: {Path.GetFileName(selectedParser)}");
+    Console.WriteLine();
+
+    // Пример параметров (потом вынесешь в UI) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    Console.Write("Введите источник (url/путь): ");
+    string source = Console.ReadLine();
+
+    var request = new
+    {
+        source = source, // Это 100% будет работать не так, но пока в качестве примера пускай будет
+        parser = selectedParser,
+//        parser = new
+//        {
+//            type = "python",
+//            path = selectedParser
+//        },
+        dbPath = selectedDataBase,
+        configPath = CONFIGS_PATH
+    };
+
+    string json = JsonSerializer.Serialize(request);
+
+    ProcessStartInfo start = new ProcessStartInfo
+    {
+        FileName = PYTHON_PATH,
+        Arguments = $"\"{pipelineManagerPath}\"",
+        UseShellExecute = false,
+        RedirectStandardInput = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true
+    };
+
+    using (var process = Process.Start(start))
+    {
+        process.StandardInput.WriteLine(json);
+        process.StandardInput.Close();
+
+        string output = process.StandardOutput.ReadToEnd();
+        string error = process.StandardError.ReadToEnd();
+
+        process.WaitForExit();
+
+        Console.WriteLine("=== RESULT ===");
+        Console.WriteLine(output);
+
+        if (!string.IsNullOrEmpty(error))
+        {
+            Console.WriteLine("=== ERRORS ===");
+            Console.WriteLine(error);
+        }
+    }
 }
 
 /*========================================================PythonCore========================================================*/
@@ -76,7 +145,7 @@ void menuPythonUtils()
     Console.WriteLine("1 - Создать новую базу данных");
     Console.WriteLine("2 - Удалить базу данных");
 
-    int toolNumber = selectingMenuNumber(min: 0, max: 1, "Номер выбранного интсрумента: ");
+    int toolNumber = selectingMenuNumber(min: 0, max: 2, "Номер выбранного интсрумента: ");
 
     if (toolNumber == 0) { return; }
     else if (toolNumber == 1) { preparationPythonUtils_dbCreate(); }
@@ -143,18 +212,18 @@ void startPythonUtils(string dataBaseName, bool isThereExtension_db, string comm
     
     // Создаём json с переменными для передачи перед запуском
     if (!isThereExtension_db) { dataBaseName += ".db"; }
-    var pythonUtils_dbCreate_request = new
+    var pythonUtils_request = new
     {
         command = commandToRun,
         dbFileName = dataBaseName,
         configPath = CONFIGS_PATH,
         dbPath = DB_PATH
     };
-    string pythonUtils_dbCreate_request_json = JsonSerializer.Serialize(pythonUtils_dbCreate_request);
+    string pythonUtils_request_json = JsonSerializer.Serialize(pythonUtils_request);
 
     using (var pythonUtilsProcess = Process.Start(startUtils))
     {
-        pythonUtilsProcess.StandardInput.WriteLine(pythonUtils_dbCreate_request_json);
+        pythonUtilsProcess.StandardInput.WriteLine(pythonUtils_request_json);
         pythonUtilsProcess.StandardInput.Close();
 
         string output = pythonUtilsProcess.StandardOutput.ReadToEnd();
@@ -169,19 +238,53 @@ void startPythonUtils(string dataBaseName, bool isThereExtension_db, string comm
     }
 }
 
-/*========================================================UniversalFunctions========================================================*/
-
-int selectingMenuNumber(int min, int max, string message = "messageEror_selectingMenuNumber")
+/*========================================================parserScanning========================================================*/
+string parserScanningAndSelection(string message = "messageEror_parserScanningAndSelection")
 {
-    int selectedNumber = 0;
+    Console.WriteLine(message);
+
+    string[] parserFiles = parserScanning();
+
+    int selectedIndex = 0;
     while (true)
     {
-        Console.Write(message);
-        if (int.TryParse(Console.ReadLine(), out selectedNumber) && selectedNumber >= min && selectedNumber <= max) { Console.WriteLine(); return selectedNumber; }
+        Console.Write("Введите номер выбранного парсера: ");
+        string input = Console.ReadLine();
+        if (int.TryParse(input, out selectedIndex) && selectedIndex >= 0 && selectedIndex < parserFiles.Length)
+            break;
         Console.WriteLine("Некорректный ввод.");
     }
+    return parserFiles[selectedIndex];
 }
 
+string[] parserScanning(bool consoleOutput = true, bool returnOnlyFileNames = false) // Возвращает массив путей до парсеров
+{
+    string[] parserFiles = Directory.Exists(PARSERS_PATH) ? Directory.GetFiles(PARSERS_PATH) : new string[0]; // Если  Directory.Exists(DB_PATH) Существует, то Directory.GetFiles(DB_PATH), а если нет, то new string[0]
+    if (parserFiles.Length == 0)
+    {
+        if (consoleOutput) Console.WriteLine("Нет доступных парсеров.");
+        throw new Exception("Нет доступных парсеров.");
+    }
+
+    if (consoleOutput)
+    {
+        Console.WriteLine("Найденые парсеры:");
+        for (int i = 0; i < parserFiles.Length; i++)
+            Console.WriteLine($"{i}: {Path.GetFileName(parserFiles[i])}");
+    }
+
+    if (returnOnlyFileNames)
+    {
+        string[] parserFilesNames = new string[parserFiles.Length];
+        for (int i = 0; i < parserFiles.Length; i++)
+            parserFilesNames[i] = Path.GetFileName(parserFiles[i]);
+        return parserFilesNames;
+    }
+
+    return parserFiles;
+}
+
+/*========================================================dataBaseScanning========================================================*/
 string dataBaseScanningAndSelection(string message = "messageEror_dataBaseScanningAndSelection")
 {
     Console.WriteLine(message);
@@ -226,3 +329,18 @@ string[] dataBaseScanning(bool consoleOutput = true, bool returnOnlyFileNames = 
 
     return dbFiles;
 }
+
+/*========================================================UniversalFunctions========================================================*/
+
+int selectingMenuNumber(int min, int max, string message = "messageEror_selectingMenuNumber")
+{
+    int selectedNumber = 0;
+    while (true)
+    {
+        Console.Write(message);
+        if (int.TryParse(Console.ReadLine(), out selectedNumber) && selectedNumber >= min && selectedNumber <= max) { Console.WriteLine(); return selectedNumber; }
+        Console.WriteLine("Некорректный ввод.");
+    }
+}
+
+
