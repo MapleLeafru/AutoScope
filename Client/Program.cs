@@ -33,15 +33,15 @@ void menuModeSelection()
 
     int modeNumber = selectingMenuNumber(min: 1, max: 2, "Номер выбранного режима: ");
     
-    if (modeNumber == 1) { startPythonPipelineManager(); }
+    if (modeNumber == 1) { startInputPythonPipelineManager(); }
     else if (modeNumber == 2) { menuPythonUtils(); }
 }
 
 /*========================================================PythonPipelineManager========================================================*/
 
-void startPythonPipelineManager()
+void startInputPythonPipelineManager()
 {
-    string pipelineManagerPath = Path.Combine(ROOT_PATH, @"PipelineManager\PipelineManager.py");
+    string pipelineManagerPath = Path.Combine(ROOT_PATH, @"PipelineManagers\InputPipelineManager.py");
 
     Console.WriteLine("=== Запуск Pipeline ===");
 
@@ -62,12 +62,12 @@ void startPythonPipelineManager()
     var request = new
     {
         source = source, // Это 100% будет работать не так, но пока в качестве примера пускай будет
-        parser = selectedParser,
-//        parser = new
-//        {
-//            type = "python",
-//            path = selectedParser
-//        },
+//        parser = selectedParser,
+        parser = new
+        {
+            type = "python",
+            path = selectedParser
+        },
         dbPath = selectedDataBase,
         configPath = CONFIGS_PATH
     };

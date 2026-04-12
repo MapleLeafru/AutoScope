@@ -33,7 +33,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Элементы решен
 		requirements.txt = requirements.txt
 	EndProjectSection
 EndProject
-Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "PipelineManager", "PythonPipelineManager\PipelineManager.pyproj", "{F3AB8D20-9998-4467-80FB-CD0146266A55}"
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "PipelineManagers", "PythonPipelineManager\PipelineManagers.pyproj", "{F3AB8D20-9998-4467-80FB-CD0146266A55}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
