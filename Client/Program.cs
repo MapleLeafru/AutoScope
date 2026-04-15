@@ -66,7 +66,8 @@ void startInputPythonPipelineManager()
         parser = new
         {
             type = "python",
-            path = selectedParser
+            path = selectedParser,
+            python = PYTHON_PATH
         },
         dbPath = selectedDataBase,
         configPath = CONFIGS_PATH

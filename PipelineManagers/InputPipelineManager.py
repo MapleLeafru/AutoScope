@@ -2,14 +2,18 @@
 import os
 import json
 import subprocess
+
 ## import traceback
-## from typing import Any, Dict
 
 # Добавляем корень проекта в PYTHONPATH
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(ROOT_DIR)
+
 from Api.Api import Api
 from Core.Core import Core
+
+
+sys.stdout.reconfigure(encoding='utf-8')
 
 #############################
 #C#                         #
@@ -21,26 +25,21 @@ from Core.Core import Core
 #PipelineManager            #
 # ↓                         #
 #Api (внутри Python)        #
-# ↓                         # !!!! 
+# ↓                         #
 #Core (внутри Python)       #
 # ↓                         #
 #SQLite                     #
 #############################
 
-# - Исключения и всё что с этим связано
-## - Всё остальное второстепенное с обработкой ошибок
-
-sys.stdout.reconfigure(encoding='utf-8')
-
-
 # =========================================================
-# Context (хранит состояние pipeline)
+# Context
 # =========================================================
 
 class PipelineContext:
     def __init__(self, request):
         self.request = request
         self.data = None
+
         ## self.errors = []
         ## self.meta = {}
 
@@ -50,44 +49,73 @@ class PipelineContext:
     ## def add_error(self, error):
     ##     self.errors.append(error)
 
-    ## def has_errors(self):
-    ##     return len(self.errors) > 0
-
 
 # =========================================================
-# Parser Adapter (универсальный запуск парсеров)
+# Parser Adapter
 # =========================================================
 
 class ParserAdapter:
 
     @staticmethod
     def run(parser_config, context):
-        return ParserAdapter._run_python(parser_config, context)
+        parser_type = parser_config.get("type")
+
+        if parser_type == "python":
+            return ParserAdapter._run_python(parser_config, context)
+
+        ## можно добавить другие языки
+        ## elif parser_type == "node":
+        ##     return ParserAdapter._run_node(parser_config, context)
+
+        raise Exception(f"Unsupported parser type: {parser_type}")
+
 
     @staticmethod
     def _run_python(parser_config, context):
         path = parser_config.get("path")
+        python_path = parser_config.get("python", "python")
+
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
 
         process = subprocess.Popen(
-            ["python", path],
+            [python_path, path],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=env
         )
 
-        process.stdin.write(json.dumps(context.request))
+        # отправляем входные данные
+        process.stdin.write(json.dumps(context.request, ensure_ascii=False))
         process.stdin.close()
 
+        # читаем результат
         output = process.stdout.read()
         error = process.stderr.read()
 
+        #print("[DEBUG RAW OUTPUT]")                                         # debag
+        #print(output)                                                       # debag
+
         process.wait()
+
+        if error:                                                           # debag
+            print("[PARSER ERROR]")                                         # debag
+            print(error)                                                    # debag
 
         ## if error:
         ##     raise Exception(f"Parser error: {error}")
 
-        return json.loads(output) if output else {}
+        if not output:
+            return None
+
+        try:
+            return json.loads(output) if output else None
+        except:
+            return None
 
 
 # =========================================================
@@ -100,11 +128,14 @@ class PipelineManager:
         self.context = context
 
         config_path = context.request.get("configPath")
+
         self.api = Api(config_path)
         self.core = Core()
 
+
     def run(self):
         # try:
+
             self._run_parser()
             self._run_api()
             self._run_core()
@@ -123,7 +154,10 @@ class PipelineManager:
         #         "errors": self.context.errors
         #     }
 
-    # -------------------------
+
+    # =========================================================
+    # STAGES
+    # =========================================================
 
     def _run_parser(self):
         parser_config = self.context.request.get("parser")
@@ -132,25 +166,34 @@ class PipelineManager:
 
         data = ParserAdapter.run(parser_config, self.context)
 
+        #print(f"[DEBUG] Parser output: {type(data)} | {data}")                              # debag
+
         self.context.set_data(data)
 
-    # -------------------------
 
     def _run_api(self):
         print("[PIPELINE] Running API...")
 
-        processed = self.api.process(self.context.data)
+        data = self.context.data
+
+        processed = self.api.process(data)
+
+        #print(f"[DEBUG] API output: {type(processed)} | {processed}")                       # debag
 
         self.context.set_data(processed)
 
-    # -------------------------
 
     def _run_core(self):
         print("[PIPELINE] Running CORE...")
 
+        data = self.context.data
         db_path = self.context.request.get("dbPath")
 
-        self.core.save(self.context.data, db_path)
+        if not data:
+            print("[PIPELINE] No data to save")
+            return
+
+        self.core.save(data, db_path)
 
 
 # =========================================================
@@ -159,12 +202,12 @@ class PipelineManager:
 
 def main():
     # try:
+
         input_json = sys.stdin.read()
+        request = json.loads(input_json)
 
-        request = json.loads(input_json)                # Загружаем json с параметрами
-
-        context = PipelineContext(request)              # Context (хранит состояние pipeline) живёт весь pipeline
-        pipeline = PipelineManager(context)             # создаём переменную класса Pipeline Manager
+        context = PipelineContext(request)
+        pipeline = PipelineManager(context)
 
         result = pipeline.run()
 

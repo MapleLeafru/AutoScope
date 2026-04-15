@@ -1,49 +1,56 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-import pandas as pd
+Ôªøimport sys
+import json
 import time
 import re
 
-# -----------------------------
-# Õ¿—“–Œ… »
-# -----------------------------
+from selenium import webdriver
+from selenium.webdriver.common.by import By
 
-#MAX_CARS = 150
-#START_URL = "https://auto.drom.ru/subaru/levorg/"
-#FILE_NAME = "levorg_drom.csv"
+sys.stdout.reconfigure(encoding='utf-8')
 
-#MAX_CARS = 50
-#START_URL = "https://auto.drom.ru/toyota/land_cruiser_prado/"
-#FILE_NAME = "land_cruiser_prado_drom.csv"
+# =========================================================
+# INPUT
+# =========================================================
 
-#MAX_CARS = 10
-#START_URL = "https://auto.drom.ru/subaru/forester/"
-#FILE_NAME = "subaru_forester_drom.csv"
+input_data = json.loads(sys.stdin.read())
 
-MAX_CARS = 10
+### config_path = input_data.get("configPath")
+### db_path = input_data.get("dbPath")
+### source = input_data.get("source")
+### batch_size = input_data.get("batchSize", 5)
+
+
+# =========================================================
+# SETTINGS (temporary)
+# =========================================================
+
 START_URL = "https://auto.drom.ru/toyota/camry/"
-FILE_NAME = "toyota_camry_drom.csv"
+MAX_CARS = 6
+BATCH_SIZE = 2
+
+
+# =========================================================
+# DRIVER
+# =========================================================
 
 driver = webdriver.Chrome()
 
-# -----------------------------
-# 1. —¡Œ– ——€ÀŒ 
-# -----------------------------
+
+# =========================================================
+# 1. COLLECT LINKS
+# =========================================================
 
 links = []
 url = START_URL
 
-print("Collecting links...")
-
 while len(links) < MAX_CARS:
 
     driver.get(url)
-    time.sleep(3)
+    time.sleep(2)
 
     elements = driver.find_elements(By.CSS_SELECTOR, 'a[data-ftid="bull_title"]')
 
     for el in elements:
-
         link = el.get_attribute("href")
 
         if link and link.startswith("/"):
@@ -55,31 +62,33 @@ while len(links) < MAX_CARS:
         if len(links) >= MAX_CARS:
             break
 
-    print(f"Links collected: {len(links)}")
-
     try:
         next_button = driver.find_element(
             By.CSS_SELECTOR,
             'a[data-ftid="component_pagination-item-next"]'
         )
         url = next_button.get_attribute("href")
-
     except:
-        print("No more pages")
         break
 
-print("Total links:", len(links))
+# =========================================================
+# !!!!!! safe_int 
+# =========================================================
 
+#def safe_int(value):
+#    if not value:
+#        return None
+#    value = re.sub(r"\D", "", value)
+#    return int(value) if value else None
 
-# -----------------------------
-# 2. œ¿–—»Õ√ Œ¡⁄ﬂ¬À≈Õ»…
-# -----------------------------
+# =========================================================
+# 2. PARSE ADS (with batching)
+# =========================================================
 
 cars = []
+batch = []
 
-for i, link in enumerate(links):
-
-    print(f"Parsing {i+1}/{len(links)}")
+for link in links:
 
     driver.get(link)
     time.sleep(2)
@@ -90,14 +99,28 @@ for i, link in enumerate(links):
     except:
         title_full = ""
 
-    model = year = city = None
+    model_raw = None
+    year = None
+    city = None
 
-    m = re.match(r"œÓ‰‡Ê‡ (.+?), (\d{4}) „Ó‰ (?:‚|‚Ó) (.+)", title_full)
+    m = re.match(r"–ü—Ä–æ–¥–∞–∂–∞ (.+?), (\d{4}) –≥–æ–¥ (?:–≤|–≤–æ) (.+)", title_full)
 
     if m:
-        model = m.group(1).strip()
+        model_raw = m.group(1).strip()
         year = int(m.group(2))
         city = m.group(3).strip()
+
+    # SPLIT BRAND / MODEL
+    brand = None
+    model = None
+
+    if model_raw:
+        parts = model_raw.split(" ", 1)
+        brand = parts[0]
+        if len(parts) > 1:
+            model = parts[1]
+        else:
+            model = parts[0]
 
     # PRICE
     try:
@@ -107,7 +130,6 @@ for i, link in enumerate(links):
         ).text
 
         price = int(re.sub(r"\D", "", price_text))
-
     except:
         price = None
 
@@ -138,7 +160,6 @@ for i, link in enumerate(links):
         )
 
         for row in rows:
-
             try:
                 key = row.find_element(
                     By.CSS_SELECTOR,
@@ -151,58 +172,74 @@ for i, link in enumerate(links):
                 ).text.strip()
 
                 specs[key] = value
-
             except:
                 continue
-
     except:
         pass
 
-    # -----------------------------
-    # Œ◊»—“ ¿ ◊»—≈À
-    # -----------------------------
-
-    mileage = specs.get("œÓ·Â„")
-    power = specs.get("ÃÓ˘ÌÓÒÚ¸")
+    # CLEAN NUMBERS
+    mileage = specs.get("–ü—Ä–æ–±–µ–≥")
+    power = specs.get("–ú–æ—â–Ω–æ—Å—Ç—å")
 
     if mileage:
-        mileage = int(re.sub(r"\D", "", mileage))
+        mileage_clean = re.sub(r"\D", "", mileage)
+        mileage = int(mileage_clean) if mileage_clean else None                 # mileage = safe_int(specs.get("–ü—Ä–æ–±–µ–≥"))
 
     if power:
-        power = int(re.sub(r"\D", "", power))
+        power_clean = re.sub(r"\D", "", power)
+        power = int(power_clean) if power_clean else None                       # mileage = safe_int(specs.get("–ü—Ä–æ–±–µ–≥"))
 
     car = {
+        # ADS
+        "source": "drom",
+        "url": link,
 
+        # SNAPSHOT
+        "brand": brand,
         "model": model,
-        "year": year,
-        "city": city,
         "price": price,
-        "mileage": mileage,
-        "engine": specs.get("ƒ‚Ë„‡ÚÂÎ¸"),
-        "power": power,
-        "transmission": specs.get(" ÓÓ·Í‡ ÔÂÂ‰‡˜"),
-        "drivetrain": specs.get("œË‚Ó‰"),
-        "color": specs.get("÷‚ÂÚ"),
-        "owners": specs.get("¬Î‡‰ÂÎ¸ˆ˚"),
-        "wheel": specs.get("–ÛÎ¸"),
-        "generation": specs.get("œÓÍÓÎÂÌËÂ"),
-        "description": description,
-        "link": link
+        "year": year,
 
+        "sale_region": city,
+
+        "mileage": mileage,
+        "transmission": specs.get("–ö–æ—Ä–æ–±–∫–∞ –ø–µ—Ä–µ–¥–∞—á"),
+        "drive_type": specs.get("–ü—Ä–∏–≤–æ–¥"),
+        "color": specs.get("–¶–≤–µ—Ç"),
+        "steering_wheel": specs.get("–†—É–ª—å"),
+
+        "engine_power": power,
+        "engine_model": specs.get("–î–≤–∏–≥–∞—Ç–µ–ª—å"),
+
+        "description": description,
+
+        ## optional
+        ## "engine_volume": None,
+        ## "fuel_type": None,
+        ## "body_type": None,
+        ## "production_country": None,
+        ## "license_plate": None
     }
 
-    cars.append(car)
+    ## if not car["url"]:
+    ##     continue
+
+    batch.append(car)
+
+    if len(batch) >= BATCH_SIZE:
+        cars.extend(batch)
+        batch = []
+
+# –æ—Å—Ç–∞—Ç–æ–∫
+if batch:
+    cars.extend(batch)
 
 
 driver.quit()
 
-# -----------------------------
-# 3. —Œ’–¿Õ≈Õ»≈ CSV
-# -----------------------------
 
-df = pd.DataFrame(cars)
+# =========================================================
+# OUTPUT
+# =========================================================
 
-df.to_csv(FILE_NAME, index=False)
-
-print("Saved:", len(df), "cars")
-print(df)
+print(json.dumps(cars, ensure_ascii=False))

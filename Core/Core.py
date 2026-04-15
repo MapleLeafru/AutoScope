@@ -1,26 +1,41 @@
 ﻿import sqlite3
-import json
 
 
 class Core:
 
     def save(self, data, db_path):
+
+        # если список — обрабатываем по одному
+        if isinstance(data, list):
+            for item in data:
+                self._save_one(item, db_path)
+            return
+
+        self._save_one(data, db_path)
+
+
+    # =========================================================
+    # SINGLE SAVE
+    # =========================================================
+
+    def _save_one(self, data, db_path):
+
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         # 1. ads
         ads_id = self._get_or_create_ads(cursor, data)
 
-        # 2. получаем последний snapshot
+        # 2. последний snapshot
         last_snapshot = self._get_last_snapshot(cursor, ads_id)
 
-        # 3. сравниваем
+        # 3. сравнение
         has_changes = self._has_changes(last_snapshot, data)
 
-        # 4. создаём check
+        # 4. check
         check_id = self._create_check(cursor, ads_id, has_changes)
 
-        # 5. если есть изменения → создаём snapshot
+        # 5. snapshot
         if has_changes:
             self._create_snapshot(cursor, check_id, data)
 
@@ -55,7 +70,7 @@ class Core:
 
 
     # =========================================================
-    # GET LAST SNAPSHOT
+    # LAST SNAPSHOT
     # =========================================================
 
     def _get_last_snapshot(self, cursor, ads_id):
@@ -86,11 +101,9 @@ class Core:
 
     def _has_changes(self, last_snapshot, new_data):
 
-        # если нет старого → это первое добавление
         if last_snapshot is None:
             return True
 
-        ## игнорируем служебные поля
         ignored_fields = {"id", "check_id"}
 
         for key, value in new_data.items():

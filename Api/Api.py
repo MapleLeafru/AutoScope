@@ -1,7 +1,45 @@
-import json
+п»їimport json
 
 
 class Api:
+
+    # =========================================================
+    # ALLOWED FIELDS (РєРѕРЅС‚СЂР°РєС‚ СЃ Р‘Р”)
+    # =========================================================
+
+    ALLOWED_FIELDS = {
+        # ads
+        "source",
+        "url",
+
+        # ads_snapshots
+        "brand",
+        "model",
+        "price",
+        "year",
+        "production_country",
+        "sale_region",
+        "license_plate",
+        "mileage",
+        "transmission",
+        "drive_type",
+        "color",
+        "body_type",
+        "steering_wheel",
+        "engine_power",
+        "engine_volume",
+        "engine_model",
+        "fuel_type",
+        "description"
+    }
+
+    REQUIRED_FIELDS = {
+        "url"
+    }
+
+    # =========================================================
+    # INIT
+    # =========================================================
 
     def __init__(self, config_path=None):
         self.config = None
@@ -10,9 +48,9 @@ class Api:
         ##     self._load_config(config_path)
 
 
-    ## =========================================================
-    ## CONFIG
-    ## =========================================================
+    # =========================================================
+    # CONFIG
+    # =========================================================
 
     ## def _load_config(self, config_path):
     ##     with open(config_path, "r", encoding="utf-8") as f:
@@ -27,39 +65,69 @@ class Api:
         if data is None:
             return None
 
-        # базовая нормализация
+        # СЃРїРёСЃРѕРє РѕР±СЉРµРєС‚РѕРІ
+        if isinstance(data, list):
+            result = []
+
+            for item in data:
+                normalized = self._normalize(item)
+
+                ## if normalized is None:
+                ##     continue
+
+                result.append(normalized)
+
+            ## result = self._apply_config(result)
+            return result
+
+        # РѕРґРёРЅ РѕР±СЉРµРєС‚
         normalized = self._normalize(data)
 
         ## normalized = self._apply_config(normalized)
-
         return normalized
 
 
     # =========================================================
-    # NORMALIZE (простая логика)
+    # NORMALIZE
     # =========================================================
 
     def _normalize(self, data):
+
+        if not isinstance(data, dict):
+            return None
 
         result = {}
 
         for key, value in data.items():
 
-            # убираем пустые строки
+            # С„РёР»СЊС‚СЂР°С†РёСЏ РїРѕР»РµР№
+            if key not in self.ALLOWED_FIELDS:
+                continue
+
+            # РїСѓСЃС‚С‹Рµ СЃС‚СЂРѕРєРё в†’ None
             if value == "":
                 value = None
 
-            # пробуем привести числа
-            value = self._try_cast_number(value)
-
-            # чистим строки
+            # С‡РёСЃС‚РєР° СЃС‚СЂРѕРє
             if isinstance(value, str):
                 value = value.strip()
 
+            # РїСЂРёРІРµРґРµРЅРёРµ С‡РёСЃРµР»
+            value = self._try_cast_number(value)
+
             result[key] = value
+
+        # РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РїРѕР»СЏ
+        ## for field in self.REQUIRED_FIELDS:
+        ##     if not result.get(field):
+        ##         return None
 
         return result
 
+
+    # =========================================================
+    # CAST
+    # =========================================================
 
     def _try_cast_number(self, value):
 
@@ -78,20 +146,24 @@ class Api:
         return value
 
 
-    ## =========================================================
-    ## APPLY CONFIG (будущее расширение)
-    ## =========================================================
+    # =========================================================
+    # CONFIG APPLY (Р±СѓРґСѓС‰РµРµ)
+    # =========================================================
 
     ## def _apply_config(self, data):
     ##     if not self.config:
     ##         return data
 
-    ##     # пример: фильтруем только поля из ads_snapshots
     ##     allowed_fields = set(self.config.get("ads_snapshots", {}).keys())
 
-    ##     result = {}
-    ##     for key, value in data.items():
-    ##         if key in allowed_fields or key in ("url", "source"):
-    ##             result[key] = value
+    ##     def filter_item(item):
+    ##         result = {}
+    ##         for key, value in item.items():
+    ##             if key in allowed_fields or key in ("url", "source"):
+    ##                 result[key] = value
+    ##         return result
 
-    ##     return result
+    ##     if isinstance(data, list):
+    ##         return [filter_item(item) for item in data]
+
+    ##     return filter_item(data)
