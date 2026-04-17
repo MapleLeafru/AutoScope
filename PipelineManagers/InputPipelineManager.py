@@ -12,7 +12,6 @@ sys.path.append(ROOT_DIR)
 from Api.Api import Api
 from Core.Core import Core
 
-
 sys.stdout.reconfigure(encoding='utf-8')
 
 #############################

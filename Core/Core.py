@@ -106,13 +106,16 @@ class Core:
 
         ignored_fields = {"id", "check_id"}
 
-        for key, value in new_data.items():
+        for key in last_snapshot.keys():
+
             if key in ignored_fields:
                 continue
 
             old_value = last_snapshot.get(key)
+            new_value = new_data.get(key)
 
-            if old_value != value:
+            if old_value != new_value:
+                print(f"[DIFF] {key}: {old_value} != {new_value}", file=sys.stderr)
                 return True
 
         return False
