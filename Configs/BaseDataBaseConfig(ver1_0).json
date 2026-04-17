@@ -63,7 +63,7 @@
         },
 
         "price": {
-            "type": "INTEGER",
+            "type": "REAL",
             "default": null
         },
 
@@ -72,7 +72,7 @@
             "default": null
         },
 
-        "brand_origin_country": {
+        "production_country": {
             "type": "TEXT",
             "default": null
         },
@@ -133,16 +133,6 @@
         },
 
         "fuel_type": {
-            "type": "TEXT",
-            "default": null
-        },
-
-        "octane" : {
-            "type": "INTEGER",
-            "default": null
-        },
-
-        "powertrain_type": {
             "type": "TEXT",
             "default": null
         },

@@ -1,5 +1,5 @@
 ﻿import sqlite3
-
+import sys
 
 class Core:
 
@@ -115,7 +115,7 @@ class Core:
             new_value = new_data.get(key)
 
             if old_value != new_value:
-                print(f"[DIFF] {key}: {old_value} != {new_value}", file=sys.stderr)
+#                print(f"[DIFF] {key}: {old_value} != {new_value}", file=sys.stderr)                         # debug
                 return True
 
         return False
@@ -145,15 +145,16 @@ class Core:
             INSERT INTO ads_snapshots (
                 check_id,
                 brand, model, price, year,
-                production_country, sale_region,
+                brand_origin_country, sale_region,
                 license_plate, mileage,
                 transmission, drive_type,
                 color, body_type,
                 steering_wheel,
                 engine_power, engine_volume,
                 engine_model, fuel_type,
+                octane, powertrain_type,
                 description
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 check_id,
@@ -161,7 +162,7 @@ class Core:
                 data.get("model"),
                 data.get("price"),
                 data.get("year"),
-                data.get("production_country"),
+                data.get("brand_origin_country"),
                 data.get("sale_region"),
                 data.get("license_plate"),
                 data.get("mileage"),
@@ -174,6 +175,8 @@ class Core:
                 data.get("engine_volume"),
                 data.get("engine_model"),
                 data.get("fuel_type"),
+                data.get("octane"),
+                data.get("powertrain_type"),
                 data.get("description")
             )
         )

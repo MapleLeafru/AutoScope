@@ -17,7 +17,7 @@ class Api:
         "model",
         "price",
         "year",
-        "production_country",
+        "brand_origin_country",
         "sale_region",
         "license_plate",
         "mileage",
@@ -30,6 +30,8 @@ class Api:
         "engine_volume",
         "engine_model",
         "fuel_type",
+        "octane",
+        "powertrain_type",
         "description"
     }
 

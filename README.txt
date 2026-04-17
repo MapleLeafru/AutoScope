@@ -1,5 +1,16 @@
 Таски:
 
+ready 1. Отпалировать базовый парсер, что бы выводил данные как надо бд
+2. Допилить api, ну и что бы мог переваривать калл
+2.1 Тестовый парсер на другом языке
+2.2 Микро момент, подтягивать тип парсера из расширения
+ready 3. Модернизировать базовый конфиг (тип топлива -> тип топлива + октановое число + чек на гибрид; prise из real в int и в api округлять в случае чего)
+3.1 Сделать конфиг соотвтествий марки и страны (Если в конфиге есть, то подтягиваем, если нет то null) и интегрировать в api !!!!!!!!!!!!
+4. Реализовать логгирование
+5. Установить связть между входными параметрами и настройками пайплайна (ну что бы то что ты вводишь реально на что то влияло размер пачки, кол-во объявлений (и возврат кол-во найденых))
+6. Разобраться в коде
+
+
 Main (Работа над базовым прототипом):
 Реализовать C# -> startPythonPipeLine (parser -> json(грязные или уже чистые данные) -> api+стандартизация -> json(чистые) -> core -> sqlite)
 
@@ -49,9 +60,9 @@ ads_snapshots
 - check_id (type: INTEGER, default: null)
 - brand (type: TEXT, default: null)
 - model (type: TEXT, default: null)
-- price (type: REAL, default: null)
+- price (type: INTEGER, default: null)
 - year (type: INTEGER, default: null)
-- production_country (type: TEXT, default: null)
+- brand_origin_country (type: TEXT, default: null)
 - sale_region (type: TEXT, default: null)
 - license_plate (type: TEXT, default: null)
 - mileage (type: INTEGER, default: null)
@@ -64,4 +75,6 @@ ads_snapshots
 - engine_volume (type: REAL, default: null)
 - engine_model (type: TEXT, default: null)
 - fuel_type (type: TEXT, default: null)
+- octane (type: INTEGER, default: null)
+- powertrain_type (type: TEXT, default: null)
 - description (type: TEXT, default: null)

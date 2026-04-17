@@ -24,10 +24,69 @@ input_data = json.loads(sys.stdin.read())
 # SETTINGS (temporary)
 # =========================================================
 
-START_URL = "https://auto.drom.ru/toyota/camry/"
+#START_URL = "https://auto.drom.ru/toyota/camry/"
+START_URL = "http://auto.drom.ru/subaru/levorg/"
 MAX_CARS = 6
 BATCH_SIZE = 2
 
+# =========================================================
+# 0. UTILS
+# =========================================================
+
+# Безопасный перевод в int
+def safe_int(value):
+    if not value:
+        return None
+    value = re.sub(r"\D", "", value)
+    return int(value) if value else None
+
+# Чтение двигателя
+def parse_engine(engine_raw):
+    if not engine_raw:
+        return None, None, None, None
+
+    parts = [p.strip().lower() for p in engine_raw.split(",")]
+
+    fuel_type = None
+    volume = None
+    octane = None
+    powertrain = None
+
+    for part in parts:
+
+        # ОБЪЁМ
+        vol_match = re.search(r"(\d+(\.\d+)?)", part)
+        if re.search(r"л", part) and vol_match:
+            volume = float(vol_match.group(1))
+            continue
+
+        # ОКТАН (редко, но на будущее)
+        oct_match = re.search(r"\b(80|92|95|98|100)\b", part)
+        if oct_match:
+            octane = int(oct_match.group(1))
+            continue
+
+        # ОСНОВНОЕ ТОПЛИВО
+        if part in ["бензин", "дизель", "электро", "газ"]:
+            fuel_type = part
+            continue
+
+        # ДОПОЛНИТЕЛЬНО
+        if "гибрид" in part:
+            powertrain = "гибрид"
+            continue
+
+        if "ГБО" in part:
+            powertrain = "гбо"
+            continue
+
+        # fallback
+        if not fuel_type:
+            fuel_type = part
+        else:
+            powertrain = part
+
+    return fuel_type, volume, octane, powertrain
 
 # =========================================================
 # DRIVER
@@ -70,16 +129,6 @@ while len(links) < MAX_CARS:
         url = next_button.get_attribute("href")
     except:
         break
-
-# =========================================================
-# !!!!!! safe_int 
-# =========================================================
-
-#def safe_int(value):
-#    if not value:
-#        return None
-#    value = re.sub(r"\D", "", value)
-#    return int(value) if value else None
 
 # =========================================================
 # 2. PARSE ADS (with batching)
@@ -178,16 +227,24 @@ for link in links:
         pass
 
     # CLEAN NUMBERS
-    mileage = specs.get("Пробег")
-    power = specs.get("Мощность")
 
-    if mileage:
-        mileage_clean = re.sub(r"\D", "", mileage)
-        mileage = int(mileage_clean) if mileage_clean else None                 # mileage = safe_int(specs.get("Пробег"))
+    mileage = safe_int(specs.get("Пробег"))
+    power = safe_int(specs.get("Мощность"))
 
-    if power:
-        power_clean = re.sub(r"\D", "", power)
-        power = int(power_clean) if power_clean else None                       # mileage = safe_int(specs.get("Пробег"))
+    #mileage = specs.get("Пробег")
+    #power = specs.get("Мощность")
+
+    #if mileage:
+    #    mileage_clean = re.sub(r"\D", "", mileage)
+    #    mileage = int(mileage_clean) if mileage_clean else None                 # mileage = safe_int(specs.get("Пробег"))
+    #
+    #if power:
+    #    power_clean = re.sub(r"\D", "", power)
+    #    power = int(power_clean) if power_clean else None                       # mileage = safe_int(specs.get("Пробег"))
+
+    # ENGINE PARSING
+    engine_raw = specs.get("Двигатель")
+    fuel_type, engine_volume, octane, powertrain = parse_engine(engine_raw)
 
     car = {
         # ADS
@@ -209,7 +266,11 @@ for link in links:
         "steering_wheel": specs.get("Руль"),
 
         "engine_power": power,
-        "engine_model": specs.get("Двигатель"),
+        "engine_volume": engine_volume,
+
+        "fuel_type": fuel_type,
+        "octane": octane,
+        "powertrain": powertrain,
 
         "description": description,
 
@@ -217,7 +278,7 @@ for link in links:
         ## "engine_volume": None,
         ## "fuel_type": None,
         ## "body_type": None,
-        ## "production_country": None,
+        ## "brand_origin_country": None,
         ## "license_plate": None
     }
 
