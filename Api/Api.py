@@ -45,9 +45,14 @@ class Api:
 
     def __init__(self, config_path=None):
         self.config = None
+        self.brand_country_map = {}
 
         ## if config_path:
         ##     self._load_config(config_path)
+
+        # загрузка BrandCountryMap.json
+        self._load_brand_country_map()
+        # print("Brand map size:", len(self.brand_country_map))                                                                 # debag
 
 
     # =========================================================
@@ -57,6 +62,20 @@ class Api:
     ## def _load_config(self, config_path):
     ##     with open(config_path, "r", encoding="utf-8") as f:
     ##         self.config = json.load(f)
+
+
+    # =========================================================
+    # BRAND COUNTRY MAP
+    # =========================================================
+
+    def _load_brand_country_map(self):
+        try:
+        #with open("../../../../Configs/BrandCountryMap.json", "r", encoding="utf-8") as f:                                          # Временное решение пока корень не передаётся
+            with open("C:/Users/MaplLeaf/source/repos/AutoScope/Configs/BrandCountryMap.json", "r", encoding="utf-8") as f:                                          # СУПЕР Временное решение пока корень не передаётся !!!!!!!!!!!!!!!!!!!!!
+                self.brand_country_map = json.load(f)
+        except:
+            print ("ERROR load BrandCountryMap")                                                                                                                # debag
+            self.brand_country_map = {}
 
 
     # =========================================================
@@ -119,12 +138,51 @@ class Api:
 
             result[key] = value
 
+        # =========================================================
+        # ENRICHMENT: BRAND COUNTRY
+        # =========================================================
+
+        # если страна не пришла — пробуем определить
+        if not result.get("brand_origin_country"):
+            brand = result.get("brand")
+
+            if brand:
+                country = self._get_brand_country(brand)
+
+                if country:
+                    result["brand_origin_country"] = country
+
         # обязательные поля
         ## for field in self.REQUIRED_FIELDS:
         ##     if not result.get(field):
         ##         return None
 
         return result
+
+
+    # =========================================================
+    # BRAND NORMALIZATION
+    # =========================================================
+
+    def _get_brand_country(self, brand):
+
+        if not brand:
+            return None
+
+        # варианты нормализации
+        variants = [
+            brand,
+            brand.strip(),
+            brand.title(),
+            brand.upper(),
+            brand.lower()
+        ]
+
+        for v in variants:
+            if v in self.brand_country_map:
+                return self.brand_country_map[v]
+
+        return None
 
 
     # =========================================================
