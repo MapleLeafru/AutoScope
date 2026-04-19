@@ -57,21 +57,21 @@ class ParserAdapter:
 
     @staticmethod
     def run(parser_config, context):
-        parser_type = parser_config.get("type")
 
-        if parser_type == "python":
+        ext = os.path.splitext(parser_config.get("parserPath"))[1].lower()
+
+        if ext == ".py":
             return ParserAdapter._run_python(parser_config, context)
-
-        ## можно добавить другие языки
-        ## elif parser_type == "node":
-        ##     return ParserAdapter._run_node(parser_config, context)
+        #elif ext == ".js":
+        #    return ParserAdapter._run_node(...)
+        #elif ext == "":
 
         raise Exception(f"Unsupported parser type: {parser_type}")
 
 
     @staticmethod
     def _run_python(parser_config, context):
-        path = parser_config.get("path")
+        path = parser_config.get("parserPath")
         python_path = parser_config.get("python", "python")
 
         env = os.environ.copy()

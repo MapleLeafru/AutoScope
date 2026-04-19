@@ -28,7 +28,7 @@ void menuModeSelection()
 {
     // Выбор режима
     Console.WriteLine("Выберите режим:");
-    Console.WriteLine("1 - Выбрать базу данных");
+    Console.WriteLine("1 - Выбрать базу данных для дальнейшей работы");
     Console.WriteLine("2 - Открыть инструменты");
 
     int modeNumber = selectingMenuNumber(min: 1, max: 2, "Номер выбранного режима: ");
@@ -55,19 +55,58 @@ void startInputPythonPipelineManager()
     Console.WriteLine($"Выбран парсер: {Path.GetFileName(selectedParser)}");
     Console.WriteLine();
 
-    // Пример параметров (потом вынесешь в UI) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    Console.Write("Введите источник (url/путь): ");
-    string source = Console.ReadLine();
+    //------------------------------------------------------------------------------------------------
+    // Задача параметров парсера
+    string configFile = Path.Combine(CONFIGS_PATH, "ParserDefaultSettings.json");
+    string configJson = File.ReadAllText(configFile);
 
+    var defaultSettings = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(configJson);
+
+    // Задаём значения по умолчанию
+    string defaultStartUrl = defaultSettings["startUrl"].GetString();
+    int defaultMaxCars = defaultSettings["maxCars"].GetInt32();
+    int defaultBatchSize = defaultSettings["batchSize"].GetInt32();
+
+    // Беоём у пользователя
+    Console.Write("Введите START_URL (Пустое поле = значение по умолчанию): ");
+    string startUrlInput = Console.ReadLine();
+
+    Console.Write("Введите MAX_CARS (Enter = из конфига): ");
+    string maxCarsInput = Console.ReadLine();
+
+    Console.Write("Введите BATCH_SIZE (Enter = из конфига): ");
+    string batchSizeInput = Console.ReadLine();
+
+    // Подставляем
+    string startUrl = string.IsNullOrWhiteSpace(startUrlInput)
+        ? defaultStartUrl
+        : startUrlInput;
+
+    int maxCars = string.IsNullOrWhiteSpace(maxCarsInput)
+        ? defaultMaxCars
+        : int.Parse(maxCarsInput);
+
+    int batchSize = string.IsNullOrWhiteSpace(batchSizeInput)
+        ? defaultBatchSize
+        : int.Parse(batchSizeInput);
+    //------------------------------------------------------------------------------------------------
+
+    // Формируем json
     var request = new
     {
-        source = source, // Это 100% будет работать не так, но пока в качестве примера пускай будет
-//        parser = selectedParser,
         parser = new
         {
-            type = "python",
-            path = selectedParser,
+            parserPath = selectedParser,
             python = PYTHON_PATH
+        },
+        parserSettings = new
+        {
+            startUrl = startUrl,
+            maxCars = maxCars,
+            batchSize = batchSize
+            //startUrl = "https://auto.drom.ru/subaru/levorg/",
+            //maxCars = 10,
+            //batchSize = 5
         },
         dbPath = selectedDataBase,
         configPath = CONFIGS_PATH

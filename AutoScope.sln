@@ -19,6 +19,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Configs", "Configs", "{36D5
 	ProjectSection(SolutionItems) = preProject
 		Configs\BaseDataBaseConfig.json = Configs\BaseDataBaseConfig.json
 		Configs\BrandCountryMap.json = Configs\BrandCountryMap.json
+		Configs\ParserDefaultSettings.json = Configs\ParserDefaultSettings.json
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Databases", "Databases", "{7ACE479F-96BF-40CB-B286-D0DA12D0DEF5}"

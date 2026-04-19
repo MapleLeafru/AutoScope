@@ -14,20 +14,27 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 input_data = json.loads(sys.stdin.read())
 
-### config_path = input_data.get("configPath")
-### db_path = input_data.get("dbPath")
-### source = input_data.get("source")
-### batch_size = input_data.get("batchSize", 5)
+settings = input_data.get("parserSettings", {})
 
+START_URL = settings.get("startUrl")
+MAX_CARS = settings.get("maxCars")
+BATCH_SIZE = settings.get("batchSize")
+
+if not START_URL:
+    raise Exception("START_URL is required")
+if not MAX_CARS:
+    raise Exception("MAX_CARS is required")
+if not BATCH_SIZE:
+    raise Exception("BATCH_SIZE is required")
 
 # =========================================================
 # SETTINGS (temporary)
 # =========================================================
 
 #START_URL = "https://auto.drom.ru/toyota/camry/"
-START_URL = "http://auto.drom.ru/subaru/levorg/"
-MAX_CARS = 6
-BATCH_SIZE = 2
+#START_URL = "http://auto.drom.ru/subaru/levorg/"
+#MAX_CARS = 6
+#BATCH_SIZE = 2
 
 # =========================================================
 # 0. UTILS
