@@ -68,13 +68,13 @@ void startInputPythonPipelineManager()
     int defaultBatchSize = defaultSettings["batchSize"].GetInt32();
 
     // Беоём у пользователя
-    Console.Write("Введите START_URL (Пустое поле = значение по умолчанию): ");
+    Console.Write("Введите START_URL (Пустое поле = значение из конфига): ");
     string startUrlInput = Console.ReadLine();
 
-    Console.Write("Введите MAX_CARS (Enter = из конфига): ");
+    Console.Write("Введите MAX_CARS (Пустое поле = значение из конфига): ");
     string maxCarsInput = Console.ReadLine();
 
-    Console.Write("Введите BATCH_SIZE (Enter = из конфига): ");
+    Console.Write("Введите BATCH_SIZE (Пустое поле = значение из конфига): ");
     string batchSizeInput = Console.ReadLine();
 
     // Подставляем
@@ -127,6 +127,7 @@ void startInputPythonPipelineManager()
     using (var process = Process.Start(start))
     {
         process.StandardInput.WriteLine(json);
+        process.StandardInput.Flush();
         process.StandardInput.Close();
 
         string output = process.StandardOutput.ReadToEnd();

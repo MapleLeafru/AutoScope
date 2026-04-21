@@ -37,6 +37,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Элементы решен
 EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "PipelineManagers", "PipelineManagers\PipelineManagers.pyproj", "{80239E5D-2F46-4645-8A7B-4835B0AB4C54}"
 EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Logger", "Logger\Logger.pyproj", "{872C5BC3-E92A-4F55-A260-CCF1ED1145E2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -59,6 +61,8 @@ Global
 		{EA9AE078-9C11-4E5D-B446-5CECC0718C75}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{80239E5D-2F46-4645-8A7B-4835B0AB4C54}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{80239E5D-2F46-4645-8A7B-4835B0AB4C54}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{872C5BC3-E92A-4F55-A260-CCF1ED1145E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{872C5BC3-E92A-4F55-A260-CCF1ED1145E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

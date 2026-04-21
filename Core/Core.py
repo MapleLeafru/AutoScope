@@ -6,12 +6,23 @@ class Core:
     def save(self, data, db_path):
 
         # если список — обрабатываем по одному
+#        if isinstance(data, list):
+#            for item in data:
+#                self._save_one(item, db_path)
+#            return
+#
+#        self._save_one(data, db_path)
+
+# ---------------------------------------------------------------- аналог print(f"[CORE] ads_id={ads_id}, check_id={check_id}, has_changes={has_changes}")
+        results = []
         if isinstance(data, list):
             for item in data:
-                self._save_one(item, db_path)
-            return
+                results.append(self._save_one(item, db_path))
+        else:
+            results.append(self._save_one(data, db_path))
 
-        self._save_one(data, db_path)
+        return results
+# ----------------------------------------------------------------
 
 
     # =========================================================
@@ -42,8 +53,12 @@ class Core:
         conn.commit()
         conn.close()
 
-        print(f"[CORE] ads_id={ads_id}, check_id={check_id}, has_changes={has_changes}")
-
+        # print(f"[CORE] ads_id={ads_id}, check_id={check_id}, has_changes={has_changes}")
+        return {
+            "ads_id": ads_id,
+            "check_id": check_id,
+            "has_changes": has_changes
+        }
 
     # =========================================================
     # ADS

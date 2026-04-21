@@ -11,6 +11,7 @@ sys.path.append(ROOT_DIR)
 
 from Api.Api import Api
 from Core.Core import Core
+from Logger.Logger import Logger
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -101,9 +102,14 @@ class ParserAdapter:
 
         process.wait()
 
-        if error:                                                           # debag
-            print("[PARSER ERROR]")                                         # debag
-            print(error)                                                    # debag
+        if error:
+            context_logger = getattr(context, "logger", None)
+            if context_logger:
+                context_logger.error("PARSER", f"stderr: {error.strip()}")
+
+        #if error:                                                           # debag
+        #    print("[PARSER ERROR]")                                         # debag
+        #    print(error)                                                    # debag
 
         ## if error:
         ##     raise Exception(f"Parser error: {error}")
@@ -131,27 +137,45 @@ class PipelineManager:
         self.api = Api(config_path)
         self.core = Core()
 
+        try:
+            self.logger = Logger("input", context.request)
+            self.context.logger = self.logger
+            self.logger.info("PIPELINE", "=== Pipeline started ===")
+        except Exception as e:
+            print("LOGGER CREATION FAILED:", str(e))
+            raise
 
     def run(self):
-        # try:
-
+        try:
+            self.logger.info("PIPELINE", "Running parser")
             self._run_parser()
+
+            self.logger.info("PIPELINE", "Running API")
             self._run_api()
+
+            self.logger.info("PIPELINE", "Running CORE")
             self._run_core()
+
+            self.logger.info("PIPELINE", "=== Pipeline finished ===")
 
             return {
                 "status": "success"
                 ## "errors": self.context.errors
             }
 
-        # except Exception as e:
-        #     self.context.add_error(str(e))
-        #     self.context.add_error(traceback.format_exc())
+        except Exception as e:
+            try:
+                self.logger.error("PIPELINE", f"Fatal error: {str(e)}")
+            except:
+                print("LOGGER FAILED:", str(e))  # временно
 
-        #     return {
-        #         "status": "error",
-        #         "errors": self.context.errors
-        #     }
+            # self.context.add_error(str(e))
+            # self.context.add_error(traceback.format_exc())
+
+            return {
+                "status": "error"
+                # "errors": self.context.errors
+            }
 
 
     # =========================================================
@@ -161,29 +185,69 @@ class PipelineManager:
     def _run_parser(self):
         parser_config = self.context.request.get("parser")
 
-        print("[PIPELINE] Running parser...")
+        self.logger.info("PARSER", "Running parser...")
+        # print("[PIPELINE] Running parser...")
 
         data = ParserAdapter.run(parser_config, self.context)
 
-        #print(f"[DEBUG] Parser output: {type(data)} | {data}")                              # debag
+        if data is None:
+            self.logger.warning("PARSER", "Parser returned None")
+        elif isinstance(data, list):
+            self.logger.info("PARSER", f"Parser returned batch: {len(data)} items")
+        elif isinstance(data, dict):
+            self.logger.info("PARSER", "Parser returned single object")
+        else:
+            self.logger.warning("PARSER", f"Unexpected data type: {type(data)}")
+        # print(f"[DEBUG] Parser output: {type(data)} | {data}")                              # debag
 
         self.context.set_data(data)
 
 
     def _run_api(self):
-        print("[PIPELINE] Running API...")
+        self.logger.info("API", "Running API...")
+        # print("[PIPELINE] Running API...")
 
         data = self.context.data
 
         processed = self.api.process(data)
 
-        #print(f"[DEBUG] API output: {type(processed)} | {processed}")                       # debag
+        if processed is None:
+            self.logger.warning("API", "API returned None")
+        elif isinstance(processed, list):
+            self.logger.info("API", f"Processed batch: {len(processed)} items")
+        elif isinstance(processed, dict):
+            self.logger.info("API", "Processed single object")
+        # print(f"[DEBUG] API output: {type(processed)} | {processed}")                       # debag
 
         self.context.set_data(processed)
 
 
     def _run_core(self):
-        print("[PIPELINE] Running CORE...")
+        self.logger.info("CORE", "Running CORE...")
+        # print("[PIPELINE] Running CORE...")
+
+# ---------------------------------------------------------------- аналог print(f"[CORE] ads_id={ads_id}, check_id={check_id}, has_changes={has_changes}")
+        data = self.context.data
+        db_path = self.context.request.get("dbPath")
+
+        if not data:
+            self.logger.warning("CORE", "No data to save")
+            return
+
+        try:
+            results = self.core.save(data, db_path)
+
+            for item in results:
+                self.logger.info(
+                    "CORE",
+                    f"ads_id={item['ads_id']}, "
+                    f"check_id={item['check_id']}, "
+                    f"has_changes={item['has_changes']}"
+                )
+
+        except Exception as e:
+            self.logger.error("CORE", f"DB error: {str(e)}")
+# ----------------------------------------------------------------
 
         data = self.context.data
         db_path = self.context.request.get("dbPath")
@@ -192,8 +256,16 @@ class PipelineManager:
             print("[PIPELINE] No data to save")
             return
 
-        self.core.save(data, db_path)
+        try:
+            self.core.save(data, db_path)
 
+            if isinstance(data, list):
+                self.logger.info("CORE", f"Saved batch: {len(data)} items")
+            else:
+                self.logger.info("CORE", "Saved single object")
+
+        except Exception as e:
+            self.logger.error("CORE", f"DB error: {str(e)}")
 
 # =========================================================
 # Entry Point
