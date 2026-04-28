@@ -67,7 +67,7 @@ class ParserAdapter:
         #    return ParserAdapter._run_node(...)
         #elif ext == "":
 
-        raise Exception(f"Unsupported parser type: {parser_type}")
+        raise Exception(f"Unsupported parser type: {ext}")
 
 
     @staticmethod
@@ -77,6 +77,11 @@ class ParserAdapter:
 
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
+
+        if not os.path.exists(path):
+            if context.logger:
+                context.logger.error("PARSER", f"Parser file not found: {path}")
+            return None
 
         process = subprocess.Popen(
             [python_path, path],
@@ -115,11 +120,16 @@ class ParserAdapter:
         ##     raise Exception(f"Parser error: {error}")
 
         if not output:
+            if context.logger:
+                context.logger.error("PARSER", "Parser returned empty output")
             return None
 
         try:
-            return json.loads(output) if output else None
-        except:
+            return json.loads(output)
+        except Exception as e:
+            if context.logger:
+                context.logger.error("PARSER", f"JSON parse error: {str(e)}")
+                context.logger.error("PARSER", f"Raw output: {output[:500]}")
             return None
 
 
@@ -191,7 +201,8 @@ class PipelineManager:
         data = ParserAdapter.run(parser_config, self.context)
 
         if data is None:
-            self.logger.warning("PARSER", "Parser returned None")
+            self.logger.error("PARSER", "Parser failed or returned invalid data")
+            raise Exception("Parser stage failed")
         elif isinstance(data, list):
             self.logger.info("PARSER", f"Parser returned batch: {len(data)} items")
         elif isinstance(data, dict):
@@ -247,25 +258,25 @@ class PipelineManager:
 
         except Exception as e:
             self.logger.error("CORE", f"DB error: {str(e)}")
-# ----------------------------------------------------------------
+# ---------------------------------------------------------------- Блок ниже можно просто удалить (раньше состояние выводилось в print сейчас в logger)
 
-        data = self.context.data
-        db_path = self.context.request.get("dbPath")
-
-        if not data:
-            print("[PIPELINE] No data to save")
-            return
-
-        try:
-            self.core.save(data, db_path)
-
-            if isinstance(data, list):
-                self.logger.info("CORE", f"Saved batch: {len(data)} items")
-            else:
-                self.logger.info("CORE", "Saved single object")
-
-        except Exception as e:
-            self.logger.error("CORE", f"DB error: {str(e)}")
+#        data = self.context.data
+#        db_path = self.context.request.get("dbPath")
+#
+#        if not data:
+#            print("[PIPELINE] No data to save")
+#            return
+#
+#        try:
+#            self.core.save(data, db_path)
+#
+#            if isinstance(data, list):
+#                self.logger.info("CORE", f"Saved batch: {len(data)} items")
+#            else:
+#                self.logger.info("CORE", "Saved single object")
+#
+#        except Exception as e:
+#            self.logger.error("CORE", f"DB error: {str(e)}")
 
 # =========================================================
 # Entry Point

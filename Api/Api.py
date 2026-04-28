@@ -1,5 +1,5 @@
 ﻿import json
-
+import os
 
 class Api:
 
@@ -7,7 +7,7 @@ class Api:
     # ALLOWED FIELDS (контракт с БД)
     # =========================================================
 
-    ALLOWED_FIELDS = {
+    ALLOWED_FIELDS = { # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Надо блять сделать подтягивание конфига бд из json
         # ads
         "source",
         "url",
@@ -35,17 +35,22 @@ class Api:
         "description"
     }
 
-    REQUIRED_FIELDS = {
+    REQUIRED_FIELDS = { # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Надо блять сделать подтягивание конфига бд из json
         "url"
     }
+
+    FIELD_MAPPING = {
+    "powertrain": "powertrain_type"
+}
 
     # =========================================================
     # INIT
     # =========================================================
 
     def __init__(self, config_path=None):
-        self.config = None
+        self.config = {}
         self.brand_country_map = {}
+        self.config_path = config_path
 
         ## if config_path:
         ##     self._load_config(config_path)
@@ -70,12 +75,23 @@ class Api:
 
     def _load_brand_country_map(self):
         try:
-        #with open("../../../../Configs/BrandCountryMap.json", "r", encoding="utf-8") as f:                                          # Временное решение пока корень не передаётся
-            with open("C:/Users/MaplLeaf/source/repos/AutoScope/Configs/BrandCountryMap.json", "r", encoding="utf-8") as f:                                          # СУПЕР Временное решение пока корень не передаётся !!!!!!!!!!!!!!!!!!!!!
+            path = os.path.join(self.config_path, "BrandCountryMap.json")
+
+            with open(path, "r", encoding="utf-8") as f:
                 self.brand_country_map = json.load(f)
-        except:
-            print ("ERROR load BrandCountryMap")                                                                                                                # debag
+
+        except Exception as e:
+            print("ERROR load BrandCountryMap:", str(e))
             self.brand_country_map = {}
+
+#    def _load_brand_country_map(self):
+#        try:
+#        #with open("../../../../Configs/BrandCountryMap.json", "r", encoding="utf-8") as f:                                          # Временное решение пока корень не передаётся
+#            with open("C:/Users/MaplLeaf/source/repos/AutoScope/Configs/BrandCountryMap.json", "r", encoding="utf-8") as f:                                          # СУПЕР Временное решение пока корень не передаётся !!!!!!!!!!!!!!!!!!!!!
+#                self.brand_country_map = json.load(f)
+#        except:
+#            print ("ERROR load BrandCountryMap")                                                                                                                # debag
+#            self.brand_country_map = {}
 
 
     # =========================================================
@@ -93,8 +109,12 @@ class Api:
             for item in data:
                 normalized = self._normalize(item)
 
-                ## if normalized is None:
-                ##     continue
+                if normalized is None:
+                    # логируем если есть logger
+                    logger = getattr(self, "logger", None)
+                    if logger:
+                        logger.warning("API", f"Skipped invalid item: {item}")
+                    continue
 
                 result.append(normalized)
 
@@ -121,6 +141,9 @@ class Api:
 
         for key, value in data.items():
 
+            # маппинг полей (parser → API)
+            key = self.FIELD_MAPPING.get(key, key)
+
             # фильтрация полей
             if key not in self.ALLOWED_FIELDS:
                 continue
@@ -132,6 +155,10 @@ class Api:
             # чистка строк
             if isinstance(value, str):
                 value = value.strip()
+
+                # нормализация регистра
+                if key in ["brand", "model", "color", "body_type"]:
+                    value = value.title()
 
             # приведение чисел
             value = self._try_cast_number(value)
@@ -153,9 +180,9 @@ class Api:
                     result["brand_origin_country"] = country
 
         # обязательные поля
-        ## for field in self.REQUIRED_FIELDS:
-        ##     if not result.get(field):
-        ##         return None
+        for field in self.REQUIRED_FIELDS:
+            if not result.get(field):
+                return None
 
         return result
 
@@ -170,12 +197,13 @@ class Api:
             return None
 
         # варианты нормализации
+        brand_clean = brand.strip()
+
         variants = [
-            brand,
-            brand.strip(),
-            brand.title(),
-            brand.upper(),
-            brand.lower()
+            brand_clean,
+            brand_clean.title(),
+            brand_clean.upper(),
+            brand_clean.lower()
         ]
 
         for v in variants:

@@ -106,205 +106,207 @@ driver = webdriver.Chrome()
 # 1. COLLECT LINKS
 # =========================================================
 
-links = []
-url = START_URL
+try:
+    links = []
+    url = START_URL
 
-while len(links) < MAX_CARS:
+    while len(links) < MAX_CARS:
 
-    driver.get(url)
-    time.sleep(2)
+        driver.get(url)
+        time.sleep(2)
 
-    elements = driver.find_elements(By.CSS_SELECTOR, 'a[data-ftid="bull_title"]')
+        elements = driver.find_elements(By.CSS_SELECTOR, 'a[data-ftid="bull_title"]')
 
-    for el in elements:
-        link = el.get_attribute("href")
+        for el in elements:
+            link = el.get_attribute("href")
 
-        if link and link.startswith("/"):
-            link = "https://auto.drom.ru" + link
+            if link and link.startswith("/"):
+                link = "https://auto.drom.ru" + link
 
-        if link and link not in links:
-            links.append(link)
+            if link and link not in links:
+                links.append(link)
 
-        if len(links) >= MAX_CARS:
+            if len(links) >= MAX_CARS:
+                break
+
+        try:
+            next_button = driver.find_element(
+                By.CSS_SELECTOR,
+                'a[data-ftid="component_pagination-item-next"]'
+            )
+            url = next_button.get_attribute("href")
+        except:
             break
 
-    try:
-        next_button = driver.find_element(
-            By.CSS_SELECTOR,
-            'a[data-ftid="component_pagination-item-next"]'
-        )
-        url = next_button.get_attribute("href")
-    except:
-        break
+    # =========================================================
+    # 2. PARSE ADS (with batching)
+    # =========================================================
 
-# =========================================================
-# 2. PARSE ADS (with batching)
-# =========================================================
+    cars = []
+    batch = []
 
-cars = []
-batch = []
+    for link in links:
 
-for link in links:
+        driver.get(link)
+        time.sleep(2)
 
-    driver.get(link)
-    time.sleep(2)
+        # TITLE
+        try:
+            title_full = driver.find_element(By.TAG_NAME, "h1").text
+        except:
+            title_full = ""
 
-    # TITLE
-    try:
-        title_full = driver.find_element(By.TAG_NAME, "h1").text
-    except:
-        title_full = ""
+        model_raw = None
+        year = None
+        city = None
 
-    model_raw = None
-    year = None
-    city = None
+        m = re.match(r"Продажа (.+?), (\d{4}) год (?:в|во) (.+)", title_full)
 
-    m = re.match(r"Продажа (.+?), (\d{4}) год (?:в|во) (.+)", title_full)
+        if m:
+            model_raw = m.group(1).strip()
+            year = int(m.group(2))
+            city = m.group(3).strip()
 
-    if m:
-        model_raw = m.group(1).strip()
-        year = int(m.group(2))
-        city = m.group(3).strip()
+        # SPLIT BRAND / MODEL
+        brand = None
+        model = None
 
-    # SPLIT BRAND / MODEL
-    brand = None
-    model = None
+        if model_raw:
+            parts = model_raw.split(" ", 1)
+            brand = parts[0]
+            if len(parts) > 1:
+                model = parts[1]
+            else:
+                model = parts[0]
 
-    if model_raw:
-        parts = model_raw.split(" ", 1)
-        brand = parts[0]
-        if len(parts) > 1:
-            model = parts[1]
-        else:
-            model = parts[0]
+        # PRICE
+        try:
+            price_text = driver.find_element(
+                By.CSS_SELECTOR,
+                'div[data-ftid="bulletin-price"]'
+            ).text
 
-    # PRICE
-    try:
-        price_text = driver.find_element(
-            By.CSS_SELECTOR,
-            'div[data-ftid="bulletin-price"]'
-        ).text
+            price = int(re.sub(r"\D", "", price_text))
+        except:
+            price = None
 
-        price = int(re.sub(r"\D", "", price_text))
-    except:
-        price = None
+        # DESCRIPTION
+        description = None
 
-    # DESCRIPTION
-    description = None
-
-    try:
-        description = driver.find_element(
-            By.CSS_SELECTOR,
-            'div[data-ftid="info-full"] span[data-ftid="value"]'
-        ).text
-    except:
         try:
             description = driver.find_element(
                 By.CSS_SELECTOR,
-                'div[data-ftid="info-short"] span[data-ftid="value"]'
+                'div[data-ftid="info-full"] span[data-ftid="value"]'
             ).text
         except:
-            description = None
-
-    # SPECS
-    specs = {}
-
-    try:
-        rows = driver.find_elements(
-            By.CSS_SELECTOR,
-            'table[data-ftid="bulletin-specifications"] tr'
-        )
-
-        for row in rows:
             try:
-                key = row.find_element(
+                description = driver.find_element(
                     By.CSS_SELECTOR,
-                    'th[data-ftid="property"]'
-                ).text.strip()
-
-                value = row.find_element(
-                    By.CSS_SELECTOR,
-                    'td[data-ftid="value"]'
-                ).text.strip()
-
-                specs[key] = value
+                    'div[data-ftid="info-short"] span[data-ftid="value"]'
+                ).text
             except:
-                continue
-    except:
-        pass
+                description = None
 
-    # CLEAN NUMBERS
+        # SPECS
+        specs = {}
 
-    mileage = safe_int(specs.get("Пробег"))
-    power = safe_int(specs.get("Мощность"))
+        try:
+            rows = driver.find_elements(
+                By.CSS_SELECTOR,
+                'table[data-ftid="bulletin-specifications"] tr'
+            )
 
-    #mileage = specs.get("Пробег")
-    #power = specs.get("Мощность")
+            for row in rows:
+                try:
+                    key = row.find_element(
+                        By.CSS_SELECTOR,
+                        'th[data-ftid="property"]'
+                    ).text.strip()
 
-    #if mileage:
-    #    mileage_clean = re.sub(r"\D", "", mileage)
-    #    mileage = int(mileage_clean) if mileage_clean else None                 # mileage = safe_int(specs.get("Пробег"))
-    #
-    #if power:
-    #    power_clean = re.sub(r"\D", "", power)
-    #    power = int(power_clean) if power_clean else None                       # mileage = safe_int(specs.get("Пробег"))
+                    value = row.find_element(
+                        By.CSS_SELECTOR,
+                        'td[data-ftid="value"]'
+                    ).text.strip()
 
-    # ENGINE PARSING
-    engine_raw = specs.get("Двигатель")
-    fuel_type, engine_volume, octane, powertrain = parse_engine(engine_raw)
+                    specs[key] = value
+                except:
+                    continue
+        except:
+            pass
 
-    car = {
-        # ADS
-        "source": "drom",
-        "url": link,
+        # CLEAN NUMBERS
 
-        # SNAPSHOT
-        "brand": brand,
-        "model": model,
-        "price": price,
-        "year": year,
+        mileage = safe_int(specs.get("Пробег"))
+        power = safe_int(specs.get("Мощность"))
 
-        "sale_region": city,
+        #mileage = specs.get("Пробег")
+        #power = specs.get("Мощность")
 
-        "mileage": mileage,
-        "transmission": specs.get("Коробка передач"),
-        "drive_type": specs.get("Привод"),
-        "color": specs.get("Цвет"),
-        "steering_wheel": specs.get("Руль"),
+        #if mileage:
+        #    mileage_clean = re.sub(r"\D", "", mileage)
+        #    mileage = int(mileage_clean) if mileage_clean else None                 # mileage = safe_int(specs.get("Пробег"))
+        #
+        #if power:
+        #    power_clean = re.sub(r"\D", "", power)
+        #    power = int(power_clean) if power_clean else None                       # mileage = safe_int(specs.get("Пробег"))
 
-        "engine_power": power,
-        "engine_volume": engine_volume,
+        # ENGINE PARSING
+        engine_raw = specs.get("Двигатель")
+        fuel_type, engine_volume, octane, powertrain = parse_engine(engine_raw)
 
-        "fuel_type": fuel_type,
-        "octane": octane,
-        "powertrain": powertrain,
+        car = {
+            # ADS
+            "source": "drom",
+            "url": link,
 
-        "description": description,
+            # SNAPSHOT
+            "brand": brand,
+            "model": model,
+            "price": price,
+            "year": year,
 
-        ## optional
-        ## "engine_volume": None,
-        ## "fuel_type": None,
-        ## "body_type": None,
-        ## "brand_origin_country": None,
-        ## "license_plate": None
-    }
+            "sale_region": city,
 
-    ## if not car["url"]:
-    ##     continue
+            "mileage": mileage,
+            "transmission": specs.get("Коробка передач"),
+            "drive_type": specs.get("Привод"),
+            "color": specs.get("Цвет"),
+            "steering_wheel": specs.get("Руль"),
 
-    batch.append(car)
+            "engine_power": power,
+            "engine_volume": engine_volume,
 
-    if len(batch) >= BATCH_SIZE:
+            "fuel_type": fuel_type,
+            "octane": octane,
+            "powertrain": powertrain,
+
+            "description": description,
+
+            ## optional
+            ## "engine_volume": None,
+            ## "fuel_type": None,
+            ## "body_type": None,
+            ## "brand_origin_country": None,
+            ## "license_plate": None
+        }
+
+        ## if not car["url"]:
+        ##     continue
+
+        batch.append(car)
+
+        if len(batch) >= BATCH_SIZE:
+            cars.extend(batch)
+            batch = []
+
+    # остаток
+    if batch:
         cars.extend(batch)
-        batch = []
 
-# остаток
-if batch:
-    cars.extend(batch)
+    driver.quit()
 
-
-driver.quit()
-
+finally:
+    driver.quit()
 
 # =========================================================
 # OUTPUT
