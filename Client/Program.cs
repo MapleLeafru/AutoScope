@@ -189,11 +189,11 @@ void menuPythonUtils()
     int toolNumber = selectingMenuNumber(min: 0, max: 2, "Номер выбранного интсрумента: ");
 
     if (toolNumber == 0) { return; }
-    else if (toolNumber == 1) { preparationPythonUtils_dbCreate(); }
-    else if (toolNumber == 2) { preparationPythonUtils_dbDelete(); }
+    else if (toolNumber == 1) { preparationPythonDatabaseManager_dbCreate(); }
+    else if (toolNumber == 2) { preparationPythonDatabaseManager_dbDelete(); }
 }
 
-void preparationPythonUtils_dbCreate()
+void preparationPythonDatabaseManager_dbCreate()
 {
     string dataBaseNameToCreate = "";
     while (true)
@@ -206,9 +206,9 @@ void preparationPythonUtils_dbCreate()
             {
                 string[] existingDatabases = dataBaseScanning(consoleOutput: false, returnOnlyFileNames: true);
                 if (existingDatabases.Contains(dataBaseNameToCreate + ".db")) { Console.Write($"База данных с названием <{dataBaseNameToCreate}> уже существует, пересоздать? y/n: "); }
-                else { Console.Write($"Подтвердите создание базы данных с названием <{dataBaseNameToCreate}> y/n: "); }
+                else { Console.Write($"Подтвердите создание базы данных <{dataBaseNameToCreate}> (конфиг будет добавлен автоматически) y/n: "); }
                 string ansver = Console.ReadLine().ToUpper();
-                if (ansver == "Y") { startPythonUtils(dataBaseName: dataBaseNameToCreate, isThereExtension_db:false, commandToRun: "dbCreate"); return; }
+                if (ansver == "Y") { startPythonDatabaseManager(dataBaseName: dataBaseNameToCreate, isThereExtension_db:false, commandToRun: "dbCreate"); return; }
                 else if (ansver == "N") { dataBaseNameToCreate = ""; return; }
 
                 Console.WriteLine("Некорректный ввод. Попробуйте снова.");
@@ -222,7 +222,7 @@ void preparationPythonUtils_dbCreate()
     }
 }
 
-void preparationPythonUtils_dbDelete()
+void preparationPythonDatabaseManager_dbDelete()
 {
     string dataBasePathToDelete = dataBaseScanningAndSelection(message: "Выберите номер базы данных для удаления: ");
     // Добавить удаление на 0
@@ -231,20 +231,20 @@ void preparationPythonUtils_dbDelete()
     {
         Console.Write($"Вы уверены что хотите удалить базу данных {dataBaseNameToDelete}? Это действие не обратимо y/n: ");
         string ansver = Console.ReadLine().ToUpper();
-        if (ansver == "Y") { startPythonUtils(dataBaseName: dataBaseNameToDelete, isThereExtension_db: true , commandToRun: "dbDelete"); return; }
+        if (ansver == "Y") { startPythonDatabaseManager(dataBaseName: dataBaseNameToDelete, isThereExtension_db: true , commandToRun: "dbDelete"); return; }
         else if (ansver == "N") { return; }
         Console.WriteLine("Некорректный ввод.");
     }
 }
 
-void startPythonUtils(string dataBaseName, bool isThereExtension_db, string commandToRun)
+void startPythonDatabaseManager(string dataBaseName, bool isThereExtension_db, string commandToRun)
 {
-    string utilsPath = Path.Combine(ROOT_PATH, @"Utils\Utils.py");
+    string DatabaseManagerPath = Path.Combine(ROOT_PATH, @"Utils\DatabaseManager.py");
 
-    ProcessStartInfo startUtils = new ProcessStartInfo // Параметры запуска
+    ProcessStartInfo startDatabaseManager = new ProcessStartInfo // Параметры запуска
     {
         FileName = PYTHON_PATH,
-        Arguments = $"\"{utilsPath}\"",
+        Arguments = $"\"{DatabaseManagerPath}\"",
         UseShellExecute = false,
         RedirectStandardInput = true,
         RedirectStandardOutput = true,
@@ -253,25 +253,24 @@ void startPythonUtils(string dataBaseName, bool isThereExtension_db, string comm
     
     // Создаём json с переменными для передачи перед запуском
     if (!isThereExtension_db) { dataBaseName += ".db"; }
-    var pythonUtils_request = new
+    var pythonDatabaseManager_request = new
     {
         command = commandToRun,
         dbFileName = dataBaseName,
         configPath = CONFIGS_PATH,
         dbPath = DB_PATH
     };
-    string pythonUtils_request_json = JsonSerializer.Serialize(pythonUtils_request);
+    string pythonDatabaseManager_request_json = JsonSerializer.Serialize(pythonDatabaseManager_request);
 
-    using (var pythonUtilsProcess = Process.Start(startUtils))
+    using (var pythonDatabaseManagerProcess = Process.Start(startDatabaseManager))
     {
-        pythonUtilsProcess.StandardInput.WriteLine(pythonUtils_request_json);
-        pythonUtilsProcess.StandardInput.Close();
+        pythonDatabaseManagerProcess.StandardInput.WriteLine(pythonDatabaseManager_request_json);
+        pythonDatabaseManagerProcess.StandardInput.Close();
 
-        string output = pythonUtilsProcess.StandardOutput.ReadToEnd();
-        string error = pythonUtilsProcess.StandardError.ReadToEnd();
+        string output = pythonDatabaseManagerProcess.StandardOutput.ReadToEnd();
+        string error = pythonDatabaseManagerProcess.StandardError.ReadToEnd();
 
-        pythonUtilsProcess.WaitForExit();
-        //Console.WriteLine("Exit code: " + pythonUtilsProcess.ExitCode);                                     // debag
+        pythonDatabaseManagerProcess.WaitForExit();
 
         Console.WriteLine(output);
         if (!string.IsNullOrEmpty(error))

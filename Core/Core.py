@@ -3,6 +3,12 @@ import sys
 
 class Core:
 
+    def __init__(self, full_config=None):
+        full_config = full_config or {}
+
+        self.config = full_config
+        self.db_config = full_config.get("db", {})
+
     def save(self, data, db_path):
 
         # если список — обрабатываем по одному
@@ -72,6 +78,9 @@ class Core:
 
         if row:
             return row[0]
+
+        if "url" not in data:
+            raise Exception("Missing required field: url")  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Хардкот на обязательне поля
 
         cursor.execute(
             "INSERT INTO ads (source, url) VALUES (?, ?)",
@@ -155,43 +164,66 @@ class Core:
 
     def _create_snapshot(self, cursor, check_id, data):
 
-        cursor.execute(
-            """
-            INSERT INTO ads_snapshots (
-                check_id,
-                brand, model, price, year,
-                brand_origin_country, sale_region,
-                license_plate, mileage,
-                transmission, drive_type,
-                color, body_type,
-                steering_wheel,
-                engine_power, engine_volume,
-                engine_model, fuel_type,
-                octane, powertrain_type,
-                description
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                check_id,
-                data.get("brand"),
-                data.get("model"),
-                data.get("price"),
-                data.get("year"),
-                data.get("brand_origin_country"),
-                data.get("sale_region"),
-                data.get("license_plate"),
-                data.get("mileage"),
-                data.get("transmission"),
-                data.get("drive_type"),
-                data.get("color"),
-                data.get("body_type"),
-                data.get("steering_wheel"),
-                data.get("engine_power"),
-                data.get("engine_volume"),
-                data.get("engine_model"),
-                data.get("fuel_type"),
-                data.get("octane"),
-                data.get("powertrain_type"),
-                data.get("description")
-            )
+        snapshot_fields = list(
+            self.db_config.get("ads_snapshots", {}).keys()
         )
+
+        columns = ["check_id"] + snapshot_fields
+
+        values = [check_id] + [data.get(field) for field in snapshot_fields]
+
+        placeholders = ", ".join(["?"] * len(columns))
+        columns_sql = ", ".join(columns)
+
+        query = f"""
+            INSERT INTO ads_snapshots ({columns_sql})
+            VALUES ({placeholders})
+        """
+
+        if not snapshot_fields:
+            raise Exception("ads_snapshots config is empty")
+
+        cursor.execute(query, values)
+
+#    def _create_snapshot(self, cursor, check_id, data):
+#
+#        cursor.execute(
+#            """
+#            INSERT INTO ads_snapshots (
+#                check_id,
+#                brand, model, price, year,
+#                brand_origin_country, sale_region,
+#                license_plate, mileage,
+#                transmission, drive_type,
+#                color, body_type,
+#                steering_wheel,
+#                engine_power, engine_volume,
+#                engine_model, fuel_type,
+#                octane, powertrain_type,
+#                description
+#            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+#            """,
+#            (
+#                check_id,
+#                data.get("brand"),
+#                data.get("model"),
+#                data.get("price"),
+#                data.get("year"),
+#                data.get("brand_origin_country"),
+#                data.get("sale_region"),
+#                data.get("license_plate"),
+#                data.get("mileage"),
+#                data.get("transmission"),
+#                data.get("drive_type"),
+#                data.get("color"),
+#                data.get("body_type"),
+#                data.get("steering_wheel"),
+#                data.get("engine_power"),
+#                data.get("engine_volume"),
+#                data.get("engine_model"),
+#                data.get("fuel_type"),
+#                data.get("octane"),
+#                data.get("powertrain_type"),
+#                data.get("description")
+#            )
+#        )

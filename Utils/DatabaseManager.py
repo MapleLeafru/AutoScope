@@ -3,6 +3,12 @@ import os
 import sqlite3
 import json
 
+# Добавляем корень проекта в PYTHONPATH
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(ROOT_DIR)
+
+from Utils.ConfigLoader import ConfigLoader
+
 sys.stdout.reconfigure(encoding='utf-8')
 
 # ===================== input json =====================
@@ -20,10 +26,10 @@ except Exception as e:
     print("JSON ERROR:", e)
     input_json_data = {}
 
-BaseDataBaseConfig_PATH = os.path.join(
-    input_json_data.get("configPath", ""),
-    "BaseDataBaseConfig.json"
-)
+#BaseDataBaseConfig_PATH = os.path.join(
+#    input_json_data.get("configPath", ""),
+#    "BaseDataBaseConfig.json"
+#)
 
 DB_PATH = input_json_data.get("dbPath") 
 COMMAND = input_json_data.get("command")
@@ -31,19 +37,19 @@ DB_FILE_NAME = input_json_data.get("dbFileName")
 
 # ===================== CONFIG =====================
 
-def parse_config(config_file=BaseDataBaseConfig_PATH):
-    """Читает JSON конфигурацию таблиц"""
-    
-    if not os.path.exists(config_file):
-        print(f"CONFIG ERROR: файл не найден: {config_file}")
-        return {}
-
-    try:
-        with open(config_file, encoding="utf-8") as f:
-            return json.load(f)
-    except json.JSONDecodeError as e:
-        print(f"CONFIG ERROR: ошибка JSON: {e}")
-        return {}
+#def parse_config(config_file=BaseDataBaseConfig_PATH):
+#    """Читает JSON конфигурацию таблиц"""
+#    
+#    if not os.path.exists(config_file):
+#        print(f"CONFIG ERROR: файл не найден: {config_file}")
+#        return {}
+#
+#    try:
+#        with open(config_file, encoding="utf-8") as f:
+#            return json.load(f)
+#    except json.JSONDecodeError as e:
+#        print(f"CONFIG ERROR: ошибка JSON: {e}")
+#        return {}
 
 
 # ===================== SQL BUILDER =====================
@@ -112,6 +118,15 @@ def db_create(dbFileNameForCrate):
 
     os.makedirs(DB_PATH, exist_ok=True)
 
+    # добавляем имя конфига в название БД
+    config_name = "BaseDataBaseConfig"
+#    config_name = os.path.splitext(os.path.basename(BaseDataBaseConfig_PATH))[0]
+
+    name, ext = os.path.splitext(dbFileNameForCrate)
+
+    if "." not in name:
+        dbFileNameForCrate = f"{name}.{config_name}{ext}"
+
     dbFile = os.path.join(DB_PATH, dbFileNameForCrate)
 
     # если уже существует — пересоздаём
@@ -119,10 +134,14 @@ def db_create(dbFileNameForCrate):
         print(f"DB_CREATE: база {dbFileNameForCrate} уже существует, пересоздаём...")
         os.remove(dbFile)
 
+    print(f"DB_CREATE: используется конфиг: {config_name}")
     conn = sqlite3.connect(dbFile)
     cursor = conn.cursor()
 
-    config = parse_config()
+#    config = parse_config()
+    config = ConfigLoader.load_database_config(dbFile)
+    if not config:
+        print("CONFIG ERROR: не удалось загрузить конфиг через ConfigLoader")
 
     if not config:
         print("WARNING: конфиг пустой, база создана без таблиц")

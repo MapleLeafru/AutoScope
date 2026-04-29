@@ -9,9 +9,10 @@ import subprocess
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(ROOT_DIR)
 
-from Api.Api import Api
+from Api.InputApi import InputApi
 from Core.Core import Core
-from Logger.Logger import Logger
+from Utils.Logger import Logger
+from Utils.ConfigLoader import ConfigLoader
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -143,9 +144,12 @@ class PipelineManager:
         self.context = context
 
         config_path = context.request.get("configPath")
+        db_path = context.request.get("dbPath")
 
-        self.api = Api(config_path)
-        self.core = Core()
+        full_config = ConfigLoader.load_full_config(db_path, config_path)
+
+        self.api = InputApi(full_config)
+        self.core = Core(full_config)
 
         try:
             self.logger = Logger("input", context.request)
@@ -220,7 +224,14 @@ class PipelineManager:
 
         data = self.context.data
 
-        processed = self.api.process(data)
+        result = self.api.process(data)
+
+        processed = result.get("data")
+        meta = result.get("meta", {})
+
+        skipped = meta.get("skipped", 0)
+        if skipped > 0:
+            self.logger.warning("API", f"Skipped items: {skipped}")
 
         if processed is None:
             self.logger.warning("API", "API returned None")

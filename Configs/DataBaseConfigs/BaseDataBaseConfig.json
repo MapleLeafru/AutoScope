@@ -1,0 +1,155 @@
+{
+    "ads": {
+        "id": {
+            "type": "INTEGER",
+            "primary_key": true,
+            "autoincrement": true
+        },
+        "source": {
+            "type": "TEXT",
+            "default": null
+        },
+        "url": {
+            "type": "TEXT",
+            "default": null
+        }
+    },
+
+
+
+    "ads_checks": {
+        "id": {
+            "type": "INTEGER",
+            "primary_key": true,
+            "autoincrement": true
+        },
+        "ads_id": {
+            "type": "INTEGER",
+            "default": null
+        },
+        "checked_at": {
+            "type": "TEXT",
+            "default": "CURRENT_TIMESTAMP"
+        },
+        "has_changes": {
+            "type": "BOOLEAN",
+            "default": "FALSE",
+            "check": "has_changes IN (0,1)"
+        }
+    },
+
+
+
+    "ads_snapshots": {
+        "id": {
+            "type": "INTEGER",
+            "primary_key": true,
+            "autoincrement": true
+        },
+
+        "check_id": {
+            "type": "INTEGER",
+            "default": null
+        },
+
+        "brand": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "model": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "price": {
+            "type": "INTEGER",
+            "default": null
+        },
+
+        "year": {
+            "type": "INTEGER",
+            "default": null
+        },
+
+        "brand_origin_country": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "sale_region": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "license_plate": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "mileage": {
+            "type": "INTEGER",
+            "default": null
+        },
+
+        "transmission": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "drive_type": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "color": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "body_type": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "steering_wheel": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "engine_power": {
+            "type": "INTEGER",
+            "default": null
+        },
+
+        "engine_volume": {
+            "type": "REAL",
+            "default": null
+        },
+
+        "engine_model": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "fuel_type": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "octane" : {
+            "type": "INTEGER",
+            "default": null
+        },
+
+        "powertrain_type": {
+            "type": "TEXT",
+            "default": null
+        },
+
+        "description": {
+            "type": "TEXT",
+            "default": null
+        }
+    }
+}
