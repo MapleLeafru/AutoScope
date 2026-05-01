@@ -65,19 +65,6 @@ class ConfigLoader:
             )
 
     # =========================================================
-    # LOAD FULL CONFIG
-    # =========================================================
-
-    @staticmethod
-    def load_full_config(db_path, configs_path):
-        return {
-            "db": ConfigLoader.load_database_config(db_path),
-            "brand_country_map": ConfigLoader.load_json(
-                os.path.join(configs_path, "BrandCountryMap.json")
-            )
-        }
-
-    # =========================================================
     # JSON LOAD
     # =========================================================
 
@@ -99,4 +86,9 @@ class ConfigLoader:
         )
 
         return ConfigLoader.load_json(restore_path)
+
+    @staticmethod
+    def load_brand_country_map(configs_path):
+        path = os.path.join(configs_path, "BrandCountryMap.json")
+        return ConfigLoader.load_json(path)
 

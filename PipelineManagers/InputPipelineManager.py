@@ -19,11 +19,11 @@ sys.stdout.reconfigure(encoding='utf-8')
 #############################
 #C#                         #
 # ↓ (stdin JSON)            #
-#PipelineManager            #
+#InputPipelineManager            #
 # ↓                         #
 #Parser (отдельный процесс) #
 # ↓ (stdout JSON)           #
-#PipelineManager            #
+#InputPipelineManager            #
 # ↓                         #
 #Api (внутри Python)        #
 # ↓                         #
@@ -135,10 +135,10 @@ class ParserAdapter:
 
 
 # =========================================================
-# Pipeline Manager
+# InputPipeline Manager
 # =========================================================
 
-class PipelineManager:
+class InputPipelineManager:
 
     def __init__(self, context):
         self.context = context
@@ -146,10 +146,11 @@ class PipelineManager:
         config_path = context.request.get("configPath")
         db_path = context.request.get("dbPath")
 
-        full_config = ConfigLoader.load_full_config(db_path, config_path)
+        db_config = ConfigLoader.load_database_config(db_path)
+        brand_map = ConfigLoader.load_brand_country_map(config_path)
 
-        self.api = InputApi(full_config)
-        self.core = Core(full_config)
+        self.api = InputApi(db_config, brand_map)
+        self.core = Core(db_config)
 
         try:
             self.logger = Logger("input", context.request)
@@ -300,7 +301,7 @@ def main():
         request = json.loads(input_json)
 
         context = PipelineContext(request)
-        pipeline = PipelineManager(context)
+        pipeline = InputPipelineManager(context)
 
         result = pipeline.run()
 
