@@ -92,3 +92,18 @@ class ConfigLoader:
         path = os.path.join(configs_path, "BrandCountryMap.json")
         return ConfigLoader.load_json(path)
 
+    # =========================================================
+    # LOGGER CONFIG
+    # =========================================================
+
+    @staticmethod
+    def load_logger_config():
+        path = os.path.join(ConfigLoader.CONFIGS_DIR, "LoggerConfig.json")
+
+        if not os.path.exists(path):
+            return {
+                "retention_days": 7  # fallback
+            }
+
+        return ConfigLoader.load_json(path)
+

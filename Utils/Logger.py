@@ -1,6 +1,7 @@
 ﻿import os
 import sys
 from datetime import datetime
+from Utils.ConfigLoader import ConfigLoader
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -11,7 +12,7 @@ class Logger:
         pipeline_type: input / output
         request: JSON из C#
         """
-
+        
         self.pipeline_type = pipeline_type
 
         # контекст
@@ -30,6 +31,11 @@ class Logger:
 
         filename = f"{pipeline_type}_pipeline_{self.pipeline_id}.log"
         self.file_path = os.path.join(folder, filename)
+
+        # загрузка конфига логгера
+        self.config = ConfigLoader.load_logger_config()
+        # очистка старых логов
+        self._cleanup_old_logs(folder)
 
     # =========================================================
     # INTERNAL
@@ -63,3 +69,30 @@ class Logger:
 
     def debug(self, stage: str, message: str):
         self._write("DEBUG", stage, message)
+
+    # =========================================================
+    # CLEANUP OLD LOGS
+    # =========================================================
+
+    def _cleanup_old_logs(self, folder_path):
+
+        retention_days = self.config.get("retention_days", 7)
+
+        now = datetime.now()
+
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, filename)
+
+            if not os.path.isfile(file_path):
+                continue
+
+            try:
+                file_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+                age_days = (now - file_time).days
+
+                if age_days > retention_days:
+                    os.remove(file_path)
+
+            except Exception as e:
+                # не валим пайплайн из-за логов
+                pass
