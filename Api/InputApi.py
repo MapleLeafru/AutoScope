@@ -72,7 +72,7 @@ class InputApi:
         )
 
         self.required_fields = set(
-            self.config.get("required_fields", ["url"])
+            self.db_config.get("required_fields", ["url"])
         )
 
     # =========================================================
