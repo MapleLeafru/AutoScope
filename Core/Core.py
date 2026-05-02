@@ -181,3 +181,31 @@ class Core:
             raise Exception("ads_snapshots config is empty")
 
         cursor.execute(query, values)
+
+    # =========================================================
+    # ADS_SNAPSHOTS
+    # =========================================================
+
+    def fetch_all(self, db_path):
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        query = """
+            SELECT a.url, a.source, s.*
+            FROM ads a
+            JOIN ads_checks c ON a.id = c.ads_id
+            JOIN ads_snapshots s ON s.check_id = c.id
+            WHERE c.id = (
+                SELECT MAX(c2.id)
+                FROM ads_checks c2
+                WHERE c2.ads_id = a.id
+            )
+        """
+
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        conn.close()
+
+        return [dict(row) for row in rows]

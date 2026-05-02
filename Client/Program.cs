@@ -28,16 +28,18 @@ void menuModeSelection()
 {
     // Выбор режима
     Console.WriteLine("Выберите режим:");
-    Console.WriteLine("1 - Выбрать базу данных для дальнейшей работы");
-    Console.WriteLine("2 - Открыть инструменты");
+    Console.WriteLine("1 - Запустить Input Pipeline (парсинг)");
+    Console.WriteLine("2 - Запустить Output Pipeline (анализ)");
+    Console.WriteLine("3 - Открыть инструменты");
 
-    int modeNumber = selectingMenuNumber(min: 1, max: 2, "Номер выбранного режима: ");
+    int modeNumber = selectingMenuNumber(min: 1, max: 3, "Номер выбранного режима: ");
     
     if (modeNumber == 1) { startInputPythonPipelineManager(); }
-    else if (modeNumber == 2) { menuPythonUtils(); }
+    else if (modeNumber == 2) { startOutputPythonPipelineManager(); }
+    else if (modeNumber == 3) { menuPythonUtils(); }
 }
 
-/*========================================================PythonPipelineManager========================================================*/
+/*========================================================InputPythonPipelineManager========================================================*/
 
 void startInputPythonPipelineManager()
 {
@@ -128,6 +130,93 @@ void startInputPythonPipelineManager()
     {
         process.StandardInput.WriteLine(json);
         process.StandardInput.Flush();
+        process.StandardInput.Close();
+
+        string output = process.StandardOutput.ReadToEnd();
+        string error = process.StandardError.ReadToEnd();
+
+        process.WaitForExit();
+
+        Console.WriteLine("=== RESULT ===");
+        Console.WriteLine(output);
+
+        if (!string.IsNullOrEmpty(error))
+        {
+            Console.WriteLine("=== ERRORS ===");
+            Console.WriteLine(error);
+        }
+    }
+}
+
+/*========================================================OutputPythonPipelineManager========================================================*/
+
+void startOutputPythonPipelineManager()
+{
+    string pipelineManagerPath = Path.Combine(ROOT_PATH, @"PipelineManagers\OutputPipelineManager.py");
+
+    Console.WriteLine("=== Запуск Output Pipeline ===");
+
+    // Выбор базы данных
+    string selectedDataBase = dataBaseScanningAndSelection("Выберите базу данных для анализа");
+    Console.WriteLine($"Выбрана база: {Path.GetFileName(selectedDataBase)}");
+    Console.WriteLine();
+
+    // Выбор анализатора
+    string analyzersPath = Path.Combine(ROOT_PATH, "Analyzers");
+
+    if (!Directory.Exists(analyzersPath))
+    {
+        Console.WriteLine("Папка Analyzers не найдена.");
+        return;
+    }
+
+    string[] analyzerFiles = Directory.GetFiles(analyzersPath, "*.py");
+
+    if (analyzerFiles.Length == 0)
+    {
+        Console.WriteLine("Нет доступных анализаторов.");
+        return;
+    }
+
+    Console.WriteLine("Доступные анализаторы:");
+    for (int i = 0; i < analyzerFiles.Length; i++)
+    {
+        Console.WriteLine($"{i}: {Path.GetFileName(analyzerFiles[i])}");
+    }
+
+    int selectedIndex = selectingMenuNumber(0, analyzerFiles.Length - 1, "Выберите анализатор: ");
+    string selectedAnalyzer = analyzerFiles[selectedIndex];
+
+    Console.WriteLine($"Выбран анализатор: {Path.GetFileName(selectedAnalyzer)}");
+    Console.WriteLine();
+
+    // Формируем JSON
+    var request = new
+    {
+        analyzer = new
+        {
+            analyzerPath = selectedAnalyzer,
+            python = PYTHON_PATH
+        },
+        dbPath = selectedDataBase,
+        configPath = CONFIGS_PATH
+    };
+
+    string json = JsonSerializer.Serialize(request);
+
+    ProcessStartInfo start = new ProcessStartInfo
+    {
+        FileName = PYTHON_PATH,
+        Arguments = $"\"{pipelineManagerPath}\"",
+        UseShellExecute = false,
+        RedirectStandardInput = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true
+    };
+
+    using (var process = Process.Start(start))
+    {
+        process.StandardInput.WriteLine(json);
         process.StandardInput.Close();
 
         string output = process.StandardOutput.ReadToEnd();

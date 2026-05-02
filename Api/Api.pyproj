@@ -23,6 +23,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="InputApi.py" />
+    <Compile Include="OutputApi.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="MSBuild|AutoScopeVenv|C:\Users\MaplLeaf\source\repos\AutoScope\Parsers\Parsers.pyproj" />
