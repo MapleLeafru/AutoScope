@@ -65,7 +65,7 @@ void startInputPythonPipelineManager()
     // Задаём значения по умолчанию
     string defaultStartUrl = defaultSettings["startUrl"].GetString();
     int defaultMaxCars = defaultSettings["maxCars"].GetInt32();
-    int defaultBatchSize = defaultSettings["batchSize"].GetInt32();
+    int defaultstreamBatchSize = defaultSettings["streamBatchSize"].GetInt32();
 
     // Беоём у пользователя
     Console.Write("Введите START_URL (Пустое поле = значение из конфига): ");
@@ -74,8 +74,8 @@ void startInputPythonPipelineManager()
     Console.Write("Введите MAX_CARS (Пустое поле = значение из конфига): ");
     string maxCarsInput = Console.ReadLine();
 
-    Console.Write("Введите BATCH_SIZE (Пустое поле = значение из конфига): ");
-    string batchSizeInput = Console.ReadLine();
+    Console.Write("Введите STREAM_BATCH_SIZE (Пустое поле = значение из конфига): ");
+    string streamBatchSizeInput = Console.ReadLine();
 
     // Подставляем
     string startUrl = string.IsNullOrWhiteSpace(startUrlInput)
@@ -86,9 +86,9 @@ void startInputPythonPipelineManager()
         ? defaultMaxCars
         : int.Parse(maxCarsInput);
 
-    int batchSize = string.IsNullOrWhiteSpace(batchSizeInput)
-        ? defaultBatchSize
-        : int.Parse(batchSizeInput);
+    int streamBatchSize = string.IsNullOrWhiteSpace(streamBatchSizeInput)
+        ? defaultstreamBatchSize
+        : int.Parse(streamBatchSizeInput);
     //------------------------------------------------------------------------------------------------
 
     // Формируем json
@@ -103,10 +103,10 @@ void startInputPythonPipelineManager()
         {
             startUrl = startUrl,
             maxCars = maxCars,
-            batchSize = batchSize
+            streamBatchSize = streamBatchSize
             //startUrl = "https://auto.drom.ru/subaru/levorg/",
             //maxCars = 10,
-            //batchSize = 5
+            //streamBatchSize = 5
         },
         dbPath = selectedDataBase,
         configPath = CONFIGS_PATH

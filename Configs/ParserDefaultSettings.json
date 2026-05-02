@@ -1,5 +1,5 @@
 {
   "startUrl": "https://auto.drom.ru/subaru/levorg/",
-  "maxCars": 6,
-  "batchSize": 2
+  "maxCars": 22,
+  "streamBatchSize": 4
 }

@@ -82,7 +82,7 @@ class ParserAdapter:
         if not os.path.exists(path):
             if context.logger:
                 context.logger.error("PARSER", f"Parser file not found: {path}")
-            return None
+            return
 
         process = subprocess.Popen(
             [python_path, path],
@@ -92,16 +92,32 @@ class ParserAdapter:
             text=True,
             encoding="utf-8",
             errors="replace",
-            env=env
+            env=env,
+            bufsize=1  # важно для стриминга
         )
-
         # отправляем входные данные
         process.stdin.write(json.dumps(context.request, ensure_ascii=False))
         process.stdin.close()
 
-        # читаем результат
-        output = process.stdout.read()
+        # читаем результат (построчно)
+#        output = process.stdout.read()
+        for line in process.stdout:
+            line = line.strip()
+
+            if not line:
+                continue
+
+            try:
+                batch = json.loads(line)
+                yield batch
+            except Exception as e:
+                if context.logger:
+                    context.logger.error("PARSER", f"Invalid JSON chunk: {line}")
+
+        # читаем stderr после
         error = process.stderr.read()
+        if error and context.logger:
+            context.logger.error("PARSER", f"stderr: {error.strip()}")
 
         #print("[DEBUG RAW OUTPUT]")                                         # debag
         #print(output)                                                       # debag
@@ -120,19 +136,18 @@ class ParserAdapter:
         ## if error:
         ##     raise Exception(f"Parser error: {error}")
 
-        if not output:
-            if context.logger:
-                context.logger.error("PARSER", "Parser returned empty output")
-            return None
+#        if not output:
+#            if context.logger:
+#                context.logger.error("PARSER", "Parser returned empty output")
+#            return None
 
-        try:
-            return json.loads(output)
-        except Exception as e:
-            if context.logger:
-                context.logger.error("PARSER", f"JSON parse error: {str(e)}")
-                context.logger.error("PARSER", f"Raw output: {output[:500]}")
-            return None
-
+#        try:
+#            return json.loads(output)
+#        except Exception as e:
+#            if context.logger:
+#                context.logger.error("PARSER", f"JSON parse error: {str(e)}")
+#                context.logger.error("PARSER", f"Raw output: {output[:500]}")
+#            return None
 
 # =========================================================
 # InputPipeline Manager
@@ -162,14 +177,16 @@ class InputPipelineManager:
 
     def run(self):
         try:
-            self.logger.info("PIPELINE", "Running parser")
-            self._run_parser()
+#            self.logger.info("PIPELINE", "Running parser")
+#            self._run_parser()
+#
+#            self.logger.info("PIPELINE", "Running API")
+#            self._run_api()
+#
+#            self.logger.info("PIPELINE", "Running CORE")
+#            self._run_core()
 
-            self.logger.info("PIPELINE", "Running API")
-            self._run_api()
-
-            self.logger.info("PIPELINE", "Running CORE")
-            self._run_core()
+            self._run_streaming()
 
             self.logger.info("PIPELINE", "=== Pipeline finished ===")
 
@@ -289,6 +306,48 @@ class InputPipelineManager:
 #
 #        except Exception as e:
 #            self.logger.error("CORE", f"DB error: {str(e)}")
+
+    def _run_streaming(self):
+        parser_config = self.context.request.get("parser")
+        db_path = self.context.request.get("dbPath")
+
+        self.logger.info("PIPELINE", "Streaming pipeline started")
+
+        for batch in ParserAdapter.run(parser_config, self.context):
+
+            if not batch:
+                continue
+
+            self.logger.info("PARSER", f"Received batch: {len(batch)}")
+
+            # --- API ---
+            result = self.api.process(batch)
+            data = result.get("data")
+            meta = result.get("meta", {})
+
+            skipped = meta.get("skipped", 0)
+            if skipped > 0:
+                self.logger.warning("API", f"Skipped items: {skipped}")
+
+            if not data:
+                continue
+
+            # --- CORE ---
+            try:
+                results = self.core.save(data, db_path)
+
+                for item in results:
+                    self.logger.info(
+                        "CORE",
+                        f"ads_id={item['ads_id']}, "
+                        f"check_id={item['check_id']}, "
+                        f"has_changes={item['has_changes']}"
+                    )
+
+            except Exception as e:
+                self.logger.error("CORE", f"DB error: {str(e)}")
+
+        self.logger.info("PIPELINE", "Streaming pipeline finished")
 
 # =========================================================
 # Entry Point

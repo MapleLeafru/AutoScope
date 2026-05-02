@@ -18,7 +18,7 @@ settings = input_data.get("parserSettings", {})
 
 START_URL = settings.get("startUrl")
 MAX_CARS = settings.get("maxCars")
-BATCH_SIZE = settings.get("batchSize")
+BATCH_SIZE = settings.get("streamBatchSize")
 
 if not START_URL:
     raise Exception("START_URL is required")
@@ -96,6 +96,13 @@ def parse_engine(engine_raw):
     return fuel_type, volume, octane, powertrain
 
 # =========================================================
+# 0. Типо стриминг
+# =========================================================
+
+def emit(batch):
+    print(json.dumps(batch, ensure_ascii=False), flush=True)
+
+# =========================================================
 # DRIVER
 # =========================================================
 
@@ -142,7 +149,7 @@ try:
     # 2. PARSE ADS (with batching)
     # =========================================================
 
-    cars = []
+#    cars = []
     batch = []
 
     for link in links:
@@ -296,12 +303,14 @@ try:
         batch.append(car)
 
         if len(batch) >= BATCH_SIZE:
-            cars.extend(batch)
+#            cars.extend(batch)
+            emit(batch)
             batch = []
 
     # остаток
     if batch:
-        cars.extend(batch)
+#        cars.extend(batch)
+        emit(batch)
 
     driver.quit()
 
@@ -312,4 +321,4 @@ finally:
 # OUTPUT
 # =========================================================
 
-print(json.dumps(cars, ensure_ascii=False))
+#print(json.dumps(cars, ensure_ascii=False))
