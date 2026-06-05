@@ -112,7 +112,7 @@ tr:hover {{
 </head>
 <body>
 
-<h1>AutoScope Report</h1>
+<h1> AutoScope Report</h1>
 
 <div class="stats">
     <b>Analyzer:</b> {analyzer_name}<br>

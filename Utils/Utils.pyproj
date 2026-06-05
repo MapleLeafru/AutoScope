@@ -25,6 +25,7 @@
     <Compile Include="ConfigLoader.py" />
     <Compile Include="DatabaseManager.py" />
     <Compile Include="Logger.py" />
+    <Compile Include="ModuleRunner.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="MSBuild|AutoScopeVenv|C:\Users\MaplLeaf\source\repos\AutoScope\Parsers\Parsers.pyproj" />

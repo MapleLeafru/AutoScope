@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Xml.Linq;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -13,6 +15,8 @@ string ROOT_PATH = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDir
 string DB_PATH = Path.Combine(ROOT_PATH, "Databases"); // Папка с базами
 string CONFIGS_PATH = Path.Combine(ROOT_PATH, "Configs"); // Папка с конфигами
 string PARSERS_PATH = Path.Combine(ROOT_PATH, "Parsers"); // Папка с парсерами
+string ANALYZERS_PATH = Path.Combine(ROOT_PATH, "Analyzers"); // Папка с анализаторами
+string[] MODULE_EXTENSIONS = new[] { ".py", ".jar", ".exe" };
 string PYTHON_PATH = Path.Combine(ROOT_PATH, @"Python\python.exe"); // python.exe
 
 Console.WriteLine("C# Клиент запущен");
@@ -33,7 +37,7 @@ void menuModeSelection()
     Console.WriteLine("3 - Открыть инструменты");
 
     int modeNumber = selectingMenuNumber(min: 1, max: 3, "Номер выбранного режима: ");
-    
+
     if (modeNumber == 1) { startInputPythonPipelineManager(); }
     else if (modeNumber == 2) { startOutputPythonPipelineManager(); }
     else if (modeNumber == 3) { menuPythonUtils(); }
@@ -65,9 +69,19 @@ void startInputPythonPipelineManager()
     var defaultSettings = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(configJson);
 
     // Задаём значения по умолчанию
-    string defaultStartUrl = defaultSettings["startUrl"].GetString();
-    int defaultMaxCars = defaultSettings["maxCars"].GetInt32();
-    int defaultstreamBatchSize = defaultSettings["streamBatchSize"].GetInt32();
+    string defaultStartUrl = getStringSetting(defaultSettings, "startUrl", "");
+    int defaultMaxCars = getIntSetting(defaultSettings, "maxCars", 10);
+    int defaultstreamBatchSize = getIntSetting(defaultSettings, "streamBatchSize", 5);
+
+    // Настройки сред выполнения модулей
+    // pythonPath пустой = использовать встроенный Python из папки AutoScope/Python
+    // javaPath = "java" = использовать Java из PATH
+    string configuredPythonPath = getStringSetting(defaultSettings, "pythonPath", "");
+    string modulePythonPath = string.IsNullOrWhiteSpace(configuredPythonPath)
+        ? PYTHON_PATH
+        : configuredPythonPath;
+
+    string javaPath = getStringSetting(defaultSettings, "javaPath", "java");
 
     // Беоём у пользователя
     Console.Write("Введите START_URL (Пустое поле = значение из конфига): ");
@@ -98,17 +112,22 @@ void startInputPythonPipelineManager()
     {
         parser = new
         {
+            modulePath = selectedParser,
             parserPath = selectedParser,
-            python = PYTHON_PATH
+            runtime = getRuntimeNameByPath(selectedParser),
+            python = modulePythonPath,
+            java = javaPath
         },
         parserSettings = new
         {
             startUrl = startUrl,
             maxCars = maxCars,
             streamBatchSize = streamBatchSize
-            //startUrl = "https://auto.drom.ru/subaru/levorg/",
-            //maxCars = 10,
-            //streamBatchSize = 5
+        },
+        runtimeSettings = new
+        {
+            pythonPath = modulePythonPath,
+            javaPath = javaPath
         },
         dbPath = selectedDataBase,
         configPath = CONFIGS_PATH
@@ -162,41 +181,35 @@ void startOutputPythonPipelineManager()
     Console.WriteLine();
 
     // Выбор анализатора
-    string analyzersPath = Path.Combine(ROOT_PATH, "Analyzers");
-
-    if (!Directory.Exists(analyzersPath))
-    {
-        Console.WriteLine("Папка Analyzers не найдена.");
-        return;
-    }
-
-    string[] analyzerFiles = Directory.GetFiles(analyzersPath, "*.py");
-
-    if (analyzerFiles.Length == 0)
-    {
-        Console.WriteLine("Нет доступных анализаторов.");
-        return;
-    }
-
-    Console.WriteLine("Доступные анализаторы:");
-    for (int i = 0; i < analyzerFiles.Length; i++)
-    {
-        Console.WriteLine($"{i}: {Path.GetFileName(analyzerFiles[i])}");
-    }
-
-    int selectedIndex = selectingMenuNumber(0, analyzerFiles.Length - 1, "Выберите анализатор: ");
-    string selectedAnalyzer = analyzerFiles[selectedIndex];
+    string selectedAnalyzer = analyzerScanningAndSelection("Выберите анализатор для продолжения работы");
 
     Console.WriteLine($"Выбран анализатор: {Path.GetFileName(selectedAnalyzer)}");
     Console.WriteLine();
+
+    var defaultSettings = loadDefaultSettings();
+
+    string configuredPythonPath = getStringSetting(defaultSettings, "pythonPath", "");
+    string modulePythonPath = string.IsNullOrWhiteSpace(configuredPythonPath)
+        ? PYTHON_PATH
+        : configuredPythonPath;
+
+    string javaPath = getStringSetting(defaultSettings, "javaPath", "java");
 
     // Формируем JSON
     var request = new
     {
         analyzer = new
         {
+            modulePath = selectedAnalyzer,
             analyzerPath = selectedAnalyzer,
-            python = PYTHON_PATH
+            runtime = getRuntimeNameByPath(selectedAnalyzer),
+            python = modulePythonPath,
+            java = javaPath
+        },
+        runtimeSettings = new
+        {
+            pythonPath = modulePythonPath,
+            javaPath = javaPath
         },
         dbPath = selectedDataBase,
         configPath = CONFIGS_PATH
@@ -297,7 +310,7 @@ void preparationPythonDatabaseManager_dbCreate()
                 if (existingDatabases.Contains(dataBaseNameToCreate + ".db")) { Console.Write($"База данных с названием <{dataBaseNameToCreate}> уже существует, пересоздать? y/n: "); }
                 else { Console.Write($"Подтвердите создание базы данных <{dataBaseNameToCreate}> (конфиг будет добавлен автоматически) y/n: "); }
                 string ansver = Console.ReadLine().ToUpper();
-                if (ansver == "Y") { startPythonDatabaseManager(dataBaseName: dataBaseNameToCreate, isThereExtension_db:false, commandToRun: "dbCreate"); return; }
+                if (ansver == "Y") { startPythonDatabaseManager(dataBaseName: dataBaseNameToCreate, isThereExtension_db: false, commandToRun: "dbCreate"); return; }
                 else if (ansver == "N") { dataBaseNameToCreate = ""; return; }
 
                 Console.WriteLine("Некорректный ввод. Попробуйте снова.");
@@ -320,7 +333,7 @@ void preparationPythonDatabaseManager_dbDelete()
     {
         Console.Write($"Вы уверены что хотите удалить базу данных {dataBaseNameToDelete}? Это действие не обратимо y/n: ");
         string ansver = Console.ReadLine().ToUpper();
-        if (ansver == "Y") { startPythonDatabaseManager(dataBaseName: dataBaseNameToDelete, isThereExtension_db: true , commandToRun: "dbDelete"); return; }
+        if (ansver == "Y") { startPythonDatabaseManager(dataBaseName: dataBaseNameToDelete, isThereExtension_db: true, commandToRun: "dbDelete"); return; }
         else if (ansver == "N") { return; }
         Console.WriteLine("Некорректный ввод.");
     }
@@ -339,7 +352,7 @@ void startPythonDatabaseManager(string dataBaseName, bool isThereExtension_db, s
         RedirectStandardOutput = true,
         RedirectStandardError = true
     };
-    
+
     // Создаём json с переменными для передачи перед запуском
     if (!isThereExtension_db) { dataBaseName += ".db"; }
     var pythonDatabaseManager_request = new
@@ -388,7 +401,9 @@ string parserScanningAndSelection(string message = "messageEror_parserScanningAn
 
 string[] parserScanning(bool consoleOutput = true, bool returnOnlyFileNames = false) // Возвращает массив путей до парсеров
 {
-    string[] parserFiles = Directory.Exists(PARSERS_PATH) ? Directory.GetFiles(PARSERS_PATH) : new string[0]; // Если  Directory.Exists(DB_PATH) Существует, то Directory.GetFiles(DB_PATH), а если нет, то new string[0]
+    string[] parserFiles = Directory.Exists(PARSERS_PATH)
+        ? Directory.GetFiles(PARSERS_PATH).Where(isSupportedModuleFile).ToArray()
+        : new string[0]; // Если  Directory.Exists(DB_PATH) Существует, то Directory.GetFiles(DB_PATH), а если нет, то new string[0]
     if (parserFiles.Length == 0)
     {
         if (consoleOutput) Console.WriteLine("Нет доступных парсеров.");
@@ -411,6 +426,56 @@ string[] parserScanning(bool consoleOutput = true, bool returnOnlyFileNames = fa
     }
 
     return parserFiles;
+}
+
+
+/*========================================================analyzerScanning========================================================*/
+string analyzerScanningAndSelection(string message = "messageEror_analyzerScanningAndSelection")
+{
+    Console.WriteLine(message);
+
+    string[] analyzerFiles = analyzerScanning();
+
+    int selectedIndex = 0;
+    while (true)
+    {
+        Console.Write("Введите номер выбранного анализатора: ");
+        string input = Console.ReadLine();
+        if (int.TryParse(input, out selectedIndex) && selectedIndex >= 0 && selectedIndex < analyzerFiles.Length)
+            break;
+        Console.WriteLine("Некорректный ввод.");
+    }
+    return analyzerFiles[selectedIndex];
+}
+
+string[] analyzerScanning(bool consoleOutput = true, bool returnOnlyFileNames = false)
+{
+    string[] analyzerFiles = Directory.Exists(ANALYZERS_PATH)
+        ? Directory.GetFiles(ANALYZERS_PATH).Where(isSupportedModuleFile).ToArray()
+        : new string[0];
+
+    if (analyzerFiles.Length == 0)
+    {
+        if (consoleOutput) Console.WriteLine("Нет доступных анализаторов.");
+        throw new Exception("Нет доступных анализаторов.");
+    }
+
+    if (consoleOutput)
+    {
+        Console.WriteLine("Найденые анализаторы:");
+        for (int i = 0; i < analyzerFiles.Length; i++)
+            Console.WriteLine($"{i}: {Path.GetFileName(analyzerFiles[i])}");
+    }
+
+    if (returnOnlyFileNames)
+    {
+        string[] analyzerFilesNames = new string[analyzerFiles.Length];
+        for (int i = 0; i < analyzerFiles.Length; i++)
+            analyzerFilesNames[i] = Path.GetFileName(analyzerFiles[i]);
+        return analyzerFilesNames;
+    }
+
+    return analyzerFiles;
 }
 
 /*========================================================dataBaseScanning========================================================*/
@@ -460,6 +525,58 @@ string[] dataBaseScanning(bool consoleOutput = true, bool returnOnlyFileNames = 
 }
 
 /*========================================================UniversalFunctions========================================================*/
+
+
+Dictionary<string, JsonElement> loadDefaultSettings()
+{
+    string configFile = Path.Combine(CONFIGS_PATH, "ParserDefaultSettings.json");
+    string configJson = File.ReadAllText(configFile);
+    return JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(configJson);
+}
+
+string getStringSetting(Dictionary<string, JsonElement> settings, string key, string fallback = "")
+{
+    if (settings != null && settings.TryGetValue(key, out JsonElement value))
+    {
+        if (value.ValueKind == JsonValueKind.String)
+            return value.GetString() ?? fallback;
+
+        return value.ToString();
+    }
+
+    return fallback;
+}
+
+int getIntSetting(Dictionary<string, JsonElement> settings, string key, int fallback = 0)
+{
+    if (settings != null && settings.TryGetValue(key, out JsonElement value))
+    {
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out int result))
+            return result;
+
+        if (value.ValueKind == JsonValueKind.String && int.TryParse(value.GetString(), out result))
+            return result;
+    }
+
+    return fallback;
+}
+
+bool isSupportedModuleFile(string path)
+{
+    string extension = Path.GetExtension(path).ToLowerInvariant();
+    return MODULE_EXTENSIONS.Contains(extension);
+}
+
+string getRuntimeNameByPath(string path)
+{
+    string extension = Path.GetExtension(path).ToLowerInvariant();
+
+    if (extension == ".py") return "python";
+    if (extension == ".jar") return "java";
+    if (extension == ".exe") return "exe";
+
+    return "unknown";
+}
 
 int selectingMenuNumber(int min, int max, string message = "messageEror_selectingMenuNumber")
 {
