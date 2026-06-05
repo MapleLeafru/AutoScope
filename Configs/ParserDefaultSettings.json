@@ -3,5 +3,6 @@
   "maxCars": 22,
   "streamBatchSize": 4,
   "pythonPath": "",
-  "javaPath": "java"
+  "javaPath": "java",
+  "dictionariesPath": "Dictionaries"
 }

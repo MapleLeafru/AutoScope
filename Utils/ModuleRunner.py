@@ -25,33 +25,35 @@ class ModuleRunner:
     EXTENSION_TO_RUNTIME = {
         ".py": "python",
         ".jar": "java",
-        ".exe": "exe"
+        ".exe": "exe",
     }
 
     DEFAULT_EXECUTABLES = {
         "python": "python",
-        "java": "java"
+        "java": "java",
     }
 
     @staticmethod
     def run_streaming(module_config, request, logger=None, stage="MODULE"):
         """Запускает parser-модуль и возвращает JSON-объекты построчно."""
         command, cwd = ModuleRunner._build_command(module_config, request)
-
         ModuleRunner._log(logger, stage, "info", f"Starting module: {' '.join(command)}")
 
-        process = subprocess.Popen(
-            command,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            bufsize=1,
-            cwd=cwd,
-            env=ModuleRunner._build_env()
-        )
+        try:
+            process = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+                cwd=cwd,
+                env=ModuleRunner._build_env(),
+            )
+        except FileNotFoundError as e:
+            raise RuntimeError(f"Runtime executable was not found: {command[0]}") from e
 
         stderr_thread = ModuleRunner._start_stderr_reader(process, logger, stage)
 
@@ -60,13 +62,12 @@ class ModuleRunner:
             process.stdin.close()
         except Exception as e:
             ModuleRunner._safe_kill(process)
-            raise RuntimeError(f"Failed to send input to module: {e}")
+            raise RuntimeError(f"Failed to send input to module: {e}") from e
 
         emitted_count = 0
 
         for line in process.stdout:
             line = line.strip()
-
             if not line:
                 continue
 
@@ -79,7 +80,8 @@ class ModuleRunner:
                     logger,
                     stage,
                     "error",
-                    f"Invalid stdout JSON line. Module must write logs to stderr. Line: {line[:500]}"
+                    "Invalid stdout JSON line. Module must write logs to stderr. "
+                    f"Line: {line[:500]}",
                 )
 
         exit_code = process.wait()
@@ -95,20 +97,22 @@ class ModuleRunner:
     def run_once(module_config, input_payload, request, logger=None, stage="MODULE"):
         """Запускает analyzer-модуль и ожидает один JSON-ответ."""
         command, cwd = ModuleRunner._build_command(module_config, request)
-
         ModuleRunner._log(logger, stage, "info", f"Starting module: {' '.join(command)}")
 
-        process = subprocess.Popen(
-            command,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            cwd=cwd,
-            env=ModuleRunner._build_env()
-        )
+        try:
+            process = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                cwd=cwd,
+                env=ModuleRunner._build_env(),
+            )
+        except FileNotFoundError as e:
+            raise RuntimeError(f"Runtime executable was not found: {command[0]}") from e
 
         stdout, stderr = process.communicate(json.dumps(input_payload, ensure_ascii=False))
 
@@ -121,7 +125,6 @@ class ModuleRunner:
             raise RuntimeError(f"Module finished with non-zero exit code: {process.returncode}")
 
         stdout = (stdout or "").strip()
-
         if not stdout:
             ModuleRunner._log(logger, stage, "warning", "Module produced empty stdout")
             return None
@@ -135,7 +138,6 @@ class ModuleRunner:
     @staticmethod
     def _build_command(module_config, request):
         module_path = ModuleRunner._get_module_path(module_config)
-
         if not module_path:
             raise RuntimeError("Module path is missing")
 
@@ -186,16 +188,13 @@ class ModuleRunner:
     @staticmethod
     def _get_runtime(module_config, module_path):
         runtime = (module_config or {}).get("runtime")
-
         if runtime:
             return str(runtime).lower().strip()
 
         ext = os.path.splitext(module_path)[1].lower()
         runtime = ModuleRunner.EXTENSION_TO_RUNTIME.get(ext)
-
         if not runtime:
             raise RuntimeError(f"Unsupported module extension: {ext}")
-
         return runtime
 
     @staticmethod
@@ -205,15 +204,13 @@ class ModuleRunner:
         if not value or value.lower() in ["auto", "default", "path"]:
             value = ModuleRunner.DEFAULT_EXECUTABLES.get(runtime_name, runtime_name)
 
-        # Явный путь: C:\...\java.exe или ./tools/java.exe
+        # Explicit path: C:\...\java.exe or ./tools/java.exe
         if os.path.isabs(value) or os.path.dirname(value):
             if os.path.exists(value):
                 return value
-            raise RuntimeError(
-                f"Configured {runtime_name} executable was not found: {value}"
-            )
+            raise RuntimeError(f"Configured {runtime_name} executable was not found: {value}")
 
-        # Имя команды из PATH: java, python
+        # Command name from PATH: java, python
         found = shutil.which(value)
         if found:
             return found
@@ -235,10 +232,8 @@ class ModuleRunner:
     @staticmethod
     def _get_working_directory(module_config, module_path):
         working_directory = (module_config or {}).get("workingDirectory")
-
         if working_directory:
             return working_directory
-
         return os.path.dirname(os.path.abspath(module_path))
 
     @staticmethod
@@ -270,7 +265,6 @@ class ModuleRunner:
     def _log(logger, stage, level, message):
         if not logger:
             return
-
         method = getattr(logger, level, None)
         if method:
             method(stage, message)
