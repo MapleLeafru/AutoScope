@@ -10,6 +10,7 @@ public class AppPaths
     public string ParsersPath { get; private set; }
     public string AnalyzersPath { get; private set; }
     public string PythonPath { get; private set; }
+    public string JobsPath { get; private set; }
 
     private AppPaths(string rootPath)
     {
@@ -19,6 +20,7 @@ public class AppPaths
         ParsersPath = Path.Combine(rootPath, "Parsers");
         AnalyzersPath = Path.Combine(rootPath, "Analyzers");
         PythonPath = Path.Combine(rootPath, @"Python\python.exe");
+        JobsPath = Path.Combine(rootPath, "Jobs");
     }
 
     // Определяет корень проекта относительно папки запуска Client/bin/Debug/...

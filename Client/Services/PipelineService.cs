@@ -52,32 +52,7 @@ public class PipelineService
         ParserRunSettings parserSettings = _settingsService.ReadParserRunSettings();
         RuntimeSettings runtimeSettings = _settingsService.GetRuntimeSettings();
 
-        var request = new
-        {
-            parser = new
-            {
-                modulePath = selectedParser,
-                parserPath = selectedParser,
-                runtime = _moduleDiscovery.GetRuntimeNameByPath(selectedParser),
-                python = runtimeSettings.PythonPath,
-                java = runtimeSettings.JavaPath
-            },
-            parserSettings = new
-            {
-                startUrl = parserSettings.StartUrl,
-                maxCars = parserSettings.MaxCars,
-                streamBatchSize = parserSettings.StreamBatchSize
-            },
-            runtimeSettings = new
-            {
-                pythonPath = runtimeSettings.PythonPath,
-                javaPath = runtimeSettings.JavaPath
-            },
-            dbPath = selectedDatabase,
-            configPath = _paths.ConfigsPath
-        };
-
-        RunPipelineManager(_paths.GetInputPipelineManagerPath(), request);
+        RunInputPipeline(selectedDatabase, selectedParser, parserSettings, runtimeSettings);
     }
 
     // Запускает цепочку анализа: выбор базы, выбор анализатора, запуск Python-менеджера.
@@ -105,13 +80,55 @@ public class PipelineService
 
         RuntimeSettings runtimeSettings = _settingsService.GetRuntimeSettings();
 
+        RunOutputPipeline(selectedDatabase, selectedAnalyzer, runtimeSettings);
+    }
+
+    // Запускает InputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером заданий.
+    public void RunInputPipeline(
+        string databasePath,
+        string parserPath,
+        ParserRunSettings parserSettings,
+        RuntimeSettings runtimeSettings
+    )
+    {
+        var request = new
+        {
+            parser = new
+            {
+                modulePath = parserPath,
+                parserPath = parserPath,
+                runtime = _moduleDiscovery.GetRuntimeNameByPath(parserPath),
+                python = runtimeSettings.PythonPath,
+                java = runtimeSettings.JavaPath
+            },
+            parserSettings = new
+            {
+                startUrl = parserSettings.StartUrl,
+                maxCars = parserSettings.MaxCars,
+                streamBatchSize = parserSettings.StreamBatchSize
+            },
+            runtimeSettings = new
+            {
+                pythonPath = runtimeSettings.PythonPath,
+                javaPath = runtimeSettings.JavaPath
+            },
+            dbPath = databasePath,
+            configPath = _paths.ConfigsPath
+        };
+
+        RunPipelineManager(_paths.GetInputPipelineManagerPath(), request);
+    }
+
+    // Запускает OutputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером заданий.
+    public void RunOutputPipeline(string databasePath, string analyzerPath, RuntimeSettings runtimeSettings)
+    {
         var request = new
         {
             analyzer = new
             {
-                modulePath = selectedAnalyzer,
-                analyzerPath = selectedAnalyzer,
-                runtime = _moduleDiscovery.GetRuntimeNameByPath(selectedAnalyzer),
+                modulePath = analyzerPath,
+                analyzerPath = analyzerPath,
+                runtime = _moduleDiscovery.GetRuntimeNameByPath(analyzerPath),
                 python = runtimeSettings.PythonPath,
                 java = runtimeSettings.JavaPath
             },
@@ -120,7 +137,7 @@ public class PipelineService
                 pythonPath = runtimeSettings.PythonPath,
                 javaPath = runtimeSettings.JavaPath
             },
-            dbPath = selectedDatabase,
+            dbPath = databasePath,
             configPath = _paths.ConfigsPath
         };
 
