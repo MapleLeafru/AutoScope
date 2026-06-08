@@ -111,7 +111,10 @@ public class PipelineService
             },
             apiSettings = new
             {
-                brandCountryEnrichment = apiSettings.BrandCountryEnrichment
+                brandCountryEnrichment = apiSettings.BrandCountryEnrichment,
+                transmissionNormalization = apiSettings.TransmissionNormalization,
+                driveTypeNormalization = apiSettings.DriveTypeNormalization,
+                fuelTypeNormalization = apiSettings.FuelTypeNormalization
             },
             runtimeSettings = new
             {

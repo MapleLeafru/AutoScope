@@ -36,11 +36,16 @@ class InputApi:
         "powertrain": "powertrain_type",
     }
 
-    def __init__(self, db_config, brand_country_map, api_settings=None):
+    def __init__(self, db_config, brand_country_map=None, api_settings=None, dictionaries=None):
         # Хранит конфиг БД, справочники и настройки обработки данных.
         self.db_config = db_config or {}
         self.brand_country_map = brand_country_map or {}
         self.api_settings = api_settings or {}
+        self.dictionaries = dictionaries or {}
+
+        self.transmission_map = self.dictionaries.get("transmission", {})
+        self.drive_type_map = self.dictionaries.get("drive_type", {})
+        self.fuel_type_map = self.dictionaries.get("fuel_type", {})
 
         self.required_fields = set(
             self.db_config.get("required_fields", self.FALLBACK_REQUIRED_FIELDS)
@@ -104,6 +109,15 @@ class InputApi:
         if self._is_enabled("brandCountryEnrichment", True):
             self._enrich_brand_country(result)
 
+        if self._is_enabled("transmissionNormalization", True):
+            self._normalize_by_dictionary(result, "transmission", self.transmission_map)
+
+        if self._is_enabled("driveTypeNormalization", True):
+            self._normalize_by_dictionary(result, "drive_type", self.drive_type_map)
+
+        if self._is_enabled("fuelTypeNormalization", True):
+            self._normalize_by_dictionary(result, "fuel_type", self.fuel_type_map)
+
         if not self._has_required_fields(result):
             return None
 
@@ -121,7 +135,6 @@ class InputApi:
                 value = value.title()
 
         return self._try_cast_number(value)
-
 
     def _is_enabled(self, setting_name, default=True):
         # Проверяет, включена ли конкретная настройка обработки данных.
@@ -148,22 +161,42 @@ class InputApi:
         if country:
             data["brand_origin_country"] = country
 
+    def _normalize_by_dictionary(self, data, field_name, dictionary):
+        # Нормализует поле по справочнику, если значение найдено.
+        if not dictionary:
+            return
+
+        value = data.get(field_name)
+        if value is None:
+            return
+
+        normalized = self._get_from_dictionary(dictionary, value)
+        if normalized is not None:
+            data[field_name] = normalized
+
     def _get_brand_country(self, brand):
         # Ищет бренд в справочнике с несколькими вариантами регистра.
-        if not brand:
+        return self._get_from_dictionary(self.brand_country_map, brand)
+
+    def _get_from_dictionary(self, dictionary, value):
+        # Ищет значение в справочнике с учётом регистра и лишних пробелов.
+        if value is None:
             return None
 
-        brand_clean = brand.strip()
+        value_clean = str(value).strip()
+        if not value_clean:
+            return None
+
         variants = [
-            brand_clean,
-            brand_clean.title(),
-            brand_clean.upper(),
-            brand_clean.lower(),
+            value_clean,
+            value_clean.title(),
+            value_clean.upper(),
+            value_clean.lower(),
         ]
 
         for variant in variants:
-            if variant in self.brand_country_map:
-                return self.brand_country_map[variant]
+            if variant in dictionary:
+                return dictionary[variant]
 
         return None
 

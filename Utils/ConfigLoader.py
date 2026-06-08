@@ -79,6 +79,30 @@ class ConfigLoader:
 
         raise FileNotFoundError(f"Dictionary file not found: {dictionary_name}")
 
+
+    @staticmethod
+    def load_dictionary_or_empty(configs_path, dictionary_name):
+        # «агружает справочник, а при отсутствии файла возвращает пустой словарь.
+        try:
+            return ConfigLoader.load_dictionary(configs_path, dictionary_name)
+        except FileNotFoundError:
+            return {}
+
+    @staticmethod
+    def load_transmission_map(configs_path=None):
+        # «агружает справочник нормализации коробок передач.
+        return ConfigLoader.load_dictionary_or_empty(configs_path, "TransmissionMap.json")
+
+    @staticmethod
+    def load_drive_type_map(configs_path=None):
+        # «агружает справочник нормализации типа привода.
+        return ConfigLoader.load_dictionary_or_empty(configs_path, "DriveTypeMap.json")
+
+    @staticmethod
+    def load_fuel_type_map(configs_path=None):
+        # «агружает справочник нормализации типа топлива.
+        return ConfigLoader.load_dictionary_or_empty(configs_path, "FuelTypeMap.json")
+
     @staticmethod
     def load_brand_country_map(configs_path=None):
         # «агружает справочник стран происхождени€ брендов.

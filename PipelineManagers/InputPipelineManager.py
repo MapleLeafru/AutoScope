@@ -57,9 +57,14 @@ class InputPipelineManager:
 
         db_config = ConfigLoader.load_database_config(db_path)
         brand_map = ConfigLoader.load_brand_country_map(config_path)
+        dictionaries = {
+            "transmission": ConfigLoader.load_transmission_map(config_path),
+            "drive_type": ConfigLoader.load_drive_type_map(config_path),
+            "fuel_type": ConfigLoader.load_fuel_type_map(config_path),
+        }
         api_settings = context.request.get("apiSettings", {})
 
-        self.api = InputApi(db_config, brand_map, api_settings)
+        self.api = InputApi(db_config, brand_map, api_settings, dictionaries)
         self.core = Core(db_config)
 
         self.logger = Logger("input", context.request)

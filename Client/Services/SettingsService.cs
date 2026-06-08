@@ -79,9 +79,30 @@ public class SettingsService
             true
         );
 
+        bool defaultTransmissionNormalization = GetNestedBoolSetting(
+            "apiSettings",
+            "transmissionNormalization",
+            true
+        );
+
+        bool defaultDriveTypeNormalization = GetNestedBoolSetting(
+            "apiSettings",
+            "driveTypeNormalization",
+            true
+        );
+
+        bool defaultFuelTypeNormalization = GetNestedBoolSetting(
+            "apiSettings",
+            "fuelTypeNormalization",
+            true
+        );
+
         ApiSettings apiSettings = new ApiSettings
         {
-            BrandCountryEnrichment = defaultBrandCountryEnrichment
+            BrandCountryEnrichment = defaultBrandCountryEnrichment,
+            TransmissionNormalization = defaultTransmissionNormalization,
+            DriveTypeNormalization = defaultDriveTypeNormalization,
+            FuelTypeNormalization = defaultFuelTypeNormalization
         };
 
         bool useDefaultApiSettings = _input.AskYesNo("Использовать настройки API по умолчанию? y/n: ");
@@ -91,6 +112,21 @@ public class SettingsService
         apiSettings.BrandCountryEnrichment = _input.AskYesNoWithDefault(
             $"Включить обогащение страны бренда? (Пустое поле = значение из конфига: {FormatBool(defaultBrandCountryEnrichment)}) y/n: ",
             defaultBrandCountryEnrichment
+        );
+
+        apiSettings.TransmissionNormalization = _input.AskYesNoWithDefault(
+            $"Включить нормализацию коробки передач? (Пустое поле = значение из конфига: {FormatBool(defaultTransmissionNormalization)}) y/n: ",
+            defaultTransmissionNormalization
+        );
+
+        apiSettings.DriveTypeNormalization = _input.AskYesNoWithDefault(
+            $"Включить нормализацию типа привода? (Пустое поле = значение из конфига: {FormatBool(defaultDriveTypeNormalization)}) y/n: ",
+            defaultDriveTypeNormalization
+        );
+
+        apiSettings.FuelTypeNormalization = _input.AskYesNoWithDefault(
+            $"Включить нормализацию типа топлива? (Пустое поле = значение из конфига: {FormatBool(defaultFuelTypeNormalization)}) y/n: ",
+            defaultFuelTypeNormalization
         );
 
         return apiSettings;

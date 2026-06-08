@@ -6,6 +6,9 @@
   "javaPath": "java",
   "dictionariesPath": "Dictionaries",
   "apiSettings": {
-    "brandCountryEnrichment": true
+    "brandCountryEnrichment": true,
+    "transmissionNormalization": false,
+    "driveTypeNormalization": false,
+    "fuelTypeNormalization": false
   }
 }
