@@ -11,6 +11,9 @@
     "maxCars": 4,
     "streamBatchSize": 4
   },
+  "apiSettings": {
+    "brandCountryEnrichment": true
+  },
   "runtimeSettings": {
     "pythonPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Python\\python.exe",
     "javaPath": "java"
@@ -20,6 +23,6 @@
     "everyHours": 1
   },
   "createdAt": "2026-06-08T21:53:30",
-  "lastRunAt": "2026-06-08T23:13:41",
-  "nextRunAt": "2026-06-09T00:13:41"
+  "lastRunAt": "2026-06-09T01:23:35",
+  "nextRunAt": "2026-06-09T02:23:35"
 }

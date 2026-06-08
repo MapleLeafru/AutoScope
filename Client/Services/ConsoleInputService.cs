@@ -45,6 +45,37 @@ public class ConsoleInputService
         }
     }
 
+
+    // Считывает y/n или возвращает значение по умолчанию при пустом вводе.
+    public bool AskYesNoWithDefault(string message, bool defaultValue)
+    {
+        while (true)
+        {
+            Console.Write(message);
+            string answer = (Console.ReadLine() ?? "").Trim().ToUpperInvariant();
+
+            if (string.IsNullOrWhiteSpace(answer))
+            {
+                Console.WriteLine();
+                return defaultValue;
+            }
+
+            if (answer == "Y" || answer == "YES" || answer == "Д" || answer == "ДА")
+            {
+                Console.WriteLine();
+                return true;
+            }
+
+            if (answer == "N" || answer == "NO" || answer == "Н" || answer == "НЕТ")
+            {
+                Console.WriteLine();
+                return false;
+            }
+
+            Console.WriteLine("Некорректный ввод. Введите y или n.");
+        }
+    }
+
     // Считывает строку или возвращает значение по умолчанию при пустом вводе.
     public string ReadStringWithDefault(string message, string defaultValue)
     {

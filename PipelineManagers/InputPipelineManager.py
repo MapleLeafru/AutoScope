@@ -47,7 +47,7 @@ class ParserAdapter:
 
 
 class InputPipelineManager:
-    # Управляет цепочкой: Parser -> InputApi -> Core -> SQLite.
+    # Управляет цепочкой Parser -> InputApi -> Core -> SQLite.
 
     def __init__(self, context):
         self.context = context
@@ -57,8 +57,9 @@ class InputPipelineManager:
 
         db_config = ConfigLoader.load_database_config(db_path)
         brand_map = ConfigLoader.load_brand_country_map(config_path)
+        api_settings = context.request.get("apiSettings", {})
 
-        self.api = InputApi(db_config, brand_map)
+        self.api = InputApi(db_config, brand_map, api_settings)
         self.core = Core(db_config)
 
         self.logger = Logger("input", context.request)

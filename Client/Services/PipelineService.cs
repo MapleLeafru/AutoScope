@@ -50,9 +50,10 @@ public class PipelineService
         Console.WriteLine();
 
         ParserRunSettings parserSettings = _settingsService.ReadParserRunSettings();
+        ApiSettings apiSettings = _settingsService.ReadApiSettings();
         RuntimeSettings runtimeSettings = _settingsService.GetRuntimeSettings();
 
-        RunInputPipeline(selectedDatabase, selectedParser, parserSettings, runtimeSettings);
+        RunInputPipeline(selectedDatabase, selectedParser, parserSettings, apiSettings, runtimeSettings);
     }
 
     // Запускает цепочку анализа: выбор базы, выбор анализатора, запуск Python-менеджера.
@@ -83,11 +84,12 @@ public class PipelineService
         RunOutputPipeline(selectedDatabase, selectedAnalyzer, runtimeSettings);
     }
 
-    // Запускает InputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером заданий.
+    // Запускает InputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером сценариев.
     public ProcessRunResult RunInputPipeline(
         string databasePath,
         string parserPath,
         ParserRunSettings parserSettings,
+        ApiSettings apiSettings,
         RuntimeSettings runtimeSettings
     )
     {
@@ -107,6 +109,10 @@ public class PipelineService
                 maxCars = parserSettings.MaxCars,
                 streamBatchSize = parserSettings.StreamBatchSize
             },
+            apiSettings = new
+            {
+                brandCountryEnrichment = apiSettings.BrandCountryEnrichment
+            },
             runtimeSettings = new
             {
                 pythonPath = runtimeSettings.PythonPath,
@@ -119,7 +125,7 @@ public class PipelineService
         return RunPipelineManager(_paths.GetInputPipelineManagerPath(), request);
     }
 
-    // Запускает OutputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером заданий.
+    // Запускает OutputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером сценариев.
     public ProcessRunResult RunOutputPipeline(string databasePath, string analyzerPath, RuntimeSettings runtimeSettings)
     {
         var request = new

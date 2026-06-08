@@ -69,6 +69,33 @@ public class SettingsService
         return parserSettings;
     }
 
+
+    // Возвращает настройки InputApi: либо из конфига, либо после ручного ввода.
+    public ApiSettings ReadApiSettings()
+    {
+        bool defaultBrandCountryEnrichment = GetNestedBoolSetting(
+            "apiSettings",
+            "brandCountryEnrichment",
+            true
+        );
+
+        ApiSettings apiSettings = new ApiSettings
+        {
+            BrandCountryEnrichment = defaultBrandCountryEnrichment
+        };
+
+        bool useDefaultApiSettings = _input.AskYesNo("Использовать настройки API по умолчанию? y/n: ");
+        if (useDefaultApiSettings)
+            return apiSettings;
+
+        apiSettings.BrandCountryEnrichment = _input.AskYesNoWithDefault(
+            $"Включить обогащение страны бренда? (Пустое поле = значение из конфига: {FormatBool(defaultBrandCountryEnrichment)}) y/n: ",
+            defaultBrandCountryEnrichment
+        );
+
+        return apiSettings;
+    }
+
     // Загружает JSON-настройки парсинга. Если файла нет, возвращает пустой словарь.
     private Dictionary<string, JsonElement> LoadDefaultSettings()
     {
@@ -110,4 +137,35 @@ public class SettingsService
 
         return fallback;
     }
+
+    // Безопасно получает bool-значение из вложенного JSON-объекта.
+    private bool GetNestedBoolSetting(string objectKey, string valueKey, bool fallback)
+    {
+        if (!_settings.TryGetValue(objectKey, out JsonElement section))
+            return fallback;
+
+        if (section.ValueKind != JsonValueKind.Object)
+            return fallback;
+
+        if (!section.TryGetProperty(valueKey, out JsonElement value))
+            return fallback;
+
+        if (value.ValueKind == JsonValueKind.True)
+            return true;
+
+        if (value.ValueKind == JsonValueKind.False)
+            return false;
+
+        if (value.ValueKind == JsonValueKind.String && bool.TryParse(value.GetString(), out bool result))
+            return result;
+
+        return fallback;
+    }
+
+    // Преобразует bool в понятный текст для консоли.
+    private string FormatBool(bool value)
+    {
+        return value ? "включено" : "выключено";
+    }
+
 }

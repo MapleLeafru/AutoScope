@@ -4,5 +4,8 @@
   "streamBatchSize": 4,
   "pythonPath": "",
   "javaPath": "java",
-  "dictionariesPath": "Dictionaries"
+  "dictionariesPath": "Dictionaries",
+  "apiSettings": {
+    "brandCountryEnrichment": true
+  }
 }

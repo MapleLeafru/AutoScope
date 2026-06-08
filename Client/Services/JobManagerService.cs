@@ -182,6 +182,7 @@ public class JobManagerService
 
         job.ParserPath = selectedParser;
         job.ParserSettings = _settingsService.ReadParserRunSettings();
+        job.ApiSettings = _settingsService.ReadApiSettings();
     }
 
     // Заполняет параметры сценария OutputPipeline.
@@ -387,6 +388,7 @@ public class JobManagerService
                 job.DbPath,
                 job.ParserPath,
                 job.ParserSettings,
+                job.ApiSettings,
                 job.RuntimeSettings
             );
         }
@@ -551,6 +553,8 @@ public class JobManagerService
         Console.WriteLine($"   База: {Path.GetFileName(job.DbPath)}");
         Console.WriteLine($"   Модуль: {moduleName}");
         Console.WriteLine($"   Интервал: каждые {job.Schedule.EveryHours} ч.");
+        if (job.PipelineType == "input")
+            Console.WriteLine($"   Обогащение страны бренда: {FormatEnabled(job.ApiSettings.BrandCountryEnrichment)}");
         Console.WriteLine($"   Последний запуск: {FormatDisplayTimeOrNever(job.LastRunAt)}");
         Console.WriteLine($"   Следующий запуск: {FormatNextRunDisplay(job)}");
         Console.WriteLine($"   Последний результат: {lastRunStatus}");
@@ -657,6 +661,13 @@ public class JobManagerService
     }
 
     // Форматирует тип pipeline для вывода пользователю.
+
+    // Форматирует состояние включаемой настройки.
+    private string FormatEnabled(bool value)
+    {
+        return value ? "включено" : "выключено";
+    }
+
     private string FormatPipelineType(string pipelineType)
     {
         if (pipelineType == "input") { return "InputPipeline"; }

@@ -1,4 +1,4 @@
-// Описывает одно сохранённое задание автоповтора.
+// Описывает один сохранённый сценарий автоповтора.
 public class JobConfig
 {
     public string JobId { get; set; } = "";
@@ -11,6 +11,7 @@ public class JobConfig
     public string AnalyzerPath { get; set; } = "";
 
     public ParserRunSettings ParserSettings { get; set; } = new ParserRunSettings();
+    public ApiSettings ApiSettings { get; set; } = new ApiSettings();
     public RuntimeSettings RuntimeSettings { get; set; } = new RuntimeSettings();
     public JobScheduleSettings Schedule { get; set; } = new JobScheduleSettings();
 
@@ -19,7 +20,7 @@ public class JobConfig
     public string NextRunAt { get; set; } = "";
 }
 
-// Хранит простое расписание задания. Пока поддерживается интервал в часах.
+// Хранит простое расписание сценария. Пока поддерживается интервал в часах.
 public class JobScheduleSettings
 {
     public string Type { get; set; } = "interval";

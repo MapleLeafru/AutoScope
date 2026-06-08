@@ -36,10 +36,11 @@ class InputApi:
         "powertrain": "powertrain_type",
     }
 
-    def __init__(self, db_config, brand_country_map):
-        # Хранит конфиг БД и справочники, нужные для нормализации данных.
+    def __init__(self, db_config, brand_country_map, api_settings=None):
+        # Хранит конфиг БД, справочники и настройки обработки данных.
         self.db_config = db_config or {}
         self.brand_country_map = brand_country_map or {}
+        self.api_settings = api_settings or {}
 
         self.required_fields = set(
             self.db_config.get("required_fields", self.FALLBACK_REQUIRED_FIELDS)
@@ -100,7 +101,8 @@ class InputApi:
             value = self._normalize_value(key, value)
             result[key] = value
 
-        self._enrich_brand_country(result)
+        if self._is_enabled("brandCountryEnrichment", True):
+            self._enrich_brand_country(result)
 
         if not self._has_required_fields(result):
             return None
@@ -119,6 +121,19 @@ class InputApi:
                 value = value.title()
 
         return self._try_cast_number(value)
+
+
+    def _is_enabled(self, setting_name, default=True):
+        # Проверяет, включена ли конкретная настройка обработки данных.
+        value = self.api_settings.get(setting_name, default)
+
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, str):
+            return value.strip().lower() in ["true", "1", "yes", "y", "да"]
+
+        return bool(value)
 
     def _enrich_brand_country(self, data):
         # Подставляет страну происхождения бренда, если поле не пришло от парсера.
