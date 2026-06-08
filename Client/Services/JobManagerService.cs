@@ -43,15 +43,15 @@ public class JobManagerService
     {
         while (true)
         {
-            Console.WriteLine("=== Менеджер заданий автоматического сбора данных ===");
+            Console.WriteLine("=== Менеджер сценариев ===");
             Console.WriteLine("0 - Вернуться назад");
-            Console.WriteLine("1 - Создать задание");
-            Console.WriteLine("2 - Показать задания");
-            Console.WriteLine("3 - Удалить задание");
-            Console.WriteLine("4 - Включить/выключить задание");
-            Console.WriteLine("5 - Запустить конкретное задание сейчас");
-            Console.WriteLine("6 - Показать историю запусков задания");
-            Console.WriteLine("7 - Запустить проверку заданий вручную");
+            Console.WriteLine("1 - Создать сценарий");
+            Console.WriteLine("2 - Показать сценарии");
+            Console.WriteLine("3 - Удалить сценарий");
+            Console.WriteLine("4 - Включить/выключить сценарий");
+            Console.WriteLine("5 - Запустить сценарий сейчас");
+            Console.WriteLine("6 - Показать историю запусков сценария");
+            Console.WriteLine("7 - Запустить проверку сценариев вручную");
 
             int selectedMode = _input.ReadMenuNumber(min: 0, max: 7, "Номер выбранного режима: ");
 
