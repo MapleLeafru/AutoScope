@@ -45,7 +45,6 @@ public class ConsoleInputService
         }
     }
 
-
     // Считывает y/n или возвращает значение по умолчанию при пустом вводе.
     public bool AskYesNoWithDefault(string message, bool defaultValue)
     {
@@ -81,11 +80,29 @@ public class ConsoleInputService
     {
         Console.Write(message);
         string input = Console.ReadLine() ?? "";
-        return string.IsNullOrWhiteSpace(input) ? defaultValue : input;
+        return string.IsNullOrWhiteSpace(input) ? defaultValue : input.Trim();
     }
 
     // Считывает целое число или возвращает значение по умолчанию при пустом вводе.
     public int ReadIntWithDefault(string message, int defaultValue)
+    {
+        while (true)
+        {
+            Console.Write(message);
+            string input = Console.ReadLine() ?? "";
+
+            if (string.IsNullOrWhiteSpace(input))
+                return defaultValue;
+
+            if (int.TryParse(input, out int result))
+                return result;
+
+            Console.WriteLine("Некорректное число. Попробуйте снова.");
+        }
+    }
+
+    // Считывает необязательное целое число. Пустой ввод возвращает значение по умолчанию.
+    public int? ReadNullableIntWithDefault(string message, int? defaultValue)
     {
         while (true)
         {

@@ -3,24 +3,77 @@
 
 class OutputApi:
     def __init__(self, db_config=None):
-        # Хранит конфиг БД для будущей подготовки выборок и фильтров анализа.
+        # РҐСЂР°РЅРёС‚ РєРѕРЅС„РёРі Р‘Р” РґР»СЏ РїРѕРґРіРѕС‚РѕРІРєРё РІС‹Р±РѕСЂРѕРє Рё С„РёР»СЊС‚СЂРѕРІ Р°РЅР°Р»РёР·Р°.
         self.db_config = db_config or {}
 
     def prepare(self, request):
-        # Готовит параметры выборки для Core. Сейчас возвращает базовый режим "все записи".
-        return {
-            "type": "all"
-        }
-
-    def process(self, data):
-        # Подготавливает данные перед передачей во внешний анализатор.
-        if not data:
-            return {
-                "data": [],
-                "meta": {"count": 0},
-            }
+        # Р“РѕС‚РѕРІРёС‚ РїР°СЂР°РјРµС‚СЂС‹ РІС‹Р±РѕСЂРєРё РґР»СЏ Core РЅР° РѕСЃРЅРѕРІРµ outputSettings РёР· Р·Р°РїСЂРѕСЃР°.
+        settings = request.get("outputSettings", {}) or {}
 
         return {
-            "data": data,
-            "meta": {"count": len(data)},
+            "type": "snapshots",
+            "latest_only": self._get_bool(settings, "latestOnly", True),
+            "only_changed": self._get_bool(settings, "onlyChanged", False),
+            "filters": {
+                "brand": self._clean_string(settings.get("brand")),
+                "model": self._clean_string(settings.get("model")),
+                "sale_region": self._clean_string(settings.get("saleRegion")),
+                "year_from": self._get_int_or_none(settings.get("yearFrom")),
+                "year_to": self._get_int_or_none(settings.get("yearTo")),
+            },
         }
+
+    def process(self, data, query=None):
+        # РџРѕРґРіРѕС‚Р°РІР»РёРІР°РµС‚ РґР°РЅРЅС‹Рµ РїРµСЂРµРґ РїРµСЂРµРґР°С‡РµР№ РІРѕ РІРЅРµС€РЅРёР№ Р°РЅР°Р»РёР·Р°С‚РѕСЂ.
+        prepared_data = data if isinstance(data, list) else []
+        query = query or {}
+
+        return {
+            "data": prepared_data,
+            "meta": {
+                "count": len(prepared_data),
+                "latestOnly": query.get("latest_only", True),
+                "onlyChanged": query.get("only_changed", False),
+                "filters": query.get("filters", {}),
+            },
+        }
+
+    def _get_bool(self, settings, key, default):
+        # Р‘РµР·РѕРїР°СЃРЅРѕ С‡РёС‚Р°РµС‚ bool-РЅР°СЃС‚СЂРѕР№РєСѓ РёР· СЃР»РѕРІР°СЂСЏ.
+        value = settings.get(key, default)
+
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, str):
+            return value.strip().lower() in ["true", "1", "yes", "y", "РґР°"]
+
+        return bool(value)
+
+    def _get_int_or_none(self, value):
+        # РџСЂРµРѕР±СЂР°Р·СѓРµС‚ Р·РЅР°С‡РµРЅРёРµ РІ int РёР»Рё РІРѕР·РІСЂР°С‰Р°РµС‚ None.
+        if value is None:
+            return None
+
+        if isinstance(value, int):
+            return value
+
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return None
+
+            try:
+                return int(value)
+            except ValueError:
+                return None
+
+        return None
+
+    def _clean_string(self, value):
+        # РћС‡РёС‰Р°РµС‚ СЃС‚СЂРѕРєРѕРІС‹Р№ С„РёР»СЊС‚СЂ. РџСѓСЃС‚С‹Рµ СЃС‚СЂРѕРєРё РїСЂРµРІСЂР°С‰Р°РµС‚ РІ None.
+        if not isinstance(value, str):
+            return None
+
+        value = value.strip()
+        return value if value else None

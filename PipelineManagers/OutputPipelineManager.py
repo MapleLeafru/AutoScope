@@ -50,17 +50,17 @@ class OutputPipelineManager:
         self.logger.info("PIPELINE", "=== Output Pipeline started ===")
 
     def run(self):
-        # Получает данные из БД, готовит их через OutputApi и запускает анализатор.
+        # Получает выборку из БД, готовит её через OutputApi и запускает анализатор.
         try:
             self.logger.info("API", "Preparing query")
             query = self.api.prepare(self.request)
 
             self.logger.info("CORE", "Fetching data")
-            data = self.core.fetch_all(self.request.get("dbPath"))
+            data = self.core.fetch_for_output(self.request.get("dbPath"), query)
             self.logger.info("CORE", f"Fetched records: {len(data)}")
 
             self.logger.info("API", "Processing data")
-            result = self.api.process(data)
+            result = self.api.process(data, query)
 
             analyzer_config = self.request.get("analyzer")
 
@@ -76,6 +76,7 @@ class OutputPipelineManager:
             return {
                 "status": "success",
                 "result": analyzer_result,
+                "meta": result.get("meta", {}),
             }
 
         except Exception as e:

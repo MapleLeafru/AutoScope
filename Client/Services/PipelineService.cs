@@ -56,7 +56,7 @@ public class PipelineService
         RunInputPipeline(selectedDatabase, selectedParser, parserSettings, apiSettings, runtimeSettings);
     }
 
-    // Запускает цепочку анализа: выбор базы, выбор анализатора, запуск Python-менеджера.
+    // Запускает цепочку анализа: выбор базы, анализатора, фильтров выборки и запуск Python-менеджера.
     public void StartOutputPipeline()
     {
         Console.WriteLine("=== Запуск OutputPipeline ===");
@@ -79,9 +79,10 @@ public class PipelineService
         Console.WriteLine($"Выбран анализатор: {Path.GetFileName(selectedAnalyzer)}");
         Console.WriteLine();
 
+        OutputFilterSettings outputSettings = _settingsService.ReadOutputFilterSettings();
         RuntimeSettings runtimeSettings = _settingsService.GetRuntimeSettings();
 
-        RunOutputPipeline(selectedDatabase, selectedAnalyzer, runtimeSettings);
+        RunOutputPipeline(selectedDatabase, selectedAnalyzer, outputSettings, runtimeSettings);
     }
 
     // Запускает InputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером сценариев.
@@ -129,7 +130,12 @@ public class PipelineService
     }
 
     // Запускает OutputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером сценариев.
-    public ProcessRunResult RunOutputPipeline(string databasePath, string analyzerPath, RuntimeSettings runtimeSettings)
+    public ProcessRunResult RunOutputPipeline(
+        string databasePath,
+        string analyzerPath,
+        OutputFilterSettings outputSettings,
+        RuntimeSettings runtimeSettings
+    )
     {
         var request = new
         {
@@ -140,6 +146,16 @@ public class PipelineService
                 runtime = _moduleDiscovery.GetRuntimeNameByPath(analyzerPath),
                 python = runtimeSettings.PythonPath,
                 java = runtimeSettings.JavaPath
+            },
+            outputSettings = new
+            {
+                latestOnly = outputSettings.LatestOnly,
+                onlyChanged = outputSettings.OnlyChanged,
+                brand = outputSettings.Brand,
+                model = outputSettings.Model,
+                saleRegion = outputSettings.SaleRegion,
+                yearFrom = outputSettings.YearFrom,
+                yearTo = outputSettings.YearTo
             },
             runtimeSettings = new
             {

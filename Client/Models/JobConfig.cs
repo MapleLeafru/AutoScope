@@ -12,6 +12,7 @@ public class JobConfig
 
     public ParserRunSettings ParserSettings { get; set; } = new ParserRunSettings();
     public ApiSettings ApiSettings { get; set; } = new ApiSettings();
+    public OutputFilterSettings OutputSettings { get; set; } = new OutputFilterSettings();
     public RuntimeSettings RuntimeSettings { get; set; } = new RuntimeSettings();
     public JobScheduleSettings Schedule { get; set; } = new JobScheduleSettings();
 

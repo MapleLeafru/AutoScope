@@ -198,6 +198,7 @@ public class JobManagerService
         Console.WriteLine();
 
         job.AnalyzerPath = selectedAnalyzer;
+        job.OutputSettings = _settingsService.ReadOutputFilterSettings();
     }
 
     // Показывает сохранённые сценарии в виде коротких карточек.
@@ -398,6 +399,7 @@ public class JobManagerService
             return _pipelineService.RunOutputPipeline(
                 job.DbPath,
                 job.AnalyzerPath,
+                job.OutputSettings,
                 job.RuntimeSettings
             );
         }
@@ -555,6 +557,10 @@ public class JobManagerService
         Console.WriteLine($"   Интервал: каждые {job.Schedule.EveryHours} ч.");
         if (job.PipelineType == "input")
             Console.WriteLine($"   Обогащение страны бренда: {FormatEnabled(job.ApiSettings.BrandCountryEnrichment)}");
+
+        if (job.PipelineType == "output")
+            Console.WriteLine($"   Выборка анализа: {FormatOutputSettings(job.OutputSettings)}");
+
         Console.WriteLine($"   Последний запуск: {FormatDisplayTimeOrNever(job.LastRunAt)}");
         Console.WriteLine($"   Следующий запуск: {FormatNextRunDisplay(job)}");
         Console.WriteLine($"   Последний результат: {lastRunStatus}");
@@ -666,6 +672,34 @@ public class JobManagerService
     private string FormatEnabled(bool value)
     {
         return value ? "включено" : "выключено";
+    }
+
+    // Возвращает краткое описание фильтров анализа для карточки сценария.
+    private string FormatOutputSettings(OutputFilterSettings settings)
+    {
+        List<string> parts = new List<string>();
+
+        parts.Add(settings.LatestOnly ? "последние снимки" : "вся история");
+
+        if (settings.OnlyChanged)
+            parts.Add("только изменения");
+
+        if (!string.IsNullOrWhiteSpace(settings.Brand))
+            parts.Add($"бренд: {settings.Brand}");
+
+        if (!string.IsNullOrWhiteSpace(settings.Model))
+            parts.Add($"модель: {settings.Model}");
+
+        if (!string.IsNullOrWhiteSpace(settings.SaleRegion))
+            parts.Add($"регион: {settings.SaleRegion}");
+
+        if (settings.YearFrom.HasValue)
+            parts.Add($"год от {settings.YearFrom.Value}");
+
+        if (settings.YearTo.HasValue)
+            parts.Add($"год до {settings.YearTo.Value}");
+
+        return string.Join(", ", parts);
     }
 
     private string FormatPipelineType(string pipelineType)
