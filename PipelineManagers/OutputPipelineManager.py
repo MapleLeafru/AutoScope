@@ -30,12 +30,12 @@ class AnalyzerAdapter:
             input_payload=data,
             request=context.request,
             logger=context.logger,
-            stage="ANALYZER"
+            stage="ANALYZER",
         )
 
 
 class OutputPipelineManager:
-    # Управляет цепочкой: Core -> OutputApi -> Analyzer.
+    # Управляет цепочкой Core -> OutputApi -> Analyzer.
 
     def __init__(self, request):
         self.request = request
@@ -75,19 +75,19 @@ class OutputPipelineManager:
 
             return {
                 "status": "success",
-                "result": analyzer_result
+                "result": analyzer_result,
             }
 
         except Exception as e:
             self.logger.error("PIPELINE", f"Fatal error: {str(e)}")
             return {
                 "status": "error",
-                "error": str(e)
+                "error": str(e),
             }
 
 
+# Точка входа OutputPipelineManager при запуске из C#.
 def main():
-    # Точка входа OutputPipelineManager при запуске из C#.
     try:
         input_json = sys.stdin.read()
 

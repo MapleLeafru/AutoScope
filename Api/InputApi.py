@@ -1,19 +1,11 @@
-﻿import json
-import os
+﻿# -*- coding: utf-8 -*-
 
 
 class InputApi:
-
-    # =========================================================
-    # ALLOWED FIELDS (контракт с БД)
-    # =========================================================
-
-    ALLOWED_FIELDS = { # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Надо блять сделать подтягивание конфига бд из json !!!!!!!!!!!!!!!!! Сделал, но удалять нельзя, это на случай fallback, но теперь не зависит
-        # ads
+    # Резервный список полей на случай, если конфиг БД не загрузился или пустой.
+    FALLBACK_ALLOWED_FIELDS = {
         "source",
         "url",
-
-        # ads_snapshots
         "brand",
         "model",
         "price",
@@ -33,204 +25,162 @@ class InputApi:
         "fuel_type",
         "octane",
         "powertrain_type",
-        "description"
+        "description",
     }
 
-    REQUIRED_FIELDS = { # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Надо блять сделать подтягивание конфига бд из json !!!!!!!!!!!!!!!!! Сделал, но удалять нельзя, это на случай fallback, но теперь не зависит
-        "url"
-    }
+    # Резервный список обязательных полей.
+    FALLBACK_REQUIRED_FIELDS = {"url"}
 
+    # Соответствие имён полей между внешними парсерами и внутренней схемой AutoScope.
     FIELD_MAPPING = {
-    "powertrain": "powertrain_type"
-}
-
-    # =========================================================
-    # INIT
-    # =========================================================
+        "powertrain": "powertrain_type",
+    }
 
     def __init__(self, db_config, brand_country_map):
+        # Хранит конфиг БД и справочники, нужные для нормализации данных.
         self.db_config = db_config or {}
         self.brand_country_map = brand_country_map or {}
 
-        self.required_fields = set(self.db_config.get("required_fields", ["url"]))
-
-        # =========================================================
-        # DYNAMIC CONFIG FROM DB CONFIG
-        # =========================================================
-
-        self.db_fields = set(self.db_config.get("ads_snapshots", {}).keys())
-
-        # =========================================================
-        # DYNAMIC ALLOWED FIELDS (из DB конфигурации)
-        # =========================================================
-
-        self.allowed_fields_dynamic = set(self.db_config.get("ads_snapshots", {}).keys())
-
-        # добавляем поля из таблицы ads (они не в snapshots)
-        self.allowed_fields_dynamic.update(
-            self.db_config.get("ads", {}).keys()
-        )
-
         self.required_fields = set(
-            self.db_config.get("required_fields", ["url"])
+            self.db_config.get("required_fields", self.FALLBACK_REQUIRED_FIELDS)
         )
+        self.allowed_fields = self._build_allowed_fields()
 
-    # =========================================================
-    # MAIN
-    # =========================================================
-
-    # Новый тестовый process с логгированием
     def process(self, data):
+        # Нормализует один объект или список объектов и возвращает данные с meta-информацией.
         if data is None:
             return {
                 "data": None,
-                "meta": {
-                    "skipped": 0
-                }
+                "meta": {"skipped": 0},
             }
 
-        skipped = 0
-
-        # список объектов
         if isinstance(data, list):
-            result = []
+            return self._process_list(data)
 
-            for item in data:
-                normalized = self._normalize(item)
-
-                if normalized is None:
-                    skipped += 1
-                    continue
-
-                result.append(normalized)
-
-            return {
-                "data": result,
-                "meta": {
-                    "skipped": skipped
-                }
-            }
-
-        # один объект
         normalized = self._normalize(data)
-
-        if normalized is None:
-            skipped = 1
+        skipped = 1 if normalized is None else 0
 
         return {
             "data": normalized,
-            "meta": {
-                "skipped": skipped
-            }
+            "meta": {"skipped": skipped},
         }
 
-    # =========================================================
-    # NORMALIZE
-    # =========================================================
+    def _process_list(self, items):
+        # Обрабатывает список объектов и считает, сколько записей было пропущено.
+        result = []
+        skipped = 0
+
+        for item in items:
+            normalized = self._normalize(item)
+
+            if normalized is None:
+                skipped += 1
+                continue
+
+            result.append(normalized)
+
+        return {
+            "data": result,
+            "meta": {"skipped": skipped},
+        }
 
     def _normalize(self, data):
-
+        # Приводит одну запись парсера к внутреннему формату AutoScope.
         if not isinstance(data, dict):
             return None
 
         result = {}
 
-        for key, value in data.items():
+        for raw_key, value in data.items():
+            key = self.FIELD_MAPPING.get(raw_key, raw_key)
 
-            # маппинг полей (parser → API)
-            original_key = key
-            mapped_key = self.FIELD_MAPPING.get(key, key)
-
-            # фильтрация полей
-#            if key not in self.ALLOWED_FIELDS:
-#                continue
-            raw_key = key
-            key = self.FIELD_MAPPING.get(key, key)
-            if key not in self.allowed_fields_dynamic:
+            if key not in self.allowed_fields:
                 continue
 
-            # пустые строки → None
-            if value == "":
-                value = None
-
-            # чистка строк
-            if isinstance(value, str):
-                value = value.strip()
-
-                # нормализация регистра
-                if key in ["brand", "model", "color", "body_type"]:
-                    value = value.title()
-
-            # приведение чисел
-            value = self._try_cast_number(value)
-
+            value = self._normalize_value(key, value)
             result[key] = value
 
-        # =========================================================
-        # ENRICHMENT: BRAND COUNTRY
-        # =========================================================
+        self._enrich_brand_country(result)
 
-        # если страна не пришла — пробуем определить
-        if not result.get("brand_origin_country"):
-            brand = result.get("brand")
-
-            if brand:
-                country = self._get_brand_country(brand)
-
-                if country:
-                    result["brand_origin_country"] = country
-
-        # обязательные поля
-#        for field in self.REQUIRED_FIELDS:
-        for field in self.required_fields:
-            if not result.get(field):
-                return None
+        if not self._has_required_fields(result):
+            return None
 
         return result
 
+    def _normalize_value(self, key, value):
+        # Очищает строковые значения и приводит простые числа к int/float.
+        if value == "":
+            return None
 
-    # =========================================================
-    # BRAND NORMALIZATION
-    # =========================================================
+        if isinstance(value, str):
+            value = value.strip()
+
+            if key in ["brand", "model", "color", "body_type"]:
+                value = value.title()
+
+        return self._try_cast_number(value)
+
+    def _enrich_brand_country(self, data):
+        # Подставляет страну происхождения бренда, если поле не пришло от парсера.
+        if data.get("brand_origin_country"):
+            return
+
+        brand = data.get("brand")
+        if not brand:
+            return
+
+        country = self._get_brand_country(brand)
+        if country:
+            data["brand_origin_country"] = country
 
     def _get_brand_country(self, brand):
-
+        # Ищет бренд в справочнике с несколькими вариантами регистра.
         if not brand:
             return None
 
-        # варианты нормализации
         brand_clean = brand.strip()
-
         variants = [
             brand_clean,
             brand_clean.title(),
             brand_clean.upper(),
-            brand_clean.lower()
+            brand_clean.lower(),
         ]
 
-        for v in variants:
-            if v in self.brand_country_map:
-                return self.brand_country_map[v]
+        for variant in variants:
+            if variant in self.brand_country_map:
+                return self.brand_country_map[variant]
 
         return None
 
+    def _has_required_fields(self, data):
+        # Проверяет наличие обязательных полей после нормализации.
+        for field in self.required_fields:
+            if not data.get(field):
+                return False
 
-    # =========================================================
-    # CAST
-    # =========================================================
+        return True
+
+    def _build_allowed_fields(self):
+        # Собирает разрешённые поля из конфига БД, а при его отсутствии использует fallback.
+        allowed_fields = set()
+
+        allowed_fields.update(self.db_config.get("ads", {}).keys())
+        allowed_fields.update(self.db_config.get("ads_snapshots", {}).keys())
+
+        if not allowed_fields:
+            return set(self.FALLBACK_ALLOWED_FIELDS)
+
+        return allowed_fields
 
     def _try_cast_number(self, value):
+        # Преобразует строковые числа в int или float, остальные значения оставляет без изменений.
+        if not isinstance(value, str):
+            return value
 
-        if isinstance(value, str):
+        if value.isdigit():
+            return int(value)
 
-            # int
-            if value.isdigit():
-                return int(value)
-
-            # float
-            try:
-                return float(value)
-            except:
-                pass
-
-        return value
+        try:
+            return float(value)
+        except ValueError:
+            return value

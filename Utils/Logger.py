@@ -1,46 +1,32 @@
-﻿import os
+﻿# -*- coding: utf-8 -*-
+import os
 import sys
 from datetime import datetime
 from Utils.ConfigLoader import ConfigLoader
 
-sys.stdout.reconfigure(encoding='utf-8')
+sys.stdout.reconfigure(encoding="utf-8")
 
 
 class Logger:
+    # Пишет логи input/output pipeline в отдельный файл одного запуска.
 
     def __init__(self, pipeline_type: str, request: dict):
-        """
-        pipeline_type: input / output
-        request: JSON из C#
-        """
-
         self.pipeline_type = pipeline_type
-
-        # контекст
         self.pipeline_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.module_name = self._extract_module_name(request)
 
-        # папка
-        base_dir = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..")
-        )
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         folder = os.path.join(base_dir, "Logs", pipeline_type)
         os.makedirs(folder, exist_ok=True)
 
         filename = f"{pipeline_type}_pipeline_{self.pipeline_id}.log"
         self.file_path = os.path.join(folder, filename)
 
-        # загрузка конфига логгера
         self.config = ConfigLoader.load_logger_config()
-
-        # очистка старых логов
         self._cleanup_old_logs(folder)
 
-    # =========================================================
-    # INTERNAL
-    # =========================================================
-
     def _extract_module_name(self, request):
+        # Определяет имя парсера или анализатора для контекста логов.
         parser = request.get("parser", {}) or {}
         analyzer = request.get("analyzer", {}) or {}
 
@@ -55,9 +41,11 @@ class Logger:
         return os.path.basename(module_path)
 
     def _format_context(self):
+        # Формирует общий контекст строки лога.
         return f"[{self.module_name}][pipeline={self.pipeline_id}]"
 
     def _write(self, level: str, stage: str, message: str):
+        # Записывает одну строку лога в файл текущего pipeline.
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         context_str = self._format_context()
         log_line = f"{timestamp} | {level} | {stage} | {context_str} {message}\n"
@@ -65,27 +53,24 @@ class Logger:
         with open(self.file_path, "a", encoding="utf-8") as f:
             f.write(log_line)
 
-    # =========================================================
-    # LEVELS
-    # =========================================================
-
     def info(self, stage: str, message: str):
+        # Записывает информационное сообщение.
         self._write("INFO", stage, message)
 
     def warning(self, stage: str, message: str):
+        # Записывает предупреждение.
         self._write("WARNING", stage, message)
 
     def error(self, stage: str, message: str):
+        # Записывает ошибку.
         self._write("ERROR", stage, message)
 
     def debug(self, stage: str, message: str):
+        # Записывает отладочное сообщение.
         self._write("DEBUG", stage, message)
 
-    # =========================================================
-    # CLEANUP OLD LOGS
-    # =========================================================
-
     def _cleanup_old_logs(self, folder_path):
+        # Удаляет старые логи по сроку хранения из LoggerConfig.json.
         retention_days = self.config.get("retention_days", 7)
         now = datetime.now()
 
@@ -103,5 +88,5 @@ class Logger:
                     os.remove(file_path)
 
             except Exception:
-                # не валим пайплайн из-за логов
+                # Ошибка очистки логов не должна ломать основной pipeline.
                 pass

@@ -15,24 +15,9 @@ from Utils.ModuleRunner import ModuleRunner
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-####################################
-#C#                                #
-# ↓ (stdin JSON)                   #
-#   InputPipelineManager           #
-#    ↓                             #
-#       Parser (отдельный процесс) #
-#        ↓ (stdout JSON)           #
-#       InputPipelineManager       #
-#        ↓                         #
-#       Api (внутри Python)        #
-#        ↓                         #
-#       Core (внутри Python)       #
-#        ↓                         #
-#       SQLite                     #
-####################################
 
 class PipelineContext:
-    # Хранит данные одного запуска InputPipeline.
+    # Хранит данные и сервисы одного запуска InputPipeline.
 
     def __init__(self, request):
         self.request = request
@@ -57,7 +42,7 @@ class ParserAdapter:
             module_config=parser_config,
             request=context.request,
             logger=context.logger,
-            stage="PARSER"
+            stage="PARSER",
         )
 
 
@@ -95,7 +80,7 @@ class InputPipelineManager:
 
             return {
                 "status": "error",
-                "error": str(e)
+                "error": str(e),
             }
 
     def _run_streaming(self):
@@ -140,7 +125,7 @@ class InputPipelineManager:
                         "CORE",
                         f"ads_id={item['ads_id']}, "
                         f"check_id={item['check_id']}, "
-                        f"has_changes={item['has_changes']}"
+                        f"has_changes={item['has_changes']}",
                     )
 
             except Exception as e:
@@ -149,12 +134,13 @@ class InputPipelineManager:
 
         self.logger.info(
             "PIPELINE",
-            f"Streaming pipeline finished. received={total_received}, saved={total_saved}, skipped={total_skipped}"
+            f"Streaming pipeline finished. received={total_received}, "
+            f"saved={total_saved}, skipped={total_skipped}",
         )
 
 
+# Точка входа InputPipelineManager при запуске из C#.
 def main():
-    # Точка входа InputPipelineManager при запуске из C#.
     try:
         input_json = sys.stdin.read()
 

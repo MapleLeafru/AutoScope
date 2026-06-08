@@ -7,19 +7,7 @@ import threading
 
 
 class ModuleRunner:
-    """Запускает внешние модули AutoScope.
-
-    Поддерживаемые типы модулей:
-    - .py  -> Python-скрипт;
-    - .jar -> Java-приложение, собранное в JAR;
-    - .exe -> исполняемый файл Windows.
-
-    Общий контракт:
-    - входные данные передаются в stdin одним JSON-объектом;
-    - парсер пишет в stdout JSON Lines: одна строка = один объект или один batch;
-    - анализатор пишет в stdout один JSON-объект результата;
-    - логи, debug и ошибки модуль должен писать в stderr.
-    """
+    # Универсальный запускатель внешних модулей AutoScope: Python, Java JAR и exe.
 
     EXTENSION_TO_RUNTIME = {
         ".py": "python",
@@ -34,7 +22,7 @@ class ModuleRunner:
 
     @staticmethod
     def run_streaming(module_config, request, logger=None, stage="MODULE"):
-        # Запускает parser-модуль и построчно возвращает JSON-объекты из stdout.
+        # Запускает парсер и построчно возвращает JSON-объекты из stdout.
         command, cwd = ModuleRunner._build_command(module_config, request)
         ModuleRunner._log(logger, stage, "info", f"Starting module: {' '.join(command)}")
 
@@ -94,7 +82,7 @@ class ModuleRunner:
 
     @staticmethod
     def run_once(module_config, input_payload, request, logger=None, stage="MODULE"):
-        # Запускает analyzer-модуль и читает из stdout один JSON-результат."""
+        # Запускает анализатор и читает из stdout один JSON-результат.
         command, cwd = ModuleRunner._build_command(module_config, request)
         ModuleRunner._log(logger, stage, "info", f"Starting module: {' '.join(command)}")
 
@@ -180,6 +168,7 @@ class ModuleRunner:
         # Получает путь до модуля из parser/analyzer-конфига.
         if not module_config:
             return None
+
         return (
             module_config.get("modulePath")
             or module_config.get("parserPath")
@@ -197,11 +186,12 @@ class ModuleRunner:
         runtime = ModuleRunner.EXTENSION_TO_RUNTIME.get(ext)
         if not runtime:
             raise RuntimeError(f"Unsupported module extension: {ext}")
+
         return runtime
 
     @staticmethod
     def _resolve_executable(value, runtime_name):
-        # Проверяет исполняемый файл runtime: явный путь или команда из PATH.
+        # Проверяет runtime: явный путь до файла или команда, доступная через PATH.
         value = (value or "").strip()
 
         if not value or value.lower() in ["auto", "default", "path"]:
@@ -236,6 +226,7 @@ class ModuleRunner:
         working_directory = (module_config or {}).get("workingDirectory")
         if working_directory:
             return working_directory
+
         return os.path.dirname(os.path.abspath(module_path))
 
     @staticmethod
@@ -260,7 +251,7 @@ class ModuleRunner:
 
     @staticmethod
     def _safe_kill(process):
-        # Пытается остановить процесс при ошибке передачи stdin.
+        # Пытается остановить внешний процесс при ошибке передачи stdin.
         try:
             process.kill()
         except Exception:
@@ -268,9 +259,10 @@ class ModuleRunner:
 
     @staticmethod
     def _log(logger, stage, level, message):
-        # Пишет сообщение в логгер, если он был передан.
+        # Пишет сообщение в логгер, если логгер был передан.
         if not logger:
             return
+
         method = getattr(logger, level, None)
         if method:
             method(stage, message)

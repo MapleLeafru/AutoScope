@@ -4,7 +4,7 @@ import json
 
 
 class ConfigLoader:
-    # Загружает JSON-конфиги и справочники AutoScope.
+    # Центральный загрузчик JSON-конфигов и справочников AutoScope.
 
     ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     CONFIGS_DIR = os.path.join(ROOT_DIR, "Configs")
@@ -16,13 +16,13 @@ class ConfigLoader:
 
     @staticmethod
     def load_config(config_name):
-        # Загружает конфиг из папки Configs по имени файла.
+        # Загружает JSON-конфиг из папки Configs по имени файла.
         path = os.path.join(ConfigLoader.CONFIGS_DIR, config_name)
         return ConfigLoader.load_json(path)
 
     @staticmethod
     def load_database_config(db_path):
-        # Определяет и загружает конфиг базы данных по имени .db файла.
+        # Определяет конфиг БД по имени файла базы и загружает его из DataBaseConfigs.
         db_name = os.path.basename(db_path)
         parts = db_name.split(".")
 
@@ -39,14 +39,14 @@ class ConfigLoader:
         try:
             return ConfigLoader.load_json(base_path)
         except Exception as e:
-            raise Exception(
+            raise RuntimeError(
                 "BaseDataBaseConfig is missing or corrupted. "
                 "Please restore it from BaseDataBaseConfig.restor.json"
             ) from e
 
     @staticmethod
     def load_json(path):
-        # Безопасно читает JSON-файл в UTF-8.
+        # Читает JSON-файл в UTF-8 и возвращает объект Python.
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
 
@@ -88,6 +88,8 @@ class ConfigLoader:
     def load_logger_config():
         # Загружает настройки логгера или возвращает безопасные значения по умолчанию.
         path = os.path.join(ConfigLoader.CONFIGS_DIR, "LoggerConfig.json")
+
         if not os.path.exists(path):
             return {"retention_days": 7}
+
         return ConfigLoader.load_json(path)
