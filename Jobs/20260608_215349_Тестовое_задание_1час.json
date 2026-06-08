@@ -12,7 +12,19 @@
     "streamBatchSize": 4
   },
   "apiSettings": {
-    "brandCountryEnrichment": true
+    "brandCountryEnrichment": true,
+    "transmissionNormalization": false,
+    "driveTypeNormalization": false,
+    "fuelTypeNormalization": false
+  },
+  "outputSettings": {
+    "latestOnly": true,
+    "onlyChanged": false,
+    "brand": "",
+    "model": "",
+    "saleRegion": "",
+    "yearFrom": null,
+    "yearTo": null
   },
   "runtimeSettings": {
     "pythonPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Python\\python.exe",
@@ -23,6 +35,6 @@
     "everyHours": 1
   },
   "createdAt": "2026-06-08T21:53:30",
-  "lastRunAt": "2026-06-09T01:23:35",
-  "nextRunAt": "2026-06-09T02:23:35"
+  "lastRunAt": "2026-06-09T02:25:20",
+  "nextRunAt": "2026-06-09T03:25:20"
 }
