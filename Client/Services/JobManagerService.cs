@@ -43,7 +43,7 @@ public class JobManagerService
         while (true)
         {
             Console.WriteLine("=== Менеджер заданий автоматического сбора данных ===");
-            Console.WriteLine("0 - Закрыть программу");
+            Console.WriteLine("0 - Вернуться назад");
             Console.WriteLine("1 - Создать задание");
             Console.WriteLine("2 - Показать задания");
             Console.WriteLine("3 - Удалить задание");
@@ -51,7 +51,7 @@ public class JobManagerService
 
             int selectedMode = _input.ReadMenuNumber(min: 0, max: 4, "Номер выбранного режима: ");
 
-            if (selectedMode == 0) { Environment.Exit(0); }
+            if (selectedMode == 0) { return; }
             if (selectedMode == 1) { CreateJob(); }
             if (selectedMode == 2) { ShowJobs(); }
             if (selectedMode == 3) { DeleteJob(); }
