@@ -1,8 +1,9 @@
-﻿import sys
+﻿# -*- coding: utf-8 -*-
+import sys
 import os
 import json
 
-# Добавляем корень проекта в PYTHONPATH
+# Добавляем корень проекта в PYTHONPATH, чтобы импорты работали при запуске из C#.
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(ROOT_DIR)
 
@@ -12,7 +13,7 @@ from Utils.Logger import Logger
 from Utils.ConfigLoader import ConfigLoader
 from Utils.ModuleRunner import ModuleRunner
 
-sys.stdout.reconfigure(encoding='utf-8')
+sys.stdout.reconfigure(encoding="utf-8")
 
 ####################################
 #C#                                #
@@ -30,29 +31,25 @@ sys.stdout.reconfigure(encoding='utf-8')
 #       SQLite                     #
 ####################################
 
-# =========================================================
-# Context
-# =========================================================
-
 class PipelineContext:
+    # Хранит данные одного запуска InputPipeline.
+
     def __init__(self, request):
         self.request = request
         self.data = None
         self.logger = None
 
     def set_data(self, data):
+        # Сохраняет промежуточные данные текущего этапа.
         self.data = data
 
 
-# =========================================================
-# Parser Adapter
-# =========================================================
-
 class ParserAdapter:
-    """Адаптер парсеров. Сам запуск вынесен в общий ModuleRunner."""
+    # Передаёт запуск внешнего парсера в общий ModuleRunner.
 
     @staticmethod
     def run(parser_config, context):
+        # Запускает парсер и возвращает JSON-батчи из stdout.
         if not parser_config:
             raise RuntimeError("Parser config is missing")
 
@@ -64,11 +61,8 @@ class ParserAdapter:
         )
 
 
-# =========================================================
-# Input Pipeline Manager
-# =========================================================
-
 class InputPipelineManager:
+    # Управляет цепочкой: Parser -> InputApi -> Core -> SQLite.
 
     def __init__(self, context):
         self.context = context
@@ -87,6 +81,7 @@ class InputPipelineManager:
         self.logger.info("PIPELINE", "=== Input Pipeline started ===")
 
     def run(self):
+        # Запускает потоковую обработку и возвращает итоговый статус.
         try:
             self._run_streaming()
             self.logger.info("PIPELINE", "=== Input Pipeline finished ===")
@@ -103,11 +98,8 @@ class InputPipelineManager:
                 "error": str(e)
             }
 
-    # =========================================================
-    # STREAMING PIPELINE
-    # =========================================================
-
     def _run_streaming(self):
+        # Построчно принимает batch от парсера, обрабатывает API и сохраняет в Core.
         parser_config = self.context.request.get("parser")
         db_path = self.context.request.get("dbPath")
 
@@ -118,7 +110,6 @@ class InputPipelineManager:
         total_skipped = 0
 
         for batch in ParserAdapter.run(parser_config, self.context):
-
             if not batch:
                 continue
 
@@ -126,7 +117,6 @@ class InputPipelineManager:
             total_received += batch_size
             self.logger.info("PARSER", f"Received batch: {batch_size}")
 
-            # --- API ---
             result = self.api.process(batch)
             data = result.get("data")
             meta = result.get("meta", {})
@@ -141,7 +131,6 @@ class InputPipelineManager:
                 self.logger.warning("API", "Batch contains no valid data after API processing")
                 continue
 
-            # --- CORE ---
             try:
                 results = self.core.save(data, db_path)
                 total_saved += len(results)
@@ -164,11 +153,8 @@ class InputPipelineManager:
         )
 
 
-# =========================================================
-# Entry Point
-# =========================================================
-
 def main():
+    # Точка входа InputPipelineManager при запуске из C#.
     try:
         input_json = sys.stdin.read()
 

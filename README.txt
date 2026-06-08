@@ -85,3 +85,21 @@ ads_snapshots
 - octane (type: INTEGER, default: null)
 - powertrain_type (type: TEXT, default: null)
 - description (type: TEXT, default: null)
+
+C#
+ConsoleApp
+  главное меню
+PipelineService
+  запуск InputPipeline и OutputPipeline
+DatabaseToolService
+  создание и удаление баз
+DatabaseDiscoveryService
+  поиск и выбор баз данных
+ModuleDiscoveryService
+  поиск и выбор парсеров/анализаторов
+SettingsService
+  чтение ParserDefaultSettings.json и ввод параметров
+PythonProcessService
+  запуск Python-скриптов и передача JSON
+ConsoleInputService
+  безопасный ввод чисел, y/n, выбор из списка

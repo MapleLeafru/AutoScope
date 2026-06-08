@@ -1,4 +1,5 @@
-﻿import os
+﻿# -*- coding: utf-8 -*-
+import os
 import json
 import shutil
 import subprocess
@@ -6,20 +7,18 @@ import threading
 
 
 class ModuleRunner:
-    """
-    Универсальный запускатор внешних модулей AutoScope.
+    """Запускает внешние модули AutoScope.
 
-    Поддерживаемые модули:
-    - Python: .py
-    - Java: .jar
-    - Windows executable: .exe
+    Поддерживаемые типы модулей:
+    - .py  -> Python-скрипт;
+    - .jar -> Java-приложение, собранное в JAR;
+    - .exe -> исполняемый файл Windows.
 
-    Контракт:
-    - вход: один JSON-объект через stdin;
-    - stdout: только JSON;
-      - для parser: JSON Lines, одна строка = один batch/list или один dict;
-      - для analyzer: один JSON-объект;
-    - stderr: любые диагностические сообщения модуля.
+    Общий контракт:
+    - входные данные передаются в stdin одним JSON-объектом;
+    - парсер пишет в stdout JSON Lines: одна строка = один объект или один batch;
+    - анализатор пишет в stdout один JSON-объект результата;
+    - логи, debug и ошибки модуль должен писать в stderr.
     """
 
     EXTENSION_TO_RUNTIME = {
@@ -35,7 +34,7 @@ class ModuleRunner:
 
     @staticmethod
     def run_streaming(module_config, request, logger=None, stage="MODULE"):
-        """Запускает parser-модуль и возвращает JSON-объекты построчно."""
+        # Запускает parser-модуль и построчно возвращает JSON-объекты из stdout.
         command, cwd = ModuleRunner._build_command(module_config, request)
         ModuleRunner._log(logger, stage, "info", f"Starting module: {' '.join(command)}")
 
@@ -95,7 +94,7 @@ class ModuleRunner:
 
     @staticmethod
     def run_once(module_config, input_payload, request, logger=None, stage="MODULE"):
-        """Запускает analyzer-модуль и ожидает один JSON-ответ."""
+        # Запускает analyzer-модуль и читает из stdout один JSON-результат."""
         command, cwd = ModuleRunner._build_command(module_config, request)
         ModuleRunner._log(logger, stage, "info", f"Starting module: {' '.join(command)}")
 
@@ -137,6 +136,7 @@ class ModuleRunner:
 
     @staticmethod
     def _build_command(module_config, request):
+        # Формирует команду запуска по типу внешнего модуля.
         module_path = ModuleRunner._get_module_path(module_config)
         if not module_path:
             raise RuntimeError("Module path is missing")
@@ -177,6 +177,7 @@ class ModuleRunner:
 
     @staticmethod
     def _get_module_path(module_config):
+        # Получает путь до модуля из parser/analyzer-конфига.
         if not module_config:
             return None
         return (
@@ -187,6 +188,7 @@ class ModuleRunner:
 
     @staticmethod
     def _get_runtime(module_config, module_path):
+        # Определяет runtime явно из конфига или по расширению файла.
         runtime = (module_config or {}).get("runtime")
         if runtime:
             return str(runtime).lower().strip()
@@ -199,18 +201,17 @@ class ModuleRunner:
 
     @staticmethod
     def _resolve_executable(value, runtime_name):
+        # Проверяет исполняемый файл runtime: явный путь или команда из PATH.
         value = (value or "").strip()
 
         if not value or value.lower() in ["auto", "default", "path"]:
             value = ModuleRunner.DEFAULT_EXECUTABLES.get(runtime_name, runtime_name)
 
-        # Explicit path: C:\...\java.exe or ./tools/java.exe
         if os.path.isabs(value) or os.path.dirname(value):
             if os.path.exists(value):
                 return value
             raise RuntimeError(f"Configured {runtime_name} executable was not found: {value}")
 
-        # Command name from PATH: java, python
         found = shutil.which(value)
         if found:
             return found
@@ -231,6 +232,7 @@ class ModuleRunner:
 
     @staticmethod
     def _get_working_directory(module_config, module_path):
+        # Возвращает рабочую папку модуля.
         working_directory = (module_config or {}).get("workingDirectory")
         if working_directory:
             return working_directory
@@ -238,12 +240,14 @@ class ModuleRunner:
 
     @staticmethod
     def _build_env():
+        # Готовит переменные окружения для корректной UTF-8 работы Python-модулей.
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         return env
 
     @staticmethod
     def _start_stderr_reader(process, logger, stage):
+        # Асинхронно читает stderr парсера во время streaming-запуска.
         def reader():
             for line in process.stderr:
                 line = line.strip()
@@ -256,6 +260,7 @@ class ModuleRunner:
 
     @staticmethod
     def _safe_kill(process):
+        # Пытается остановить процесс при ошибке передачи stdin.
         try:
             process.kill()
         except Exception:
@@ -263,6 +268,7 @@ class ModuleRunner:
 
     @staticmethod
     def _log(logger, stage, level, message):
+        # Пишет сообщение в логгер, если он был передан.
         if not logger:
             return
         method = getattr(logger, level, None)

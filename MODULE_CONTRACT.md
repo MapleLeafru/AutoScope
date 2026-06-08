@@ -1,151 +1,75 @@
-# AutoScope Module Contract v1
+# Контракт внешних модулей AutoScope
 
-Этот контракт нужен для подключаемых парсеров и анализаторов AutoScope.
+Этот документ описывает, как AutoScope запускает внешние парсеры и анализаторы.
 
 ## Поддерживаемые типы модулей
 
-- Python: `.py`
-- Java: `.jar`
-- Windows executable: `.exe`
+AutoScope сейчас поддерживает три типа файлов:
 
-Java-модули должны быть заранее скомпилированы в `.jar`. AutoScope не компилирует `.java` файлы и не устанавливает Java автоматически.
+```text
+.py   — Python-скрипт
+.jar  — Java-приложение, собранное в JAR
+.exe  — исполняемый файл Windows
+```
 
-## Настройки сред выполнения
+Java-модули запускаются только как `.jar`. AutoScope не компилирует `.java` файлы, потому что сборка пользовательского кода должна оставаться ответственностью разработчика модуля.
 
-Файл: `Configs/ParserDefaultSettings.json`
+## Runtime
+
+Для Python по умолчанию используется встроенный Python проекта:
+
+```text
+AutoScope/Python/python.exe
+```
+
+Для Java по умолчанию используется команда:
+
+```text
+java
+```
+
+Это означает, что Java должна быть доступна через `PATH`. Если нужно использовать конкретную Java, путь можно указать в `Configs/ParserDefaultSettings.json`:
 
 ```json
 {
-  "startUrl": "https://auto.drom.ru/subaru/levorg/",
-  "maxCars": 22,
-  "streamBatchSize": 4,
-  "pythonPath": "",
-  "javaPath": "java"
+  "javaPath": "C:\\Program Files\\Java\\jdk-21\\bin\\java.exe"
 }
 ```
 
-- `pythonPath`: пустая строка означает использовать встроенный `AutoScope/Python/python.exe`, который передаёт C#-клиент.
-- `javaPath`: значение `java` означает использовать Java из `PATH`.
-- если нужна конкретная Java, нужно указать полный путь, например `C:\Program Files\Java\jdk-21\bin\java.exe`.
-
-Если Java не установлена или путь указан неверно, AutoScope не должен падать без объяснения. `ModuleRunner` вернёт понятную ошибку в результат пайплайна и запишет её в лог.
-
-## Общий входной контракт
-
-Любой модуль получает один JSON-объект через `stdin`.
-
-Парсер получает примерно такой объект:
-
-```json
-{
-  "parser": {
-    "modulePath": "C:\\...\\Parsers\\BaseDromParser.py",
-    "parserPath": "C:\\...\\Parsers\\BaseDromParser.py",
-    "runtime": "python",
-    "python": "C:\\...\\Python\\python.exe",
-    "java": "java"
-  },
-  "parserSettings": {
-    "startUrl": "https://auto.drom.ru/subaru/levorg/",
-    "maxCars": 22,
-    "streamBatchSize": 4
-  },
-  "runtimeSettings": {
-    "pythonPath": "C:\\...\\Python\\python.exe",
-    "javaPath": "java"
-  },
-  "dbPath": "C:\\...\\Databases\\base.BaseDataBaseConfig.db",
-  "configPath": "C:\\...\\Configs"
-}
-```
-
-Анализатор получает похожий объект, но в нём будет блок `analyzer` вместо `parser`.
+Если Java не найдена, AutoScope должен вернуть понятную ошибку и не завершаться аварийно без объяснения.
 
 ## Контракт парсера
 
-Парсер должен:
+Парсер получает на `stdin` один JSON-объект с параметрами запуска.
 
-1. прочитать JSON из `stdin`;
-2. брать параметры из `parserSettings`;
-3. писать в `stdout` только JSON Lines;
-4. каждая строка `stdout` должна быть валидным JSON;
-5. технические сообщения, debug и ошибки писать в `stderr`.
+Парсер должен писать в `stdout` данные в формате JSON Lines:
 
-Пример строки stdout:
-
-```json
-[{"source":"drom","url":"https://...","brand":"Subaru","model":"Levorg","price":1800000}]
+```text
+одна строка = один JSON-объект или один JSON-массив объявлений
 ```
 
-То есть один batch = одна строка.
+Пример stdout парсера:
+
+```json
+[{"source":"test_java","url":"https://example.com/car/1","brand":"Toyota","model":"Camry","price":2000000,"year":2020}]
+```
+
+Все служебные сообщения, debug и ошибки парсер должен писать в `stderr`, а не в `stdout`.
 
 ## Контракт анализатора
 
-Анализатор должен:
+Анализатор получает на `stdin` один JSON-объект с подготовленными данными.
 
-1. прочитать JSON из `stdin`;
-2. обработать поле `data`;
-3. вернуть один JSON-объект через `stdout`;
-4. технические сообщения писать в `stderr`.
+Анализатор должен вернуть в `stdout` один JSON-объект результата.
 
-Пример stdout:
+Пример stdout анализатора:
 
 ```json
-{"status":"success","reportPath":"C:\\...\\Reports\\report.html"}
+{"status":"ok","recordsCount":10,"message":"Records count: 10"}
 ```
 
-## Главное правило stdout/stderr
+Все служебные сообщения, debug и ошибки анализатор должен писать в `stderr`.
 
-`stdout` — только машинный JSON.
+## Важное правило
 
-`stderr` — любые сообщения для логов.
-
-Это правило важно для Python, Java и `.exe` одинаково.
-
-
-## Update v2: Java test modules and dictionaries
-
-### Test Java parser
-
-File to copy into `Parsers`:
-
-- `TestJavaParser.jar`
-
-Optional source file:
-
-- `TestJavaParser.java`
-
-The parser reads the standard AutoScope request from `stdin` and prints one JSON Lines batch to `stdout`.
-It writes diagnostics to `stderr`.
-
-### Test Java analyzer
-
-File to copy into `Analyzers`:
-
-- `TestJavaAnalyzer.jar`
-
-Optional source file:
-
-- `TestJavaAnalyzer.java`
-
-The analyzer reads the data object produced by `OutputApi`, counts objects inside the `data` array and prints one JSON result to `stdout`.
-
-### Dictionaries directory
-
-Dictionary files should be stored in:
-
-```text
-Configs/Dictionaries/
-```
-
-Current dictionary:
-
-```text
-Configs/Dictionaries/BrandCountryMap.json
-```
-
-For backward compatibility, `ConfigLoader.load_brand_country_map()` still falls back to the old location:
-
-```text
-Configs/BrandCountryMap.json
-```
+`stdout` используется только для машинно-читаемого JSON. Если модуль пишет туда обычный текст, PipelineManager может не распознать результат.
