@@ -47,15 +47,19 @@ public class JobManagerService
             Console.WriteLine("1 - Создать задание");
             Console.WriteLine("2 - Показать задания");
             Console.WriteLine("3 - Удалить задание");
-            Console.WriteLine("4 - Запустить проверку заданий вручную");
+            Console.WriteLine("4 - Включить/выключить задание");
+            Console.WriteLine("5 - Запустить конкретное задание сейчас");
+            Console.WriteLine("6 - Запустить проверку заданий вручную");
 
-            int selectedMode = _input.ReadMenuNumber(min: 0, max: 4, "Номер выбранного режима: ");
+            int selectedMode = _input.ReadMenuNumber(min: 0, max: 6, "Номер выбранного режима: ");
 
             if (selectedMode == 0) { return; }
             if (selectedMode == 1) { CreateJob(); }
             if (selectedMode == 2) { ShowJobs(); }
             if (selectedMode == 3) { DeleteJob(); }
-            if (selectedMode == 4) { RunDueJobsNow(); }
+            if (selectedMode == 4) { ToggleJobEnabled(); }
+            if (selectedMode == 5) { RunSelectedJobNow(); }
+            if (selectedMode == 6) { RunDueJobsNow(); }
         }
     }
 
@@ -181,17 +185,7 @@ public class JobManagerService
 
         Console.WriteLine("Сохранённые задания:");
         for (int i = 0; i < jobs.Length; i++)
-        {
-            JobConfig job = jobs[i].Job;
-            string status = job.Enabled ? "включено" : "выключено";
-            string moduleName = job.PipelineType == "input"
-                ? Path.GetFileName(job.ParserPath)
-                : Path.GetFileName(job.AnalyzerPath);
-
-            Console.WriteLine(
-                $"{i + 1}: [{status}] {job.JobName} | {job.PipelineType} | {moduleName} | next: {FormatDisplayTime(job.NextRunAt)}"
-            );
-        }
+            PrintJobShortInfo(i + 1, jobs[i]);
 
         Console.WriteLine();
     }
@@ -199,28 +193,50 @@ public class JobManagerService
     // Удаляет выбранный JSON-файл задания.
     private void DeleteJob()
     {
-        JobFile[] jobs = LoadJobFiles();
-        if (jobs.Length == 0)
-        {
-            Console.WriteLine("Заданий пока нет.");
-            Console.WriteLine();
-            return;
-        }
+        JobFile? selectedJob = SelectJob("Выберите задание для удаления:", "Отменить удаление задания");
+        if (selectedJob == null) { return; }
 
-        Console.WriteLine("Выберите задание для удаления:");
-        Console.WriteLine("0 - Отменить удаление задания");
-        for (int i = 0; i < jobs.Length; i++)
-            Console.WriteLine($"{i + 1}: {jobs[i].Job.JobName} ({Path.GetFileName(jobs[i].Path)})");
-
-        int selectedNumber = _input.ReadMenuNumber(min: 0, max: jobs.Length, "Номер задания: ");
-        if (selectedNumber == 0) { return; }
-
-        JobFile selectedJob = jobs[selectedNumber - 1];
         bool confirmed = _input.AskYesNo($"Удалить задание <{selectedJob.Job.JobName}>? y/n: ");
         if (!confirmed) { return; }
 
         File.Delete(selectedJob.Path);
         Console.WriteLine("Задание удалено.");
+        Console.WriteLine();
+    }
+
+    // Переключает состояние задания: включено или выключено.
+    private void ToggleJobEnabled()
+    {
+        JobFile? selectedJob = SelectJob("Выберите задание для включения/выключения:", "Отменить изменение задания");
+        if (selectedJob == null) { return; }
+
+        JobConfig job = selectedJob.Job;
+        job.Enabled = !job.Enabled;
+        SaveJob(selectedJob.Path, job);
+
+        string status = job.Enabled ? "включено" : "выключено";
+        Console.WriteLine($"Задание <{job.JobName}> теперь {status}.");
+        Console.WriteLine();
+    }
+
+    // Запускает выбранное задание сразу, без проверки nextRunAt.
+    private void RunSelectedJobNow()
+    {
+        JobFile? selectedJob = SelectJob("Выберите задание для ручного запуска:", "Отменить запуск задания");
+        if (selectedJob == null) { return; }
+
+        JobConfig job = selectedJob.Job;
+        if (!job.Enabled)
+        {
+            bool runDisabledJob = _input.AskYesNo("Задание выключено. Запустить его всё равно? y/n: ");
+            if (!runDisabledJob) { return; }
+        }
+
+        Console.WriteLine($"=== Ручной запуск задания: {job.JobName} ===");
+        RunJob(job);
+        UpdateJobRunDates(selectedJob, DateTime.Now);
+
+        Console.WriteLine("Ручной запуск задания завершён.");
         Console.WriteLine();
     }
 
@@ -258,12 +274,7 @@ public class JobManagerService
 
             Console.WriteLine($"=== Запуск задания: {job.JobName} ===");
             RunJob(job);
-
-            int everyHours = job.Schedule.EveryHours > 0 ? job.Schedule.EveryHours : 24;
-
-            job.LastRunAt = FormatJobTime(now);
-            job.NextRunAt = FormatJobTime(now.AddHours(everyHours));
-            SaveJob(jobFile.Path, job);
+            UpdateJobRunDates(jobFile, now);
 
             startedCount++;
         }
@@ -294,6 +305,53 @@ public class JobManagerService
                 job.RuntimeSettings
             );
         }
+    }
+
+    // Обновляет даты последнего и следующего запуска задания.
+    private void UpdateJobRunDates(JobFile jobFile, DateTime runTime)
+    {
+        JobConfig job = jobFile.Job;
+        int everyHours = job.Schedule.EveryHours > 0 ? job.Schedule.EveryHours : 24;
+
+        job.LastRunAt = FormatJobTime(runTime);
+        job.NextRunAt = FormatJobTime(runTime.AddHours(everyHours));
+        SaveJob(jobFile.Path, job);
+    }
+
+    // Позволяет выбрать одно задание из списка.
+    private JobFile? SelectJob(string title, string cancelText)
+    {
+        JobFile[] jobs = LoadJobFiles();
+        if (jobs.Length == 0)
+        {
+            Console.WriteLine("Заданий пока нет.");
+            Console.WriteLine();
+            return null;
+        }
+
+        Console.WriteLine(title);
+        Console.WriteLine($"0 - {cancelText}");
+        for (int i = 0; i < jobs.Length; i++)
+            PrintJobShortInfo(i + 1, jobs[i]);
+
+        int selectedNumber = _input.ReadMenuNumber(min: 0, max: jobs.Length, "Номер задания: ");
+        if (selectedNumber == 0) { return null; }
+
+        return jobs[selectedNumber - 1];
+    }
+
+    // Выводит краткую информацию о задании одной строкой.
+    private void PrintJobShortInfo(int number, JobFile jobFile)
+    {
+        JobConfig job = jobFile.Job;
+        string status = job.Enabled ? "включено" : "выключено";
+        string moduleName = job.PipelineType == "input"
+            ? Path.GetFileName(job.ParserPath)
+            : Path.GetFileName(job.AnalyzerPath);
+
+        Console.WriteLine(
+            $"{number}: [{status}] {job.JobName} | {job.PipelineType} | {moduleName} | next: {FormatDisplayTime(job.NextRunAt)}"
+        );
     }
 
     // Загружает все задания из папки Jobs. Ошибочные JSON-файлы пропускаются.
