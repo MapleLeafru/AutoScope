@@ -56,7 +56,6 @@ class OutputPipelineManager:
             data = self.core.fetch_all(self.request.get("dbPath"))
             self.logger.info("CORE", f"Fetched records: {len(data)}")
 
-            # --- PROCESS ---
             self.logger.info("API", "Processing data")
             result = self.api.process(data)
 
