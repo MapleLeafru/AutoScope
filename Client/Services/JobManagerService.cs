@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 
-// Управляет сохранёнными заданиями автоповтора в папке Jobs.
+// Управляет сохранёнными сценариями автоповтора в папке Jobs.
 public class JobManagerService
 {
     private readonly AppPaths _paths;
@@ -38,7 +38,7 @@ public class JobManagerService
         _pipelineService = pipelineService;
     }
 
-    // Показывает меню менеджера заданий.
+    // Показывает меню сохранённых сценариев.
     public void ShowMenu()
     {
         while (true)
@@ -66,21 +66,21 @@ public class JobManagerService
         }
     }
 
-    // При запуске программы предлагает выполнить задания, у которых уже наступило время запуска.
+    // При запуске программы предлагает выполнить сценарии, у которых уже наступило время запуска.
     public void CheckDueJobsOnStartup()
     {
         JobFile[] dueJobs = GetDueJobFiles(DateTime.Now);
         if (dueJobs.Length == 0)
             return;
 
-        Console.WriteLine($"Найдены задания, которые пора выполнить: {dueJobs.Length}.");
+        Console.WriteLine($"Найдены сценарии, которые пора выполнить: {dueJobs.Length}.");
         for (int i = 0; i < dueJobs.Length; i++)
             PrintJobSelectionInfo(i + 1, dueJobs[i]);
 
-        bool runNow = _input.AskYesNo("Запустить эти задания сейчас? y/n: ");
+        bool runNow = _input.AskYesNo("Запустить эти сценарии сейчас? y/n: ");
         if (!runNow)
         {
-            Console.WriteLine("Автопроверка заданий пропущена.");
+            Console.WriteLine("Автопроверка сценариев пропущена.");
             Console.WriteLine();
             return;
         }
@@ -90,30 +90,30 @@ public class JobManagerService
         Console.WriteLine();
     }
 
-    // Создаёт JSON-файл задания на основе выбранной базы, модуля и расписания.
+    // Создаёт JSON-файл сценария на основе выбранной базы, модуля и расписания.
     private void CreateJob()
     {
         EnsureJobsDirectory();
         EnsureJobRunsDirectory();
 
-        Console.Write("Введите название задания: ");
+        Console.Write("Введите название сценария: ");
         string jobName = (Console.ReadLine() ?? "").Trim();
         if (string.IsNullOrWhiteSpace(jobName))
         {
-            Console.WriteLine("Название задания не может быть пустым.");
+            Console.WriteLine("Название сценария не может быть пустым.");
             return;
         }
 
-        Console.WriteLine("Выберите тип задания:");
-        Console.WriteLine("0 - Отменить создание задания");
+        Console.WriteLine("Выберите тип сценария:");
+        Console.WriteLine("0 - Отменить создание сценария");
         Console.WriteLine("1 - InputPipeline (парсинг)");
         Console.WriteLine("2 - OutputPipeline (анализ)");
         int pipelineTypeNumber = _input.ReadMenuNumber(min: 0, max: 2, "Номер выбранного типа: ");
         if (pipelineTypeNumber == 0) { return; }
 
         string selectedDatabase = _databaseDiscovery.SelectDatabase(
-            message: "Выберите базу данных для задания",
-            cancelText: "Отменить создание задания"
+            message: "Выберите базу данных для сценария",
+            cancelText: "Отменить создание сценария"
         );
         if (string.IsNullOrWhiteSpace(selectedDatabase)) { return; }
 
@@ -148,7 +148,7 @@ public class JobManagerService
             return;
         }
 
-        bool runAtNextCheck = _input.AskYesNo("Выполнить задание при ближайшей проверке? y/n: ");
+        bool runAtNextCheck = _input.AskYesNo("Выполнить сценарий при ближайшей проверке? y/n: ");
         DateTime now = DateTime.Now;
 
         job.Schedule = new JobScheduleSettings
@@ -164,16 +164,16 @@ public class JobManagerService
         string jobFilePath = Path.Combine(_paths.JobsPath, BuildJobFileName(job));
         SaveJob(jobFilePath, job);
 
-        Console.WriteLine($"Задание создано: {Path.GetFileName(jobFilePath)}");
+        Console.WriteLine($"Сценарий создан: {Path.GetFileName(jobFilePath)}");
         Console.WriteLine();
     }
 
-    // Заполняет параметры задания InputPipeline.
+    // Заполняет параметры сценария InputPipeline.
     private void FillInputJob(JobConfig job)
     {
         string selectedParser = _moduleDiscovery.SelectParser(
-            message: "Выберите парсер для задания",
-            cancelText: "Отменить создание задания"
+            message: "Выберите парсер для сценария",
+            cancelText: "Отменить создание сценария"
         );
         if (string.IsNullOrWhiteSpace(selectedParser)) { return; }
 
@@ -184,12 +184,12 @@ public class JobManagerService
         job.ParserSettings = _settingsService.ReadParserRunSettings();
     }
 
-    // Заполняет параметры задания OutputPipeline.
+    // Заполняет параметры сценария OutputPipeline.
     private void FillOutputJob(JobConfig job)
     {
         string selectedAnalyzer = _moduleDiscovery.SelectAnalyzer(
-            message: "Выберите анализатор для задания",
-            cancelText: "Отменить создание задания"
+            message: "Выберите анализатор для сценария",
+            cancelText: "Отменить создание сценария"
         );
         if (string.IsNullOrWhiteSpace(selectedAnalyzer)) { return; }
 
@@ -199,19 +199,19 @@ public class JobManagerService
         job.AnalyzerPath = selectedAnalyzer;
     }
 
-    // Показывает сохранённые задания в виде коротких карточек.
+    // Показывает сохранённые сценарии в виде коротких карточек.
     private void ShowJobs()
     {
         JobFile[] jobs = LoadJobFiles();
 
         if (jobs.Length == 0)
         {
-            Console.WriteLine("Заданий пока нет.");
+            Console.WriteLine("Сценариев пока нет.");
             Console.WriteLine();
             return;
         }
 
-        Console.WriteLine("=== Список заданий ===");
+        Console.WriteLine("=== Список сценариев ===");
         Console.WriteLine();
 
         for (int i = 0; i < jobs.Length; i++)
@@ -220,24 +220,24 @@ public class JobManagerService
         Console.WriteLine();
     }
 
-    // Удаляет выбранный JSON-файл задания.
+    // Удаляет выбранный JSON-файл сценария.
     private void DeleteJob()
     {
-        JobFile? selectedJob = SelectJob("Выберите задание для удаления:", "Отменить удаление задания");
+        JobFile? selectedJob = SelectJob("Выберите сценарий для удаления:", "Отменить удаление сценария");
         if (selectedJob == null) { return; }
 
-        bool confirmed = _input.AskYesNo($"Удалить задание <{selectedJob.Job.JobName}>? y/n: ");
+        bool confirmed = _input.AskYesNo($"Удалить сценарий <{selectedJob.Job.JobName}>? y/n: ");
         if (!confirmed) { return; }
 
         File.Delete(selectedJob.Path);
-        Console.WriteLine("Задание удалено.");
+        Console.WriteLine("Сценарий удалён.");
         Console.WriteLine();
     }
 
-    // Переключает состояние задания: включено или выключено.
+    // Переключает состояние сценария: включён или выключен.
     private void ToggleJobEnabled()
     {
-        JobFile? selectedJob = SelectJob("Выберите задание для включения/выключения:", "Отменить изменение задания");
+        JobFile? selectedJob = SelectJob("Выберите сценарий для включения/выключения:", "Отменить изменение сценария");
         if (selectedJob == null) { return; }
 
         JobConfig job = selectedJob.Job;
@@ -245,34 +245,34 @@ public class JobManagerService
         SaveJob(selectedJob.Path, job);
 
         string status = job.Enabled ? "включено" : "выключено";
-        Console.WriteLine($"Задание <{job.JobName}> теперь {status}.");
+        Console.WriteLine($"Сценарий <{job.JobName}> теперь {status}.");
         Console.WriteLine();
     }
 
-    // Запускает выбранное задание сразу, без проверки nextRunAt.
+    // Запускает выбранный сценарий сразу, без проверки nextRunAt.
     private void RunSelectedJobNow()
     {
-        JobFile? selectedJob = SelectJob("Выберите задание для ручного запуска:", "Отменить запуск задания");
+        JobFile? selectedJob = SelectJob("Выберите сценарий для ручного запуска:", "Отменить запуск сценария");
         if (selectedJob == null) { return; }
 
         JobConfig job = selectedJob.Job;
         if (!job.Enabled)
         {
-            bool runDisabledJob = _input.AskYesNo("Задание выключено. Запустить его всё равно? y/n: ");
+            bool runDisabledJob = _input.AskYesNo("Сценарий выключен. Запустить его всё равно? y/n: ");
             if (!runDisabledJob) { return; }
         }
 
-        Console.WriteLine($"=== Ручной запуск задания: {job.JobName} ===");
+        Console.WriteLine($"=== Ручной запуск сценария: {job.JobName} ===");
         RunJobAndSaveHistory(selectedJob);
 
-        Console.WriteLine("Ручной запуск задания завершён.");
+        Console.WriteLine("Ручной запуск сценария завершён.");
         Console.WriteLine();
     }
 
-    // Показывает последние записи истории запусков выбранного задания.
+    // Показывает последние записи истории запусков выбранного сценария.
     private void ShowJobRunHistory()
     {
-        JobFile? selectedJob = SelectJob("Выберите задание для просмотра истории:", "Отменить просмотр истории");
+        JobFile? selectedJob = SelectJob("Выберите сценарий для просмотра истории:", "Отменить просмотр истории");
         if (selectedJob == null) { return; }
 
         string historyPath = GetJobRunHistoryPath(selectedJob.Job);
@@ -280,7 +280,7 @@ public class JobManagerService
 
         if (records.Count == 0)
         {
-            Console.WriteLine("У задания пока нет истории запусков.");
+            Console.WriteLine("У сценария пока нет истории запусков.");
             Console.WriteLine();
             return;
         }
@@ -300,13 +300,13 @@ public class JobManagerService
         Console.WriteLine();
     }
 
-    // Проверяет все задания и запускает только те, у которых наступило время nextRunAt.
+    // Проверяет все сценарии и запускает только те, у которых наступило время nextRunAt.
     private void RunDueJobsNow()
     {
         JobFile[] jobs = LoadJobFiles();
         if (jobs.Length == 0)
         {
-            Console.WriteLine("Заданий пока нет.");
+            Console.WriteLine("Сценариев пока нет.");
             Console.WriteLine();
             return;
         }
@@ -319,17 +319,17 @@ public class JobManagerService
         Console.WriteLine();
     }
 
-    // Запускает набор заданий без дополнительной проверки расписания.
+    // Запускает набор сценариев без дополнительной проверки расписания.
     private void RunJobFiles(JobFile[] jobFiles)
     {
         foreach (JobFile jobFile in jobFiles)
         {
-            Console.WriteLine($"=== Запуск задания: {jobFile.Job.JobName} ===");
+            Console.WriteLine($"=== Запуск сценария: {jobFile.Job.JobName} ===");
             RunJobAndSaveHistory(jobFile);
         }
     }
 
-    // Возвращает задания, у которых включено расписание и уже наступило время запуска.
+    // Возвращает сценарии, у которых включено расписание и уже наступило время запуска.
     private JobFile[] GetDueJobFiles(DateTime now)
     {
         return LoadJobFiles()
@@ -337,7 +337,7 @@ public class JobManagerService
             .ToArray();
     }
 
-    // Проверяет, нужно ли запускать конкретное задание прямо сейчас.
+    // Проверяет, нужно ли запускать конкретный сценарий прямо сейчас.
     private bool IsJobDue(JobConfig job, DateTime now)
     {
         if (!job.Enabled)
@@ -347,7 +347,7 @@ public class JobManagerService
         return nextRunAt <= now;
     }
 
-    // Запускает задание, записывает историю запуска и обновляет даты в задании.
+    // Запускает сценарий, записывает историю запуска и обновляет даты в файле сценария.
     private void RunJobAndSaveHistory(JobFile jobFile)
     {
         JobConfig job = jobFile.Job;
@@ -378,7 +378,7 @@ public class JobManagerService
         Console.WriteLine();
     }
 
-    // Запускает сохранённое задание через PipelineService.
+    // Запускает сохранённый сценарий через PipelineService.
     private ProcessRunResult RunJob(JobConfig job)
     {
         if (job.PipelineType == "input")
@@ -403,7 +403,7 @@ public class JobManagerService
         return new ProcessRunResult
         {
             Output = "",
-            Error = $"Неизвестный тип задания: {job.PipelineType}",
+            Error = $"Неизвестный тип сценария: {job.PipelineType}",
             ExitCode = -1
         };
     }
@@ -427,7 +427,7 @@ public class JobManagerService
             ModuleName = moduleName,
             DbName = Path.GetFileName(job.DbPath),
             ExitCode = result.ExitCode,
-            Message = status == "success" ? "Задание выполнено успешно" : "Задание завершилось с ошибкой",
+            Message = status == "success" ? "Сценарий выполнен успешно" : "Сценарий завершился с ошибкой",
             OutputPreview = BuildPreview(result.Output),
             ErrorPreview = BuildPreview(result.Error)
         };
@@ -449,7 +449,7 @@ public class JobManagerService
         return true;
     }
 
-    // Добавляет запись запуска в JSON-файл истории задания.
+    // Добавляет запись запуска в JSON-файл истории сценария.
     private void AppendJobRunRecord(JobConfig job, JobRunRecord record)
     {
         EnsureJobRunsDirectory();
@@ -462,7 +462,7 @@ public class JobManagerService
         File.WriteAllText(historyPath, json);
     }
 
-    // Загружает историю запусков задания. Если файл повреждён, начинает новую историю.
+    // Загружает историю запусков сценария. Если файл повреждён, начинает новую историю.
     private List<JobRunRecord> LoadJobRunRecords(string historyPath)
     {
         if (!File.Exists(historyPath))
@@ -479,7 +479,7 @@ public class JobManagerService
         }
     }
 
-    // Возвращает последнюю запись истории задания, если она есть.
+    // Возвращает последнюю запись истории сценария, если она есть.
     private JobRunRecord? LoadLastJobRun(JobConfig job)
     {
         string historyPath = GetJobRunHistoryPath(job);
@@ -487,7 +487,7 @@ public class JobManagerService
         return records.LastOrDefault();
     }
 
-    // Обновляет даты последнего и следующего запуска задания.
+    // Обновляет даты последнего и следующего запуска сценария.
     private void UpdateJobRunDates(JobFile jobFile, DateTime runTime)
     {
         JobConfig job = jobFile.Job;
@@ -498,13 +498,13 @@ public class JobManagerService
         SaveJob(jobFile.Path, job);
     }
 
-    // Позволяет выбрать одно задание из списка.
+    // Позволяет выбрать один сценарий из списка.
     private JobFile? SelectJob(string title, string cancelText)
     {
         JobFile[] jobs = LoadJobFiles();
         if (jobs.Length == 0)
         {
-            Console.WriteLine("Заданий пока нет.");
+            Console.WriteLine("Сценариев пока нет.");
             Console.WriteLine();
             return null;
         }
@@ -514,13 +514,13 @@ public class JobManagerService
         for (int i = 0; i < jobs.Length; i++)
             PrintJobSelectionInfo(i + 1, jobs[i]);
 
-        int selectedNumber = _input.ReadMenuNumber(min: 0, max: jobs.Length, "Номер задания: ");
+        int selectedNumber = _input.ReadMenuNumber(min: 0, max: jobs.Length, "Номер сценария: ");
         if (selectedNumber == 0) { return null; }
 
         return jobs[selectedNumber - 1];
     }
 
-    // Выводит одну запись истории запуска задания.
+    // Выводит одну запись истории запуска сценария.
     private void PrintJobRunRecord(int number, JobRunRecord record)
     {
         Console.WriteLine($"{number}. {FormatDisplayTime(record.StartedAt)} -> {record.Status}, {record.DurationSeconds} сек.");
@@ -536,7 +536,7 @@ public class JobManagerService
         Console.WriteLine();
     }
 
-    // Выводит подробную карточку задания для просмотра списка.
+    // Выводит подробную карточку сценария для просмотра списка.
     private void PrintJobDetailedInfo(int number, JobFile jobFile)
     {
         JobConfig job = jobFile.Job;
@@ -557,7 +557,7 @@ public class JobManagerService
         Console.WriteLine();
     }
 
-    // Выводит краткую строку задания для выбора в меню.
+    // Выводит краткую строку сценария для выбора в меню.
     private void PrintJobSelectionInfo(int number, JobFile jobFile)
     {
         JobConfig job = jobFile.Job;
@@ -569,7 +569,7 @@ public class JobManagerService
         );
     }
 
-    // Загружает все задания из папки Jobs. Ошибочные JSON-файлы пропускаются.
+    // Загружает все сценарии из папки Jobs. Ошибочные JSON-файлы пропускаются.
     private JobFile[] LoadJobFiles()
     {
         EnsureJobsDirectory();
@@ -582,7 +582,7 @@ public class JobManagerService
             .ToArray();
     }
 
-    // Пытается загрузить один JSON-файл задания.
+    // Пытается загрузить один JSON-файл сценария.
     private JobFile? TryLoadJobFile(string filePath)
     {
         try
@@ -598,12 +598,12 @@ public class JobManagerService
         }
         catch
         {
-            Console.WriteLine($"Не удалось прочитать задание: {Path.GetFileName(filePath)}");
+            Console.WriteLine($"Не удалось прочитать сценарий: {Path.GetFileName(filePath)}");
             return null;
         }
     }
 
-    // Сохраняет задание в JSON-файл.
+    // Сохраняет сценарий в JSON-файл.
     private void SaveJob(string filePath, JobConfig job)
     {
         string json = JsonSerializer.Serialize(job, _jsonOptions);
@@ -622,14 +622,14 @@ public class JobManagerService
         Directory.CreateDirectory(_paths.JobRunsPath);
     }
 
-    // Формирует безопасное имя файла задания.
+    // Формирует безопасное имя файла сценария.
     private string BuildJobFileName(JobConfig job)
     {
         string safeName = SanitizeFileName(job.JobName).Replace(' ', '_');
         return $"{DateTime.Now:yyyyMMdd_HHmmss}_{safeName}.json";
     }
 
-    // Возвращает путь к файлу истории запусков конкретного задания в Logs/JobRuns.
+    // Возвращает путь к файлу истории запусков конкретного сценария в Logs/JobRuns.
     private string GetJobRunHistoryPath(JobConfig job)
     {
         string safeId = string.IsNullOrWhiteSpace(job.JobId)
@@ -649,7 +649,7 @@ public class JobManagerService
         return safeName;
     }
 
-    // Возвращает имя модуля задания: парсер или анализатор.
+    // Возвращает имя модуля сценария: парсер или анализатор.
     private string GetJobModuleName(JobConfig job)
     {
         string modulePath = job.PipelineType == "input" ? job.ParserPath : job.AnalyzerPath;
@@ -683,7 +683,7 @@ public class JobManagerService
         return value.ToString("yyyy-MM-ddTHH:mm:ss");
     }
 
-    // Преобразует строку времени из задания в DateTime.
+    // Преобразует строку времени из сценария в DateTime.
     private DateTime ParseJobTime(string value, DateTime fallback)
     {
         if (DateTime.TryParse(value, out DateTime result))
@@ -714,12 +714,12 @@ public class JobManagerService
     private string FormatNextRunDisplay(JobConfig job)
     {
         if (!job.Enabled)
-            return "задание выключено";
+            return "сценарий выключен";
 
         return FormatDisplayTime(job.NextRunAt);
     }
 
-    // Хранит путь к файлу и загруженное содержимое задания.
+    // Хранит путь к файлу и загруженное содержимое сценария.
     private class JobFile
     {
         public string Path { get; }
