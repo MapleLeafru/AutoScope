@@ -137,6 +137,8 @@ public class PipelineService
         RuntimeSettings runtimeSettings
     )
     {
+        PrintOutputFilterSummary(outputSettings);
+
         var request = new
         {
             analyzer = new
@@ -166,7 +168,71 @@ public class PipelineService
             configPath = _paths.ConfigsPath
         };
 
-        return RunPipelineManager(_paths.GetOutputPipelineManagerPath(), request);
+        ProcessRunResult result = RunPipelineManager(_paths.GetOutputPipelineManagerPath(), request);
+        PrintOutputResultSummary(result);
+
+        return result;
+    }
+
+    // Выводит настройки выборки, которые будут использованы перед запуском анализатора.
+    private void PrintOutputFilterSummary(OutputFilterSettings outputSettings)
+    {
+        Console.WriteLine("=== Настройки выборки анализа ===");
+        Console.WriteLine($"Только последние снимки: {FormatBool(outputSettings.LatestOnly)}");
+        Console.WriteLine($"Только записи с изменениями: {FormatBool(outputSettings.OnlyChanged)}");
+        Console.WriteLine($"Бренд: {FormatStringFilter(outputSettings.Brand)}");
+        Console.WriteLine($"Модель: {FormatStringFilter(outputSettings.Model)}");
+        Console.WriteLine($"Регион продажи: {FormatStringFilter(outputSettings.SaleRegion)}");
+        Console.WriteLine($"Год выпуска от: {FormatNullableInt(outputSettings.YearFrom)}");
+        Console.WriteLine($"Год выпуска до: {FormatNullableInt(outputSettings.YearTo)}");
+        Console.WriteLine();
+    }
+
+    // Пытается вывести краткую информацию о количестве записей, которые получил анализатор.
+    private void PrintOutputResultSummary(ProcessRunResult result)
+    {
+        if (string.IsNullOrWhiteSpace(result.Output))
+            return;
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(result.Output);
+            JsonElement root = document.RootElement;
+
+            if (!root.TryGetProperty("meta", out JsonElement meta))
+                return;
+
+            if (!meta.TryGetProperty("count", out JsonElement countElement))
+                return;
+
+            int count = countElement.GetInt32();
+
+            Console.WriteLine("=== Сводка выборки ===");
+            Console.WriteLine($"Найдено записей для анализа: {count}");
+            Console.WriteLine();
+        }
+        catch
+        {
+            // Если результат не является JSON или имеет другую структуру, просто не выводим сводку.
+        }
+    }
+
+    // Преобразует bool в короткий текст для консоли.
+    private string FormatBool(bool value)
+    {
+        return value ? "да" : "нет";
+    }
+
+    // Форматирует строковый фильтр для вывода в консоль.
+    private string FormatStringFilter(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "не задано" : value;
+    }
+
+    // Форматирует необязательное число для вывода в консоль.
+    private string FormatNullableInt(int? value)
+    {
+        return value.HasValue ? value.Value.ToString() : "не задано";
     }
 
     // Сериализует запрос, запускает нужный Python PipelineManager и выводит результат в консоль.

@@ -139,27 +139,37 @@ public class JobManagerService
             return;
 
         int everyHours = _input.ReadIntWithDefault(
-            "Введите интервал автоповтора в часах (Пустое поле = 24): ",
+            "Введите интервал автоповтора в часах (0 = только ручной запуск, пустое поле = 24): ",
             24
         );
-        if (everyHours <= 0)
+        if (everyHours < 0)
         {
-            Console.WriteLine("Интервал должен быть больше нуля.");
+            Console.WriteLine("Интервал не может быть меньше нуля.");
             return;
         }
 
-        bool runAtNextCheck = _input.AskYesNo("Выполнить сценарий при ближайшей проверке? y/n: ");
         DateTime now = DateTime.Now;
 
         job.Schedule = new JobScheduleSettings
         {
-            Type = "interval",
+            Type = everyHours == 0 ? "manual" : "interval",
             EveryHours = everyHours
         };
         job.LastRunAt = "";
-        job.NextRunAt = runAtNextCheck
-            ? FormatJobTime(now)
-            : FormatJobTime(now.AddHours(everyHours));
+
+        if (everyHours == 0)
+        {
+            job.NextRunAt = "";
+            Console.WriteLine("Сценарий будет запускаться только вручную.");
+            Console.WriteLine();
+        }
+        else
+        {
+            bool runAtNextCheck = _input.AskYesNo("Выполнить сценарий при ближайшей проверке? y/n: ");
+            job.NextRunAt = runAtNextCheck
+                ? FormatJobTime(now)
+                : FormatJobTime(now.AddHours(everyHours));
+        }
 
         string jobFilePath = Path.Combine(_paths.JobsPath, BuildJobFileName(job));
         SaveJob(jobFilePath, job);
@@ -345,6 +355,12 @@ public class JobManagerService
         if (!job.Enabled)
             return false;
 
+        if (IsManualOnlyJob(job))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(job.NextRunAt))
+            return false;
+
         DateTime nextRunAt = ParseJobTime(job.NextRunAt, now);
         return nextRunAt <= now;
     }
@@ -495,10 +511,17 @@ public class JobManagerService
     private void UpdateJobRunDates(JobFile jobFile, DateTime runTime)
     {
         JobConfig job = jobFile.Job;
-        int everyHours = job.Schedule.EveryHours > 0 ? job.Schedule.EveryHours : 24;
 
         job.LastRunAt = FormatJobTime(runTime);
-        job.NextRunAt = FormatJobTime(runTime.AddHours(everyHours));
+
+        if (IsManualOnlyJob(job))
+            job.NextRunAt = "";
+        else
+        {
+            int everyHours = job.Schedule.EveryHours > 0 ? job.Schedule.EveryHours : 24;
+            job.NextRunAt = FormatJobTime(runTime.AddHours(everyHours));
+        }
+
         SaveJob(jobFile.Path, job);
     }
 
@@ -554,7 +577,7 @@ public class JobManagerService
         Console.WriteLine($"   Тип: {FormatPipelineType(job.PipelineType)}");
         Console.WriteLine($"   База: {Path.GetFileName(job.DbPath)}");
         Console.WriteLine($"   Модуль: {moduleName}");
-        Console.WriteLine($"   Интервал: каждые {job.Schedule.EveryHours} ч.");
+        Console.WriteLine($"   Интервал: {FormatScheduleDisplay(job)}");
         if (job.PipelineType == "input")
             Console.WriteLine($"   Обогащение страны бренда: {FormatEnabled(job.ApiSettings.BrandCountryEnrichment)}");
 
@@ -575,7 +598,7 @@ public class JobManagerService
         string moduleName = GetJobModuleName(job);
 
         Console.WriteLine(
-            $"{number}: [{status}] {job.JobName} | {FormatPipelineType(job.PipelineType)} | {moduleName} | next: {FormatDisplayTime(job.NextRunAt)}"
+            $"{number}: [{status}] {job.JobName} | {FormatPipelineType(job.PipelineType)} | {moduleName} | next: {FormatNextRunDisplay(job)}"
         );
     }
 
@@ -761,7 +784,29 @@ public class JobManagerService
         if (!job.Enabled)
             return "сценарий выключен";
 
+        if (IsManualOnlyJob(job))
+            return "только ручной запуск";
+
         return FormatDisplayTime(job.NextRunAt);
+    }
+
+    // Форматирует расписание сценария для вывода в консоль.
+    private string FormatScheduleDisplay(JobConfig job)
+    {
+        if (IsManualOnlyJob(job))
+            return "только ручной запуск";
+
+        return $"каждые {job.Schedule.EveryHours} ч.";
+    }
+
+    // Проверяет, что сценарий не участвует в автопроверке и запускается только вручную.
+    private bool IsManualOnlyJob(JobConfig job)
+    {
+        if (job.Schedule == null)
+            return false;
+
+        return job.Schedule.EveryHours == 0
+            || string.Equals(job.Schedule.Type, "manual", StringComparison.OrdinalIgnoreCase);
     }
 
     // Хранит путь к файлу и загруженное содержимое сценария.
