@@ -48,6 +48,8 @@ public class ConsoleApp
         Console.WriteLine("C# клиент AutoScope запущен");
         Console.WriteLine();
 
+        _jobManagerService.CheckDueJobsOnStartup();
+
         while (true)
         {
             ShowMainMenu();
@@ -61,7 +63,7 @@ public class ConsoleApp
         Console.WriteLine("0 - Закрыть программу");
         Console.WriteLine("1 - Запустить InputPipeline (парсинг)");
         Console.WriteLine("2 - Запустить OutputPipeline (анализ)");
-        Console.WriteLine("3 - Менеджер заданий автоматического сбора данных");
+        Console.WriteLine("3 - Менеджер заданий");
         Console.WriteLine("4 - Открыть инструменты");
 
         int modeNumber = _input.ReadMenuNumber(min: 0, max: 4, "Номер выбранного режима: ");

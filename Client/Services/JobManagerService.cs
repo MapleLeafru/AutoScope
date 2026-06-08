@@ -50,9 +50,10 @@ public class JobManagerService
             Console.WriteLine("3 - Удалить задание");
             Console.WriteLine("4 - Включить/выключить задание");
             Console.WriteLine("5 - Запустить конкретное задание сейчас");
-            Console.WriteLine("6 - Запустить проверку заданий вручную");
+            Console.WriteLine("6 - Показать историю запусков задания");
+            Console.WriteLine("7 - Запустить проверку заданий вручную");
 
-            int selectedMode = _input.ReadMenuNumber(min: 0, max: 6, "Номер выбранного режима: ");
+            int selectedMode = _input.ReadMenuNumber(min: 0, max: 7, "Номер выбранного режима: ");
 
             if (selectedMode == 0) { return; }
             if (selectedMode == 1) { CreateJob(); }
@@ -60,8 +61,33 @@ public class JobManagerService
             if (selectedMode == 3) { DeleteJob(); }
             if (selectedMode == 4) { ToggleJobEnabled(); }
             if (selectedMode == 5) { RunSelectedJobNow(); }
-            if (selectedMode == 6) { RunDueJobsNow(); }
+            if (selectedMode == 6) { ShowJobRunHistory(); }
+            if (selectedMode == 7) { RunDueJobsNow(); }
         }
+    }
+
+    // При запуске программы предлагает выполнить задания, у которых уже наступило время запуска.
+    public void CheckDueJobsOnStartup()
+    {
+        JobFile[] dueJobs = GetDueJobFiles(DateTime.Now);
+        if (dueJobs.Length == 0)
+            return;
+
+        Console.WriteLine($"Найдены задания, которые пора выполнить: {dueJobs.Length}.");
+        for (int i = 0; i < dueJobs.Length; i++)
+            PrintJobSelectionInfo(i + 1, dueJobs[i]);
+
+        bool runNow = _input.AskYesNo("Запустить эти задания сейчас? y/n: ");
+        if (!runNow)
+        {
+            Console.WriteLine("Автопроверка заданий пропущена.");
+            Console.WriteLine();
+            return;
+        }
+
+        RunJobFiles(dueJobs);
+        Console.WriteLine($"Автопроверка завершена. Запущено: {dueJobs.Length}.");
+        Console.WriteLine();
     }
 
     // Создаёт JSON-файл задания на основе выбранной базы, модуля и расписания.
@@ -243,6 +269,37 @@ public class JobManagerService
         Console.WriteLine();
     }
 
+    // Показывает последние записи истории запусков выбранного задания.
+    private void ShowJobRunHistory()
+    {
+        JobFile? selectedJob = SelectJob("Выберите задание для просмотра истории:", "Отменить просмотр истории");
+        if (selectedJob == null) { return; }
+
+        string historyPath = GetJobRunHistoryPath(selectedJob.Job);
+        List<JobRunRecord> records = LoadJobRunRecords(historyPath);
+
+        if (records.Count == 0)
+        {
+            Console.WriteLine("У задания пока нет истории запусков.");
+            Console.WriteLine();
+            return;
+        }
+
+        Console.WriteLine($"=== История запусков: {selectedJob.Job.JobName} ===");
+        Console.WriteLine($"Всего записей: {records.Count}. Показаны последние 10.");
+        Console.WriteLine();
+
+        List<JobRunRecord> lastRecords = records
+            .Skip(Math.Max(0, records.Count - 10))
+            .Reverse()
+            .ToList();
+
+        for (int i = 0; i < lastRecords.Count; i++)
+            PrintJobRunRecord(i + 1, lastRecords[i]);
+
+        Console.WriteLine();
+    }
+
     // Проверяет все задания и запускает только те, у которых наступило время nextRunAt.
     private void RunDueJobsNow()
     {
@@ -254,35 +311,40 @@ public class JobManagerService
             return;
         }
 
-        DateTime now = DateTime.Now;
-        int startedCount = 0;
-        int skippedCount = 0;
+        JobFile[] dueJobs = GetDueJobFiles(DateTime.Now);
+        RunJobFiles(dueJobs);
 
-        foreach (JobFile jobFile in jobs)
-        {
-            JobConfig job = jobFile.Job;
-
-            if (!job.Enabled)
-            {
-                skippedCount++;
-                continue;
-            }
-
-            DateTime nextRunAt = ParseJobTime(job.NextRunAt, now);
-            if (nextRunAt > now)
-            {
-                skippedCount++;
-                continue;
-            }
-
-            Console.WriteLine($"=== Запуск задания: {job.JobName} ===");
-            RunJobAndSaveHistory(jobFile);
-
-            startedCount++;
-        }
-
-        Console.WriteLine($"Проверка завершена. Запущено: {startedCount}, пропущено: {skippedCount}.");
+        int skippedCount = jobs.Length - dueJobs.Length;
+        Console.WriteLine($"Проверка завершена. Запущено: {dueJobs.Length}, пропущено: {skippedCount}.");
         Console.WriteLine();
+    }
+
+    // Запускает набор заданий без дополнительной проверки расписания.
+    private void RunJobFiles(JobFile[] jobFiles)
+    {
+        foreach (JobFile jobFile in jobFiles)
+        {
+            Console.WriteLine($"=== Запуск задания: {jobFile.Job.JobName} ===");
+            RunJobAndSaveHistory(jobFile);
+        }
+    }
+
+    // Возвращает задания, у которых включено расписание и уже наступило время запуска.
+    private JobFile[] GetDueJobFiles(DateTime now)
+    {
+        return LoadJobFiles()
+            .Where(jobFile => IsJobDue(jobFile.Job, now))
+            .ToArray();
+    }
+
+    // Проверяет, нужно ли запускать конкретное задание прямо сейчас.
+    private bool IsJobDue(JobConfig job, DateTime now)
+    {
+        if (!job.Enabled)
+            return false;
+
+        DateTime nextRunAt = ParseJobTime(job.NextRunAt, now);
+        return nextRunAt <= now;
     }
 
     // Запускает задание, записывает историю запуска и обновляет даты в задании.
@@ -458,6 +520,22 @@ public class JobManagerService
         return jobs[selectedNumber - 1];
     }
 
+    // Выводит одну запись истории запуска задания.
+    private void PrintJobRunRecord(int number, JobRunRecord record)
+    {
+        Console.WriteLine($"{number}. {FormatDisplayTime(record.StartedAt)} -> {record.Status}, {record.DurationSeconds} сек.");
+        Console.WriteLine($"   Тип: {FormatPipelineType(record.PipelineType)}");
+        Console.WriteLine($"   Модуль: {record.ModuleName}");
+        Console.WriteLine($"   База: {record.DbName}");
+        Console.WriteLine($"   Код завершения: {record.ExitCode}");
+        Console.WriteLine($"   Сообщение: {record.Message}");
+
+        if (!string.IsNullOrWhiteSpace(record.ErrorPreview))
+            Console.WriteLine($"   Ошибка: {record.ErrorPreview}");
+
+        Console.WriteLine();
+    }
+
     // Выводит подробную карточку задания для просмотра списка.
     private void PrintJobDetailedInfo(int number, JobFile jobFile)
     {
@@ -551,7 +629,7 @@ public class JobManagerService
         return $"{DateTime.Now:yyyyMMdd_HHmmss}_{safeName}.json";
     }
 
-    // Возвращает путь к файлу истории запусков конкретного задания.
+    // Возвращает путь к файлу истории запусков конкретного задания в Logs/JobRuns.
     private string GetJobRunHistoryPath(JobConfig job)
     {
         string safeId = string.IsNullOrWhiteSpace(job.JobId)
