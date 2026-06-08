@@ -84,7 +84,7 @@ public class PipelineService
     }
 
     // Запускает InputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером заданий.
-    public void RunInputPipeline(
+    public ProcessRunResult RunInputPipeline(
         string databasePath,
         string parserPath,
         ParserRunSettings parserSettings,
@@ -116,11 +116,11 @@ public class PipelineService
             configPath = _paths.ConfigsPath
         };
 
-        RunPipelineManager(_paths.GetInputPipelineManagerPath(), request);
+        return RunPipelineManager(_paths.GetInputPipelineManagerPath(), request);
     }
 
     // Запускает OutputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером заданий.
-    public void RunOutputPipeline(string databasePath, string analyzerPath, RuntimeSettings runtimeSettings)
+    public ProcessRunResult RunOutputPipeline(string databasePath, string analyzerPath, RuntimeSettings runtimeSettings)
     {
         var request = new
         {
@@ -141,11 +141,11 @@ public class PipelineService
             configPath = _paths.ConfigsPath
         };
 
-        RunPipelineManager(_paths.GetOutputPipelineManagerPath(), request);
+        return RunPipelineManager(_paths.GetOutputPipelineManagerPath(), request);
     }
 
-    // Сериализует запрос и запускает нужный Python PipelineManager.
-    private void RunPipelineManager(string pipelineManagerPath, object request)
+    // Сериализует запрос, запускает нужный Python PipelineManager и выводит результат в консоль.
+    private ProcessRunResult RunPipelineManager(string pipelineManagerPath, object request)
     {
         string json = JsonSerializer.Serialize(request);
         ProcessRunResult result = _pythonProcess.RunScript(pipelineManagerPath, json);
@@ -158,5 +158,7 @@ public class PipelineService
             Console.WriteLine("=== ERRORS ===");
             Console.WriteLine(result.Error);
         }
+
+        return result;
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -67,6 +68,7 @@ public class JobManagerService
     private void CreateJob()
     {
         EnsureJobsDirectory();
+        EnsureJobRunsDirectory();
 
         Console.Write("Введите название задания: ");
         string jobName = (Console.ReadLine() ?? "").Trim();
@@ -171,7 +173,7 @@ public class JobManagerService
         job.AnalyzerPath = selectedAnalyzer;
     }
 
-    // Показывает сохранённые задания из папки Jobs.
+    // Показывает сохранённые задания в виде коротких карточек.
     private void ShowJobs()
     {
         JobFile[] jobs = LoadJobFiles();
@@ -183,9 +185,11 @@ public class JobManagerService
             return;
         }
 
-        Console.WriteLine("Сохранённые задания:");
+        Console.WriteLine("=== Список заданий ===");
+        Console.WriteLine();
+
         for (int i = 0; i < jobs.Length; i++)
-            PrintJobShortInfo(i + 1, jobs[i]);
+            PrintJobDetailedInfo(i + 1, jobs[i]);
 
         Console.WriteLine();
     }
@@ -233,8 +237,7 @@ public class JobManagerService
         }
 
         Console.WriteLine($"=== Ручной запуск задания: {job.JobName} ===");
-        RunJob(job);
-        UpdateJobRunDates(selectedJob, DateTime.Now);
+        RunJobAndSaveHistory(selectedJob);
 
         Console.WriteLine("Ручной запуск задания завершён.");
         Console.WriteLine();
@@ -273,8 +276,7 @@ public class JobManagerService
             }
 
             Console.WriteLine($"=== Запуск задания: {job.JobName} ===");
-            RunJob(job);
-            UpdateJobRunDates(jobFile, now);
+            RunJobAndSaveHistory(jobFile);
 
             startedCount++;
         }
@@ -283,28 +285,144 @@ public class JobManagerService
         Console.WriteLine();
     }
 
+    // Запускает задание, записывает историю запуска и обновляет даты в задании.
+    private void RunJobAndSaveHistory(JobFile jobFile)
+    {
+        JobConfig job = jobFile.Job;
+        DateTime startedAt = DateTime.Now;
+        ProcessRunResult result;
+
+        try
+        {
+            result = RunJob(job);
+        }
+        catch (Exception ex)
+        {
+            result = new ProcessRunResult
+            {
+                Output = "",
+                Error = ex.Message,
+                ExitCode = -1
+            };
+        }
+
+        DateTime finishedAt = DateTime.Now;
+        JobRunRecord runRecord = BuildJobRunRecord(job, startedAt, finishedAt, result);
+
+        AppendJobRunRecord(job, runRecord);
+        UpdateJobRunDates(jobFile, finishedAt);
+
+        Console.WriteLine($"Статус запуска: {runRecord.Status}. {runRecord.Message}");
+        Console.WriteLine();
+    }
+
     // Запускает сохранённое задание через PipelineService.
-    private void RunJob(JobConfig job)
+    private ProcessRunResult RunJob(JobConfig job)
     {
         if (job.PipelineType == "input")
         {
-            _pipelineService.RunInputPipeline(
+            return _pipelineService.RunInputPipeline(
                 job.DbPath,
                 job.ParserPath,
                 job.ParserSettings,
                 job.RuntimeSettings
             );
-            return;
         }
 
         if (job.PipelineType == "output")
         {
-            _pipelineService.RunOutputPipeline(
+            return _pipelineService.RunOutputPipeline(
                 job.DbPath,
                 job.AnalyzerPath,
                 job.RuntimeSettings
             );
         }
+
+        return new ProcessRunResult
+        {
+            Output = "",
+            Error = $"Неизвестный тип задания: {job.PipelineType}",
+            ExitCode = -1
+        };
+    }
+
+    // Создаёт запись истории на основе результата запуска pipeline.
+    private JobRunRecord BuildJobRunRecord(JobConfig job, DateTime startedAt, DateTime finishedAt, ProcessRunResult result)
+    {
+        string status = IsPipelineRunSuccessful(result) ? "success" : "error";
+        string moduleName = GetJobModuleName(job);
+        double durationSeconds = Math.Round((finishedAt - startedAt).TotalSeconds, 2);
+
+        return new JobRunRecord
+        {
+            JobId = job.JobId,
+            JobName = job.JobName,
+            StartedAt = FormatJobTime(startedAt),
+            FinishedAt = FormatJobTime(finishedAt),
+            DurationSeconds = durationSeconds,
+            Status = status,
+            PipelineType = job.PipelineType,
+            ModuleName = moduleName,
+            DbName = Path.GetFileName(job.DbPath),
+            ExitCode = result.ExitCode,
+            Message = status == "success" ? "Задание выполнено успешно" : "Задание завершилось с ошибкой",
+            OutputPreview = BuildPreview(result.Output),
+            ErrorPreview = BuildPreview(result.Error)
+        };
+    }
+
+    // Определяет, можно ли считать запуск успешным.
+    private bool IsPipelineRunSuccessful(ProcessRunResult result)
+    {
+        if (result.ExitCode != 0)
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(result.Error))
+            return false;
+
+        string output = result.Output ?? "";
+        if (output.Contains("\"status\": \"error\"") || output.Contains("\"status\":\"error\""))
+            return false;
+
+        return true;
+    }
+
+    // Добавляет запись запуска в JSON-файл истории задания.
+    private void AppendJobRunRecord(JobConfig job, JobRunRecord record)
+    {
+        EnsureJobRunsDirectory();
+
+        string historyPath = GetJobRunHistoryPath(job);
+        List<JobRunRecord> records = LoadJobRunRecords(historyPath);
+        records.Add(record);
+
+        string json = JsonSerializer.Serialize(records, _jsonOptions);
+        File.WriteAllText(historyPath, json);
+    }
+
+    // Загружает историю запусков задания. Если файл повреждён, начинает новую историю.
+    private List<JobRunRecord> LoadJobRunRecords(string historyPath)
+    {
+        if (!File.Exists(historyPath))
+            return new List<JobRunRecord>();
+
+        try
+        {
+            string json = File.ReadAllText(historyPath);
+            return JsonSerializer.Deserialize<List<JobRunRecord>>(json, _jsonOptions) ?? new List<JobRunRecord>();
+        }
+        catch
+        {
+            return new List<JobRunRecord>();
+        }
+    }
+
+    // Возвращает последнюю запись истории задания, если она есть.
+    private JobRunRecord? LoadLastJobRun(JobConfig job)
+    {
+        string historyPath = GetJobRunHistoryPath(job);
+        List<JobRunRecord> records = LoadJobRunRecords(historyPath);
+        return records.LastOrDefault();
     }
 
     // Обновляет даты последнего и следующего запуска задания.
@@ -332,7 +450,7 @@ public class JobManagerService
         Console.WriteLine(title);
         Console.WriteLine($"0 - {cancelText}");
         for (int i = 0; i < jobs.Length; i++)
-            PrintJobShortInfo(i + 1, jobs[i]);
+            PrintJobSelectionInfo(i + 1, jobs[i]);
 
         int selectedNumber = _input.ReadMenuNumber(min: 0, max: jobs.Length, "Номер задания: ");
         if (selectedNumber == 0) { return null; }
@@ -340,17 +458,36 @@ public class JobManagerService
         return jobs[selectedNumber - 1];
     }
 
-    // Выводит краткую информацию о задании одной строкой.
-    private void PrintJobShortInfo(int number, JobFile jobFile)
+    // Выводит подробную карточку задания для просмотра списка.
+    private void PrintJobDetailedInfo(int number, JobFile jobFile)
+    {
+        JobConfig job = jobFile.Job;
+        JobRunRecord? lastRun = LoadLastJobRun(job);
+        string status = job.Enabled ? "включено" : "выключено";
+        string moduleName = GetJobModuleName(job);
+        string lastRunStatus = lastRun == null ? "нет истории запусков" : lastRun.Status;
+
+        Console.WriteLine($"{number}. {job.JobName}");
+        Console.WriteLine($"   Статус: {status}");
+        Console.WriteLine($"   Тип: {FormatPipelineType(job.PipelineType)}");
+        Console.WriteLine($"   База: {Path.GetFileName(job.DbPath)}");
+        Console.WriteLine($"   Модуль: {moduleName}");
+        Console.WriteLine($"   Интервал: каждые {job.Schedule.EveryHours} ч.");
+        Console.WriteLine($"   Последний запуск: {FormatDisplayTimeOrNever(job.LastRunAt)}");
+        Console.WriteLine($"   Следующий запуск: {FormatNextRunDisplay(job)}");
+        Console.WriteLine($"   Последний результат: {lastRunStatus}");
+        Console.WriteLine();
+    }
+
+    // Выводит краткую строку задания для выбора в меню.
+    private void PrintJobSelectionInfo(int number, JobFile jobFile)
     {
         JobConfig job = jobFile.Job;
         string status = job.Enabled ? "включено" : "выключено";
-        string moduleName = job.PipelineType == "input"
-            ? Path.GetFileName(job.ParserPath)
-            : Path.GetFileName(job.AnalyzerPath);
+        string moduleName = GetJobModuleName(job);
 
         Console.WriteLine(
-            $"{number}: [{status}] {job.JobName} | {job.PipelineType} | {moduleName} | next: {FormatDisplayTime(job.NextRunAt)}"
+            $"{number}: [{status}] {job.JobName} | {FormatPipelineType(job.PipelineType)} | {moduleName} | next: {FormatDisplayTime(job.NextRunAt)}"
         );
     }
 
@@ -376,6 +513,9 @@ public class JobManagerService
             JobConfig? job = JsonSerializer.Deserialize<JobConfig>(json, _jsonOptions);
             if (job == null) { return null; }
 
+            if (string.IsNullOrWhiteSpace(job.JobId))
+                job.JobId = Path.GetFileNameWithoutExtension(filePath);
+
             return new JobFile(filePath, job);
         }
         catch
@@ -398,15 +538,65 @@ public class JobManagerService
         Directory.CreateDirectory(_paths.JobsPath);
     }
 
+    // Создаёт папку Logs/JobRuns, если её ещё нет.
+    private void EnsureJobRunsDirectory()
+    {
+        Directory.CreateDirectory(_paths.JobRunsPath);
+    }
+
     // Формирует безопасное имя файла задания.
     private string BuildJobFileName(JobConfig job)
     {
-        string safeName = job.JobName;
+        string safeName = SanitizeFileName(job.JobName).Replace(' ', '_');
+        return $"{DateTime.Now:yyyyMMdd_HHmmss}_{safeName}.json";
+    }
+
+    // Возвращает путь к файлу истории запусков конкретного задания.
+    private string GetJobRunHistoryPath(JobConfig job)
+    {
+        string safeId = string.IsNullOrWhiteSpace(job.JobId)
+            ? SanitizeFileName(job.JobName).Replace(' ', '_')
+            : SanitizeFileName(job.JobId);
+
+        return Path.Combine(_paths.JobRunsPath, $"{safeId}_runs.json");
+    }
+
+    // Убирает из строки символы, которые нельзя использовать в имени файла.
+    private string SanitizeFileName(string value)
+    {
+        string safeName = value;
         foreach (char invalidChar in Path.GetInvalidFileNameChars())
             safeName = safeName.Replace(invalidChar, '_');
 
-        safeName = safeName.Replace(' ', '_');
-        return $"{DateTime.Now:yyyyMMdd_HHmmss}_{safeName}.json";
+        return safeName;
+    }
+
+    // Возвращает имя модуля задания: парсер или анализатор.
+    private string GetJobModuleName(JobConfig job)
+    {
+        string modulePath = job.PipelineType == "input" ? job.ParserPath : job.AnalyzerPath;
+        return string.IsNullOrWhiteSpace(modulePath) ? "не указан" : Path.GetFileName(modulePath);
+    }
+
+    // Форматирует тип pipeline для вывода пользователю.
+    private string FormatPipelineType(string pipelineType)
+    {
+        if (pipelineType == "input") { return "InputPipeline"; }
+        if (pipelineType == "output") { return "OutputPipeline"; }
+        return pipelineType;
+    }
+
+    // Делает короткую версию stdout/stderr для истории запусков.
+    private string BuildPreview(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "";
+
+        string normalized = value.Replace("\r", " ").Replace("\n", " ").Trim();
+        if (normalized.Length <= 500)
+            return normalized;
+
+        return normalized.Substring(0, 500) + "...";
     }
 
     // Сохраняет время в формате, который удобно читать и безопасно парсить.
@@ -431,6 +621,24 @@ public class JobManagerService
             return result.ToString("yyyy-MM-dd HH:mm:ss");
 
         return "не задано";
+    }
+
+    // Форматирует время последнего запуска.
+    private string FormatDisplayTimeOrNever(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "ещё не запускалось";
+
+        return FormatDisplayTime(value);
+    }
+
+    // Форматирует время следующего запуска с учётом выключенного состояния.
+    private string FormatNextRunDisplay(JobConfig job)
+    {
+        if (!job.Enabled)
+            return "задание выключено";
+
+        return FormatDisplayTime(job.NextRunAt);
     }
 
     // Хранит путь к файлу и загруженное содержимое задания.
