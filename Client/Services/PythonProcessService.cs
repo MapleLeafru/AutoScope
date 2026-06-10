@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 // Запускает Python-скрипты проекта и передаёт им JSON через stdin.
@@ -45,15 +46,20 @@ public class PythonProcessService
             }
 
             StringBuilder errorBuilder = new StringBuilder();
+            ProgressState progressState = new ProgressState();
+            using CancellationTokenSource progressInputCancel = new CancellationTokenSource();
 
             Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
-            Task errorTask = Task.Run(() => ReadErrorStream(process, errorBuilder));
+            Task errorTask = Task.Run(() => ReadErrorStream(process, errorBuilder, progressState));
+            Task progressInputTask = Task.Run(() => WatchProgressRequests(progressState, progressInputCancel.Token));
 
             process.StandardInput.WriteLine(inputJson);
             process.StandardInput.Flush();
             process.StandardInput.Close();
 
             process.WaitForExit();
+            progressInputCancel.Cancel();
+
             Task.WaitAll(outputTask, errorTask);
 
             return new ProcessRunResult
@@ -65,8 +71,8 @@ public class PythonProcessService
         }
     }
 
-    // Читает stderr Python-процесса. Progress-события показывает сразу, остальные строки сохраняет как ошибки/логи.
-    private void ReadErrorStream(Process process, StringBuilder errorBuilder)
+    // Читает stderr Python-процесса. Progress-события показывает по правилам консольного режима.
+    private void ReadErrorStream(Process process, StringBuilder errorBuilder, ProgressState progressState)
     {
         string? line;
 
@@ -76,14 +82,87 @@ public class PythonProcessService
                 continue;
 
             if (line.TrimStart().StartsWith("[PROGRESS]"))
-                PrintProgressLine(line);
+                HandleProgressLine(line, progressState);
             else
                 errorBuilder.AppendLine(line);
         }
     }
 
-    // Выводит progress-событие в понятном для пользователя виде.
-    private void PrintProgressLine(string line)
+    // Обрабатывает progress-событие: сохраняет последнее состояние и печатает только ключевые этапы.
+    private void HandleProgressLine(string line, ProgressState progressState)
+    {
+        ProgressSnapshot? snapshot = ParseProgressLine(line);
+
+        if (snapshot == null)
+        {
+            Console.WriteLine(line);
+            return;
+        }
+
+        bool shouldPrintStartMessage = progressState.Update(snapshot);
+        if (shouldPrintStartMessage)
+            Console.WriteLine("Парсер запущен, для вывода актуального состояния нажмите Enter");
+
+        if (ShouldPrintProgressAutomatically(snapshot))
+            Console.WriteLine(FormatProgressSnapshot(snapshot));
+    }
+
+    // Следит за нажатием Enter во время работы Python-процесса и выводит актуальное состояние.
+    private void WatchProgressRequests(ProgressState progressState, CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                if (Console.KeyAvailable)
+                {
+                    ConsoleKeyInfo key = Console.ReadKey(intercept: true);
+
+                    if (key.Key == ConsoleKey.Enter)
+                        PrintCurrentProgress(progressState);
+                }
+            }
+            catch
+            {
+                // В некоторых режимах консоли KeyAvailable может быть недоступен.
+                return;
+            }
+
+            Thread.Sleep(100);
+        }
+    }
+
+    // Печатает последнее известное состояние парсера по запросу пользователя.
+    private void PrintCurrentProgress(ProgressState progressState)
+    {
+        ProgressSnapshot? snapshot = progressState.GetLatest();
+
+        if (snapshot == null)
+            return;
+
+        Console.WriteLine(FormatProgressSnapshot(snapshot));
+    }
+
+    // Автоматически выводит только завершение основных этапов и ошибки.
+    private bool ShouldPrintProgressAutomatically(ProgressSnapshot snapshot)
+    {
+        if (snapshot.Stage == "collect_links" && snapshot.Percent >= 100)
+            return true;
+
+        if (snapshot.Stage == "parse_ads" && snapshot.Percent >= 100)
+            return true;
+
+        if (snapshot.Stage == "done")
+            return true;
+
+        if (snapshot.Stage == "error")
+            return true;
+
+        return false;
+    }
+
+    // Разбирает progress-событие из строки stderr.
+    private ProgressSnapshot? ParseProgressLine(string line)
     {
         try
         {
@@ -91,19 +170,30 @@ public class PythonProcessService
             using JsonDocument document = JsonDocument.Parse(json);
             JsonElement root = document.RootElement;
 
-            string stage = GetString(root, "stage", "stage");
-            string message = GetString(root, "message", "");
-            int percent = GetInt(root, "percent", 0);
-            int current = GetInt(root, "current", 0);
-            int total = GetInt(root, "total", 0);
-
-            string counter = total > 0 ? $" ({current}/{total})" : "";
-            Console.WriteLine($"[{percent}%] {FormatStage(stage)}{counter}: {message}");
+            return new ProgressSnapshot
+            {
+                Stage = GetString(root, "stage", "stage"),
+                Message = GetString(root, "message", ""),
+                Percent = GetInt(root, "percent", 0),
+                Current = GetInt(root, "current", 0),
+                Total = GetInt(root, "total", 0)
+            };
         }
         catch
         {
-            Console.WriteLine(line);
+            return null;
         }
+    }
+
+    // Форматирует progress-событие в понятную строку консоли.
+    private string FormatProgressSnapshot(ProgressSnapshot snapshot)
+    {
+        string counter = snapshot.Total > 0 ? $" ({snapshot.Current}/{snapshot.Total})" : "";
+        string message = snapshot.Stage == "done"
+            ? "Парсер успешно завершил работу"
+            : snapshot.Message;
+
+        return $"[{snapshot.Percent}%] {FormatStage(snapshot.Stage)}{counter}: {message}";
     }
 
     // Безопасно получает строку из JSON-объекта.
@@ -139,5 +229,47 @@ public class PythonProcessService
             "error" => "Ошибка",
             _ => stage
         };
+    }
+
+    // Хранит последнее известное progress-состояние.
+    private class ProgressState
+    {
+        private readonly object _lock = new object();
+        private ProgressSnapshot? _latest;
+        private bool _started;
+
+        // Обновляет состояние. Возвращает true только при первом progress-событии.
+        public bool Update(ProgressSnapshot snapshot)
+        {
+            lock (_lock)
+            {
+                _latest = snapshot;
+
+                if (_started)
+                    return false;
+
+                _started = true;
+                return true;
+            }
+        }
+
+        // Возвращает последнее известное состояние.
+        public ProgressSnapshot? GetLatest()
+        {
+            lock (_lock)
+            {
+                return _latest;
+            }
+        }
+    }
+
+    // Описывает одно progress-событие.
+    private class ProgressSnapshot
+    {
+        public string Stage { get; set; } = "stage";
+        public string Message { get; set; } = "";
+        public int Percent { get; set; }
+        public int Current { get; set; }
+        public int Total { get; set; }
     }
 }
