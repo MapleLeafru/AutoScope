@@ -19,6 +19,7 @@ public class ConsoleApp
 
         _pipelineService = new PipelineService(
             paths,
+            _input,
             databaseDiscovery,
             moduleDiscovery,
             settingsService,
@@ -64,7 +65,7 @@ public class ConsoleApp
         Console.WriteLine("1 - Запустить InputPipeline (парсинг)");
         Console.WriteLine("2 - Запустить OutputPipeline (анализ)");
         Console.WriteLine("3 - Менеджер сценариев");
-        Console.WriteLine("4 - Открыть инструменты");
+        Console.WriteLine("4 - Менеджер баз данных");
 
         int modeNumber = _input.ReadMenuNumber(min: 0, max: 4, "Номер выбранного режима: ");
 

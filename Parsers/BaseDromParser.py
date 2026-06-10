@@ -148,15 +148,23 @@ def read_input_settings():
 
     if not start_url:
         raise RuntimeError("START_URL is required")
-    if not max_cars:
+    if max_cars is None:
         raise RuntimeError("MAX_CARS is required")
-    if not batch_size:
+    if batch_size is None:
         raise RuntimeError("STREAM_BATCH_SIZE is required")
+
+    max_cars = int(max_cars)
+    batch_size = int(batch_size)
+
+    if max_cars < 0:
+        raise RuntimeError("MAX_CARS cannot be negative")
+    if batch_size <= 0:
+        raise RuntimeError("STREAM_BATCH_SIZE must be greater than zero")
 
     return {
         "start_url": str(start_url),
-        "max_cars": int(max_cars),
-        "batch_size": int(batch_size),
+        "max_cars": max_cars,
+        "batch_size": batch_size,
         "request_delay": float(settings.get("requestDelaySeconds", DEFAULT_REQUEST_DELAY_SECONDS)),
         "retry_count": int(settings.get("retryCount", DEFAULT_RETRY_COUNT)),
         "rate_limit_delay": float(settings.get("rateLimitDelaySeconds", DEFAULT_RATE_LIMIT_DELAY_SECONDS)),
@@ -268,8 +276,11 @@ def extract_next_page_url(page_html, base_url):
 
 # Собирает ссылки на объявления. Если стартовая ссылка уже ведёт на карточку, возвращает её одну.
 def collect_ad_links(session, start_url, max_cars, request_delay, retry_count, rate_limit_delay):
+    collect_all = max_cars == 0
+    requested_total = max_cars if not collect_all else 0
+
     if is_drom_ad_url(start_url):
-        progress("collect_links", 1, 1, "Стартовая ссылка является карточкой объявления")
+        progress("collect_links", 1, 1, "Сбор ссылок завершён: стартовая ссылка является карточкой объявления")
         return [start_url]
 
     links = []
@@ -277,37 +288,60 @@ def collect_ad_links(session, start_url, max_cars, request_delay, retry_count, r
     current_url = start_url
     page_number = 1
 
-    progress("collect_links", 0, max_cars, "Начат сбор ссылок")
+    if collect_all:
+        progress("collect_links", 0, 0, "Начат сбор всех доступных ссылок")
+    else:
+        progress("collect_links", 0, requested_total, "Начат сбор ссылок")
 
-    while current_url and len(links) < max_cars:
+    while current_url and (collect_all or len(links) < max_cars):
         log(f"Loading list page {page_number}: {current_url}")
         page_html = fetch_html(session, current_url, retry_count, rate_limit_delay)
 
+        new_links_on_page = 0
         page_links = extract_ad_links(page_html, current_url)
         for link in page_links:
             if link not in seen:
                 seen.add(link)
                 links.append(link)
+                new_links_on_page += 1
 
-                progress(
-                    "collect_links",
-                    min(len(links), max_cars),
-                    max_cars,
-                    f"Собрано ссылок: {min(len(links), max_cars)} из {max_cars}",
-                )
+                if collect_all:
+                    progress(
+                        "collect_links",
+                        len(links),
+                        0,
+                        f"Собрано ссылок: {len(links)}",
+                    )
+                else:
+                    progress(
+                        "collect_links",
+                        min(len(links), max_cars),
+                        max_cars,
+                        f"Собрано ссылок: {min(len(links), max_cars)} из {max_cars}",
+                    )
 
-            if len(links) >= max_cars:
+            if not collect_all and len(links) >= max_cars:
                 break
 
         next_url = extract_next_page_url(page_html, current_url)
         if not next_url or next_url == current_url:
             break
 
+        # Если страница не дала новых ссылок, но пагинация продолжает вести дальше,
+        # продолжаем обход: на некоторых выдачах площадка может повторять часть карточек.
         current_url = next_url
         page_number += 1
         time.sleep(request_delay)
 
-    return links[:max_cars]
+    actual_total = len(links)
+    progress(
+        "collect_links",
+        actual_total,
+        actual_total,
+        f"Сбор ссылок завершён: собрано {actual_total} ссылок",
+    )
+
+    return links if collect_all else links[:max_cars]
 
 
 # Пытается достать цену из HTML.

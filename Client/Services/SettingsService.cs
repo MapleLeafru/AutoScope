@@ -66,7 +66,7 @@ public class SettingsService
         );
 
         parserSettings.MaxCars = _input.ReadIntWithDefault(
-            $"Введите MAX_CARS (Пустое поле = значение из конфига: {defaultMaxCars}): ",
+            $"Введите MAX_CARS (0 = собрать все доступные объявления, пустое поле = значение из конфига: {defaultMaxCars}): ",
             defaultMaxCars
         );
 

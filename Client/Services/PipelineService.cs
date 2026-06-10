@@ -6,6 +6,7 @@ using System.Text.Json;
 public class PipelineService
 {
     private readonly AppPaths _paths;
+    private readonly ConsoleInputService _input;
     private readonly DatabaseDiscoveryService _databaseDiscovery;
     private readonly ModuleDiscoveryService _moduleDiscovery;
     private readonly SettingsService _settingsService;
@@ -13,6 +14,7 @@ public class PipelineService
 
     public PipelineService(
         AppPaths paths,
+        ConsoleInputService input,
         DatabaseDiscoveryService databaseDiscovery,
         ModuleDiscoveryService moduleDiscovery,
         SettingsService settingsService,
@@ -20,6 +22,7 @@ public class PipelineService
     )
     {
         _paths = paths;
+        _input = input;
         _databaseDiscovery = databaseDiscovery;
         _moduleDiscovery = moduleDiscovery;
         _settingsService = settingsService;
@@ -50,8 +53,19 @@ public class PipelineService
         Console.WriteLine();
 
         ParserRunSettings parserSettings = _settingsService.ReadParserRunSettings();
+        Console.WriteLine();
+
         ApiSettings apiSettings = _settingsService.ReadApiSettings();
         RuntimeSettings runtimeSettings = _settingsService.GetRuntimeSettings();
+
+        bool confirmed = PrintInputRunSummaryAndConfirm(
+            selectedDatabase,
+            selectedParser,
+            parserSettings,
+            apiSettings,
+            runtimeSettings
+        );
+        if (!confirmed) { return; }
 
         RunInputPipeline(selectedDatabase, selectedParser, parserSettings, apiSettings, runtimeSettings);
     }
@@ -83,6 +97,74 @@ public class PipelineService
         RuntimeSettings runtimeSettings = _settingsService.GetRuntimeSettings();
 
         RunOutputPipeline(selectedDatabase, selectedAnalyzer, outputSettings, runtimeSettings);
+    }
+
+    // Показывает итоговые параметры перед запуском парсера и просит подтверждение пользователя.
+    private bool PrintInputRunSummaryAndConfirm(
+        string databasePath,
+        string parserPath,
+        ParserRunSettings parserSettings,
+        ApiSettings apiSettings,
+        RuntimeSettings runtimeSettings
+    )
+    {
+        Console.WriteLine("=== Параметры запуска парсера ===");
+        Console.WriteLine($"База данных: {Path.GetFileName(databasePath)}");
+        Console.WriteLine($"Парсер: {Path.GetFileName(parserPath)}");
+        Console.WriteLine($"START_URL: {parserSettings.StartUrl}");
+        Console.WriteLine($"MAX_CARS: {FormatMaxCars(parserSettings.MaxCars)}");
+        Console.WriteLine($"STREAM_BATCH_SIZE: {parserSettings.StreamBatchSize}");
+        Console.WriteLine($"Задержка между HTTP-запросами: {parserSettings.RequestDelaySeconds:0.##} сек.");
+        Console.WriteLine($"Повторов при ошибке запроса: {parserSettings.RetryCount}");
+        Console.WriteLine($"Пауза при HTTP 429: {parserSettings.RateLimitDelaySeconds:0.##} сек.");
+        Console.WriteLine($"Python: {runtimeSettings.PythonPath}");
+        Console.WriteLine();
+
+        Console.WriteLine("Настройки API:");
+        Console.WriteLine($"- определение страны бренда: {FormatEnabled(apiSettings.BrandCountryEnrichment)}");
+        Console.WriteLine($"- нормализация коробки передач: {FormatEnabled(apiSettings.TransmissionNormalization)}");
+        Console.WriteLine($"- нормализация типа привода: {FormatEnabled(apiSettings.DriveTypeNormalization)}");
+        Console.WriteLine($"- нормализация типа топлива: {FormatEnabled(apiSettings.FuelTypeNormalization)}");
+        Console.WriteLine();
+
+        Console.WriteLine($"Примерное время: {EstimateParserRunTime(parserSettings)}");
+        return _input.AskYesNo("Парсер готов к запуску. Запуск: y/n: ");
+    }
+
+    // Форматирует ограничение количества объявлений.
+    private string FormatMaxCars(int maxCars)
+    {
+        return maxCars == 0 ? "все доступные объявления" : maxCars.ToString();
+    }
+
+    // Форматирует включённую или выключенную настройку.
+    private string FormatEnabled(bool value)
+    {
+        return value ? "включено" : "выключено";
+    }
+
+    // Считает примерное время парсинга по количеству объявлений и задержке между запросами.
+    private string EstimateParserRunTime(ParserRunSettings parserSettings)
+    {
+        if (parserSettings.MaxCars == 0)
+            return "неизвестно, выбран сбор всех доступных объявлений";
+
+        double secondsPerAd = parserSettings.RequestDelaySeconds + 0.6;
+        int totalMinutes = (int)Math.Ceiling((parserSettings.MaxCars * secondsPerAd) / 60.0);
+
+        if (totalMinutes < 1)
+            totalMinutes = 1;
+
+        int hours = totalMinutes / 60;
+        int minutes = totalMinutes % 60;
+
+        if (hours > 0 && minutes > 0)
+            return $"примерно {hours}ч {minutes}м";
+
+        if (hours > 0)
+            return $"примерно {hours}ч";
+
+        return $"примерно {minutes}м";
     }
 
     // Запускает InputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером сценариев.

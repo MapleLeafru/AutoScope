@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 public class PythonProcessService
 {
     private readonly AppPaths _paths;
+    private readonly object _consoleLock = new object();
 
     public PythonProcessService(AppPaths paths)
     {
@@ -62,6 +64,15 @@ public class PythonProcessService
 
             Task.WaitAll(outputTask, errorTask);
 
+            try
+            {
+                progressInputTask.Wait(300);
+            }
+            catch
+            {
+                // Поток чтения Enter не должен мешать завершению процесса.
+            }
+
             return new ProcessRunResult
             {
                 Output = outputTask.Result,
@@ -95,16 +106,16 @@ public class PythonProcessService
 
         if (snapshot == null)
         {
-            Console.WriteLine(line);
+            WriteConsoleLine(line);
             return;
         }
 
         bool shouldPrintStartMessage = progressState.Update(snapshot);
         if (shouldPrintStartMessage)
-            Console.WriteLine("Парсер запущен, для вывода актуального состояния нажмите Enter");
+            WriteConsoleLine("Парсер запущен, для вывода актуального состояния нажмите Enter");
 
-        if (ShouldPrintProgressAutomatically(snapshot))
-            Console.WriteLine(FormatProgressSnapshot(snapshot));
+        if (progressState.ShouldPrintAutomatically(snapshot))
+            WriteConsoleLine(FormatProgressSnapshot(snapshot));
     }
 
     // Следит за нажатием Enter во время работы Python-процесса и выводит актуальное состояние.
@@ -140,25 +151,7 @@ public class PythonProcessService
         if (snapshot == null)
             return;
 
-        Console.WriteLine(FormatProgressSnapshot(snapshot));
-    }
-
-    // Автоматически выводит только завершение основных этапов и ошибки.
-    private bool ShouldPrintProgressAutomatically(ProgressSnapshot snapshot)
-    {
-        if (snapshot.Stage == "collect_links" && snapshot.Percent >= 100)
-            return true;
-
-        if (snapshot.Stage == "parse_ads" && snapshot.Percent >= 100)
-            return true;
-
-        if (snapshot.Stage == "done")
-            return true;
-
-        if (snapshot.Stage == "error")
-            return true;
-
-        return false;
+        WriteConsoleLine(FormatProgressSnapshot(snapshot));
     }
 
     // Разбирает progress-событие из строки stderr.
@@ -193,7 +186,16 @@ public class PythonProcessService
             ? "Парсер успешно завершил работу"
             : snapshot.Message;
 
-        return $"[{snapshot.Percent}%] {FormatStage(snapshot.Stage)}{counter}: {message}";
+        return $"[{snapshot.Percent}%] [{DateTime.Now:HH:mm:ss}] {FormatStage(snapshot.Stage)}{counter}: {message}";
+    }
+
+    // Потокобезопасно пишет строку в консоль, чтобы progress и Enter не перемешивались.
+    private void WriteConsoleLine(string message)
+    {
+        lock (_consoleLock)
+        {
+            Console.WriteLine(message);
+        }
     }
 
     // Безопасно получает строку из JSON-объекта.
@@ -235,6 +237,7 @@ public class PythonProcessService
     private class ProgressState
     {
         private readonly object _lock = new object();
+        private readonly HashSet<string> _printedCompletedStages = new HashSet<string>();
         private ProgressSnapshot? _latest;
         private bool _started;
 
@@ -253,6 +256,27 @@ public class PythonProcessService
             }
         }
 
+        // Проверяет, нужно ли показать событие без запроса пользователя.
+        public bool ShouldPrintAutomatically(ProgressSnapshot snapshot)
+        {
+            lock (_lock)
+            {
+                if (snapshot.Stage == "rate_limit" || snapshot.Stage == "error")
+                    return true;
+
+                if (snapshot.Stage == "done")
+                    return MarkStageAsPrinted(snapshot.Stage);
+
+                if (snapshot.Stage == "collect_links" && IsStageCompleted(snapshot))
+                    return MarkStageAsPrinted(snapshot.Stage);
+
+                if (snapshot.Stage == "parse_ads" && IsStageCompleted(snapshot))
+                    return MarkStageAsPrinted(snapshot.Stage);
+
+                return false;
+            }
+        }
+
         // Возвращает последнее известное состояние.
         public ProgressSnapshot? GetLatest()
         {
@@ -260,6 +284,22 @@ public class PythonProcessService
             {
                 return _latest;
             }
+        }
+
+        // Проверяет, что этап реально завершён, а не просто округлился до 100%.
+        private bool IsStageCompleted(ProgressSnapshot snapshot)
+        {
+            return snapshot.Total > 0 && snapshot.Current >= snapshot.Total;
+        }
+
+        // Защищает завершение этапа от повторного автоматического вывода.
+        private bool MarkStageAsPrinted(string stage)
+        {
+            if (_printedCompletedStages.Contains(stage))
+                return false;
+
+            _printedCompletedStages.Add(stage);
+            return true;
         }
     }
 
