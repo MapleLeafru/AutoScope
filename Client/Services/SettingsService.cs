@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 
@@ -40,12 +41,18 @@ public class SettingsService
         string defaultStartUrl = GetStringSetting(_parserSettings, "startUrl", "");
         int defaultMaxCars = GetIntSetting(_parserSettings, "maxCars", 10);
         int defaultStreamBatchSize = GetIntSetting(_parserSettings, "streamBatchSize", 5);
+        double defaultRequestDelaySeconds = GetDoubleSetting(_parserSettings, "requestDelaySeconds", 1.2);
+        int defaultRetryCount = GetIntSetting(_parserSettings, "retryCount", 3);
+        double defaultRateLimitDelaySeconds = GetDoubleSetting(_parserSettings, "rateLimitDelaySeconds", 5.0);
 
         ParserRunSettings parserSettings = new ParserRunSettings
         {
             StartUrl = defaultStartUrl,
             MaxCars = defaultMaxCars,
-            StreamBatchSize = defaultStreamBatchSize
+            StreamBatchSize = defaultStreamBatchSize,
+            RequestDelaySeconds = defaultRequestDelaySeconds,
+            RetryCount = defaultRetryCount,
+            RateLimitDelaySeconds = defaultRateLimitDelaySeconds
         };
 
         bool useDefaultParserSettings = _input.AskYesNo("Запустить парсер с параметрами по умолчанию? y/n: ");
@@ -66,6 +73,21 @@ public class SettingsService
         parserSettings.StreamBatchSize = _input.ReadIntWithDefault(
             $"Введите STREAM_BATCH_SIZE (Пустое поле = значение из конфига: {defaultStreamBatchSize}): ",
             defaultStreamBatchSize
+        );
+
+        parserSettings.RequestDelaySeconds = _input.ReadDoubleWithDefault(
+            $"Введите задержку между HTTP-запросами в секундах (Пустое поле = значение из конфига: {FormatDouble(defaultRequestDelaySeconds)}): ",
+            defaultRequestDelaySeconds
+        );
+
+        parserSettings.RetryCount = _input.ReadIntWithDefault(
+            $"Введите количество повторов при ошибке запроса (Пустое поле = значение из конфига: {defaultRetryCount}): ",
+            defaultRetryCount
+        );
+
+        parserSettings.RateLimitDelaySeconds = _input.ReadDoubleWithDefault(
+            $"Введите базовую паузу при HTTP 429 в секундах (Пустое поле = значение из конфига: {FormatDouble(defaultRateLimitDelaySeconds)}): ",
+            defaultRateLimitDelaySeconds
         );
 
         return parserSettings;
@@ -220,6 +242,25 @@ public class SettingsService
         return fallback;
     }
 
+    // Безопасно получает дробное число из JSON-настроек.
+    private double GetDoubleSetting(Dictionary<string, JsonElement> settings, string key, double fallback = 0)
+    {
+        if (settings.TryGetValue(key, out JsonElement value))
+        {
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out double result))
+                return result;
+
+            if (value.ValueKind == JsonValueKind.String)
+            {
+                string raw = (value.GetString() ?? "").Trim().Replace(",", ".");
+                if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out result))
+                    return result;
+            }
+        }
+
+        return fallback;
+    }
+
     // Безопасно получает bool-значение из вложенного JSON-объекта.
     private bool GetNestedBoolSetting(Dictionary<string, JsonElement> settings, string objectKey, string valueKey, bool fallback)
     {
@@ -290,6 +331,12 @@ public class SettingsService
             return false;
 
         return section.TryGetProperty(valueKey, out value);
+    }
+
+    // Форматирует дробное число для вывода в консоль.
+    private string FormatDouble(double value)
+    {
+        return value.ToString("0.##", CultureInfo.InvariantCulture);
     }
 
     // Преобразует bool в понятный текст для консоли.

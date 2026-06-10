@@ -25,6 +25,7 @@
   <ItemGroup>
     <Compile Include="BaseDromParser %28old%29.py" />
     <Compile Include="BaseDromParser.py" />
+    <Compile Include="BaseDromParserLegacy.py" />
     <Compile Include="BaseAutoRuParser.py" />
     <Compile Include="TestParser.py" />
   </ItemGroup>

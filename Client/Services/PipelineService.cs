@@ -108,7 +108,10 @@ public class PipelineService
             {
                 startUrl = parserSettings.StartUrl,
                 maxCars = parserSettings.MaxCars,
-                streamBatchSize = parserSettings.StreamBatchSize
+                streamBatchSize = parserSettings.StreamBatchSize,
+                requestDelaySeconds = parserSettings.RequestDelaySeconds,
+                retryCount = parserSettings.RetryCount,
+                rateLimitDelaySeconds = parserSettings.RateLimitDelaySeconds
             },
             apiSettings = new
             {

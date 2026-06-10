@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 import threading
+import sys
 
 
 class ModuleRunner:
@@ -239,11 +240,18 @@ class ModuleRunner:
     @staticmethod
     def _start_stderr_reader(process, logger, stage):
         # Асинхронно читает stderr парсера во время streaming-запуска.
+        # Progress-события пробрасывает наружу, чтобы C#-клиент мог показывать их в консоли.
         def reader():
             for line in process.stderr:
                 line = line.strip()
-                if line:
-                    ModuleRunner._log(logger, stage, "error", f"stderr: {line}")
+                if not line:
+                    continue
+
+                if line.startswith("[PROGRESS]"):
+                    print(line, file=sys.stderr, flush=True)
+                    ModuleRunner._log(logger, stage, "info", line)
+                else:
+                    ModuleRunner._log(logger, stage, "info", f"stderr: {line}")
 
         thread = threading.Thread(target=reader, daemon=True)
         thread.start()

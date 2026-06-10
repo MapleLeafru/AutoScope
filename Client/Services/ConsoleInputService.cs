@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 // Содержит общие методы безопасного ввода из консоли.
 public class ConsoleInputService
@@ -86,6 +87,24 @@ public class ConsoleInputService
                 return defaultValue;
 
             if (int.TryParse(input, out int result))
+                return result;
+
+            Console.WriteLine("Некорректное число. Попробуйте снова.");
+        }
+    }
+
+    // Считывает дробное число или возвращает значение по умолчанию при пустом вводе.
+    public double ReadDoubleWithDefault(string message, double defaultValue)
+    {
+        while (true)
+        {
+            Console.Write(message);
+            string input = (Console.ReadLine() ?? "").Trim().Replace(",", ".");
+
+            if (string.IsNullOrWhiteSpace(input))
+                return defaultValue;
+
+            if (double.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out double result))
                 return result;
 
             Console.WriteLine("Некорректное число. Попробуйте снова.");

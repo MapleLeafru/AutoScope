@@ -10,5 +10,8 @@
     "transmissionNormalization": false,
     "driveTypeNormalization": false,
     "fuelTypeNormalization": false
-  }
+  },
+  "requestDelaySeconds": 1.2,
+  "retryCount": 3,
+  "rateLimitDelaySeconds": 5.0
 }
