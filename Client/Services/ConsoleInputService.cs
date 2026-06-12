@@ -75,6 +75,21 @@ public class ConsoleInputService
         return string.IsNullOrWhiteSpace(input) ? defaultValue : input.Trim();
     }
 
+    // Считывает обязательную строку. Пустой ввод просит пользователя повторить ввод.
+    public string ReadRequiredString(string message)
+    {
+        while (true)
+        {
+            Console.Write(message);
+            string input = (Console.ReadLine() ?? "").Trim();
+
+            if (!string.IsNullOrWhiteSpace(input))
+                return input;
+
+            Console.WriteLine("Значение не может быть пустым.");
+        }
+    }
+
     // Считывает целое число или возвращает значение по умолчанию при пустом вводе.
     public int ReadIntWithDefault(string message, int defaultValue)
     {

@@ -35,10 +35,9 @@ public class SettingsService
         };
     }
 
-    // Возвращает параметры парсера: либо из конфига, либо после ручного ввода.
+    // Возвращает параметры парсера. START_URL пользователь всегда указывает явно.
     public ParserRunSettings ReadParserRunSettings()
     {
-        string defaultStartUrl = GetStringSetting(_parserSettings, "startUrl", "");
         int defaultMaxCars = GetIntSetting(_parserSettings, "maxCars", 10);
         int defaultStreamBatchSize = GetIntSetting(_parserSettings, "streamBatchSize", 5);
         double defaultRequestDelaySeconds = GetDoubleSetting(_parserSettings, "requestDelaySeconds", 1.2);
@@ -47,7 +46,7 @@ public class SettingsService
 
         ParserRunSettings parserSettings = new ParserRunSettings
         {
-            StartUrl = defaultStartUrl,
+            StartUrl = _input.ReadRequiredString("Введите START_URL: "),
             MaxCars = defaultMaxCars,
             StreamBatchSize = defaultStreamBatchSize,
             RequestDelaySeconds = defaultRequestDelaySeconds,
@@ -55,15 +54,10 @@ public class SettingsService
             RateLimitDelaySeconds = defaultRateLimitDelaySeconds
         };
 
-        bool useDefaultParserSettings = _input.AskYesNo("Запустить парсер с параметрами по умолчанию? y/n: ");
+        bool useDefaultParserSettings = _input.AskYesNo("Использовать параметры парсера по умолчанию? y/n: ");
 
         if (useDefaultParserSettings)
             return parserSettings;
-
-        parserSettings.StartUrl = _input.ReadStringWithDefault(
-            $"Введите START_URL (Пустое поле = значение из конфига: {defaultStartUrl}): ",
-            defaultStartUrl
-        );
 
         parserSettings.MaxCars = _input.ReadIntWithDefault(
             $"Введите MAX_CARS (0 = собрать все доступные объявления, пустое поле = значение из конфига: {defaultMaxCars}): ",

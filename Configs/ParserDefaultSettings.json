@@ -1,7 +1,6 @@
 {
-  "startUrl": "https://auto.drom.ru/subaru/levorg/",
-  "maxCars": 22,
-  "streamBatchSize": 4,
+  "maxCars": 200,
+  "streamBatchSize": 100,
   "pythonPath": "",
   "javaPath": "java",
   "dictionariesPath": "Dictionaries",
