@@ -37,6 +37,11 @@ STAGE_TITLES = {
     "error": "Ошибка",
 }
 
+STAGE_NUMBERS = {
+    "collect_links": (1, 2),
+    "parse_ads": (2, 2),
+}
+
 
 # Пишет служебные сообщения в stderr, чтобы не ломать JSON-вывод stdout.
 def log(message):
@@ -44,9 +49,10 @@ def log(message):
 
 
 # Отправляет progress-событие в stderr.
-def progress(stage, current, total, message, stage_title=None):
+def progress(stage, current, total, message, stage_title=None, stage_index=None, stage_total=None):
     # stage — технический идентификатор этапа.
     # stageTitle — человекочитаемое название этапа для консольного вывода AutoScope.
+    # stageIndex/stageTotal — положение рабочего этапа в общей схеме парсера.
     percent = 0
 
     if total and total > 0:
@@ -61,6 +67,15 @@ def progress(stage, current, total, message, stage_title=None):
         "percent": percent,
         "message": message,
     }
+
+    if stage_index is None or stage_total is None:
+        stage_number = STAGE_NUMBERS.get(stage)
+        if stage_number:
+            stage_index, stage_total = stage_number
+
+    if stage_index is not None and stage_total is not None:
+        payload["stageIndex"] = stage_index
+        payload["stageTotal"] = stage_total
 
     print(f"[PROGRESS] {json.dumps(payload, ensure_ascii=False)}", file=sys.stderr, flush=True)
 

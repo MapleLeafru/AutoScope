@@ -1,0 +1,5 @@
+﻿{
+  "requestDelaySeconds": 1.2,
+  "listingPageDelaySeconds": 1.5,
+  "estimatedListingPageSize": 20
+}

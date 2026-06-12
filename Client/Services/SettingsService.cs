@@ -75,7 +75,8 @@ public class SettingsService
             ExtraSettings = ExtractExtraParserSettings(mergedSettings)
         };
 
-        bool useDefaultParserSettings = _input.AskYesNo("Использовать остальные параметры парсера по умолчанию? y/n: ");
+        Console.WriteLine();
+        bool useDefaultParserSettings = _input.AskYesNo("Использовать параметры парсера по умолчанию? y/n: ");
 
         if (useDefaultParserSettings)
             return parserSettings;
@@ -126,6 +127,7 @@ public class SettingsService
             FuelTypeNormalization = defaultFuelTypeNormalization
         };
 
+        Console.WriteLine();
         bool useDefaultApiSettings = _input.AskYesNo("Использовать настройки API по умолчанию? y/n: ");
         if (useDefaultApiSettings)
             return apiSettings;

@@ -166,7 +166,9 @@ public class PythonProcessService
             return new ProgressSnapshot
             {
                 Stage = GetString(root, "stage", "stage"),
-                StageTitle = GetString(root, "stageTitle", ""),
+                StageTitle = GetString(root, "stageTitle", GetString(root, "stage_title", "")),
+                StageIndex = GetInt(root, "stageIndex", GetInt(root, "stage_index", 0)),
+                StageTotal = GetInt(root, "stageTotal", GetInt(root, "stage_total", 0)),
                 Message = GetString(root, "message", ""),
                 Percent = GetInt(root, "percent", 0),
                 Current = GetInt(root, "current", 0),
@@ -183,11 +185,12 @@ public class PythonProcessService
     private string FormatProgressSnapshot(ProgressSnapshot snapshot)
     {
         string counter = snapshot.Total > 0 ? $" ({snapshot.Current}/{snapshot.Total})" : "";
-        string message = snapshot.Stage == "done"
-            ? "Парсер успешно завершил работу"
+        string message = string.IsNullOrWhiteSpace(snapshot.Message)
+            ? FormatStage(snapshot)
             : snapshot.Message;
 
-        return $"[{snapshot.Percent}%] [{DateTime.Now:HH:mm:ss}] {FormatStage(snapshot)}{counter}: {message}";
+        string stageNumber = FormatStageNumber(snapshot);
+        return $"[{snapshot.Percent}%] [{DateTime.Now:HH:mm:ss}] {stageNumber}{FormatStage(snapshot)}{counter}: {message}";
     }
 
     // Потокобезопасно пишет строку в консоль, чтобы progress и Enter не перемешивались.
@@ -220,6 +223,15 @@ public class PythonProcessService
         return fallback;
     }
 
+    // Форматирует номер текущего этапа, если парсер передал его в progress-событии.
+    private string FormatStageNumber(ProgressSnapshot snapshot)
+    {
+        if (snapshot.StageIndex <= 0 || snapshot.StageTotal <= 0)
+            return "";
+
+        return $"[Этап {snapshot.StageIndex} из {snapshot.StageTotal}] ";
+    }
+
     // Переводит технический stage в короткий русский текст для консоли.
     private string FormatStage(ProgressSnapshot snapshot)
     {
@@ -232,6 +244,8 @@ public class PythonProcessService
             "parse_ads" => "Обработка объявлений",
             "listing_pages" => "Сбор объявлений из выдачи",
             "single_ad" => "Обработка карточки объявления",
+            "blocked" => "Сбор остановлен защитой Auto.ru",
+            "warning" => "Предупреждение",
             "done" => "Завершение",
             "rate_limit" => "Ограничение запросов",
             "error" => "Ошибка",
@@ -267,7 +281,7 @@ public class PythonProcessService
         {
             lock (_lock)
             {
-                if (snapshot.Stage == "rate_limit" || snapshot.Stage == "error")
+                if (snapshot.Stage == "rate_limit" || snapshot.Stage == "error" || snapshot.Stage == "blocked" || snapshot.Stage == "warning")
                     return true;
 
                 if (snapshot.Stage == "done")
@@ -311,6 +325,8 @@ public class PythonProcessService
     {
         public string Stage { get; set; } = "stage";
         public string StageTitle { get; set; } = "";
+        public int StageIndex { get; set; }
+        public int StageTotal { get; set; }
         public string Message { get; set; } = "";
         public int Percent { get; set; }
         public int Current { get; set; }

@@ -1,21 +1,21 @@
 {
-  "jobId": "c3e0eea4d3a347838a6e80901793f7de",
-  "jobName": "autoru_test_01",
+  "jobId": "466fa293ee4a4981a4c0aab4fc51f10a",
+  "jobName": "light_drom",
   "enabled": true,
   "pipelineType": "input",
-  "dbPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Databases\\autoru_test_01.BaseDataBaseConfig.db",
-  "parserPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Parsers\\LightBaseAutoRuParser.py",
+  "dbPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Databases\\skyline_01.BaseDataBaseConfig.db",
+  "parserPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Parsers\\LightBaseDromParser.py",
   "analyzerPath": "",
   "parserSettings": {
-    "startUrl": "https://auto.ru/cars/subaru/levorg-levorg/all/",
+    "startUrl": "https://auto.drom.ru/nissan/skyline/",
     "maxCars": 200,
     "streamBatchSize": 100,
     "requestDelaySeconds": 1.2,
     "retryCount": 3,
     "rateLimitDelaySeconds": 5,
     "extraSettings": {
-      "listingPageDelaySeconds": 6.0,
-      "estimatedListingPageSize": 37
+      "listingPageDelaySeconds": 1.5,
+      "estimatedListingPageSize": 20
     }
   },
   "apiSettings": {
@@ -41,7 +41,7 @@
     "type": "manual",
     "everyHours": 0
   },
-  "createdAt": "2026-06-10T19:13:13",
-  "lastRunAt": "2026-06-12T21:45:09",
+  "createdAt": "2026-06-12T21:45:32",
+  "lastRunAt": "2026-06-12T21:56:00",
   "nextRunAt": ""
 }

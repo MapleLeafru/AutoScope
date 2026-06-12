@@ -138,6 +138,7 @@ public class JobManagerService
         if (string.IsNullOrWhiteSpace(job.ParserPath) && string.IsNullOrWhiteSpace(job.AnalyzerPath))
             return;
 
+        Console.WriteLine();
         int everyHours = _input.ReadIntWithDefault(
             "Введите интервал автоповтора в часах (0 = только ручной запуск, пустое поле = 24): ",
             24
