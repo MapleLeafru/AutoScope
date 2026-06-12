@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 import sys
 import json
 import re
@@ -29,13 +29,24 @@ DEFAULT_RETRY_COUNT = 3
 DEFAULT_RATE_LIMIT_DELAY_SECONDS = 5.0
 
 
+STAGE_TITLES = {
+    "collect_links": "Сбор ссылок",
+    "parse_ads": "Обработка объявлений",
+    "rate_limit": "Ограничение запросов",
+    "done": "Завершение",
+    "error": "Ошибка",
+}
+
+
 # Пишет служебные сообщения в stderr, чтобы не ломать JSON-вывод stdout.
 def log(message):
     print(f"[BaseDromParser] {message}", file=sys.stderr, flush=True)
 
 
 # Отправляет progress-событие в stderr.
-def progress(stage, current, total, message):
+def progress(stage, current, total, message, stage_title=None):
+    # stage — технический идентификатор этапа.
+    # stageTitle — человекочитаемое название этапа для консольного вывода AutoScope.
     percent = 0
 
     if total and total > 0:
@@ -44,6 +55,7 @@ def progress(stage, current, total, message):
 
     payload = {
         "stage": stage,
+        "stageTitle": stage_title or STAGE_TITLES.get(stage, stage),
         "current": current,
         "total": total,
         "percent": percent,

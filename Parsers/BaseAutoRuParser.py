@@ -32,6 +32,14 @@ DEFAULT_REQUEST_DELAY_SECONDS = 1.2
 DEFAULT_RETRY_COUNT = 3
 DEFAULT_RATE_LIMIT_DELAY_SECONDS = 5.0
 
+STAGE_TITLES = {
+    "listing_pages": "Сбор объявлений из выдачи",
+    "single_ad": "Обработка карточки объявления",
+    "rate_limit": "Ограничение запросов",
+    "done": "Завершение",
+    "error": "Ошибка",
+}
+
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DEBUG_DIR = os.path.join(ROOT_DIR, "Logs", "ParserDebug")
 
@@ -51,8 +59,10 @@ def emit(batch):
     print(json.dumps(batch, ensure_ascii=False), flush=True)
 
 
-def progress(stage, current, total, message):
+def progress(stage, current, total, message, stage_title=None):
     # Отправляет событие прогресса в stderr.
+    # stage — технический идентификатор этапа.
+    # stageTitle — человекочитаемое название этапа для консольного вывода AutoScope.
     percent = 0
     if total:
         percent = int((current / total) * 100)
@@ -61,6 +71,7 @@ def progress(stage, current, total, message):
 
     payload = {
         "stage": stage,
+        "stageTitle": stage_title or STAGE_TITLES.get(stage, stage),
         "current": current,
         "total": total,
         "percent": percent,
@@ -546,7 +557,8 @@ def collect_listing_cars(session, start_url, max_cars, listing_page_delay, retry
     seen_pages = set()
     current_url = start_url
 
-    progress("collect_links", 0, target_count, "Начат сбор ссылок")
+    listing_stage_title = "Сбор объявлений из выдачи"
+    progress("listing_pages", 0, target_count, "Начат сбор объявлений из выдачи", listing_stage_title)
 
     while current_url:
         if current_url in seen_pages:
@@ -564,6 +576,7 @@ def collect_listing_cars(session, start_url, max_cars, listing_page_delay, retry
                     len(cars),
                     target_count,
                     f"Auto.ru остановил сбор капчей. Сохраняем уже собранные объявления: {len(cars)}. {error}",
+                    "Ограничение запросов",
                 )
                 break
 
@@ -597,7 +610,13 @@ def collect_listing_cars(session, start_url, max_cars, listing_page_delay, retry
 
         progress_total = max_cars if max_cars > 0 else 0
         progress_current = min(len(cars), progress_total) if progress_total else len(cars)
-        progress("collect_links", progress_current, progress_total, f"Собрано объявлений из выдачи: {len(cars)}")
+        progress(
+            "listing_pages",
+            progress_current,
+            progress_total,
+            f"Собрано объявлений из выдачи: {len(cars)}",
+            listing_stage_title,
+        )
 
         if max_cars > 0 and len(cars) >= max_cars:
             break
@@ -610,7 +629,13 @@ def collect_listing_cars(session, start_url, max_cars, listing_page_delay, retry
         time.sleep(listing_page_delay)
 
     total = len(cars)
-    progress("collect_links", total, total, f"Сбор ссылок завершён: собрано {total} объявлений из выдачи")
+    progress(
+        "listing_pages",
+        total,
+        total,
+        f"Сбор объявлений из выдачи завершён: собрано {total} объявлений",
+        listing_stage_title,
+    )
 
     return cars[:max_cars] if max_cars > 0 else cars
 
@@ -745,15 +770,15 @@ def parse_ad_page(url, page_html):
 
 def run_single_ad_mode(session, start_url, settings):
     # Обрабатывает прямую ссылку на карточку объявления.
-    progress("collect_links", 1, 1, "Сбор ссылок завершён: стартовая ссылка является карточкой объявления")
-    progress("parse_ads", 0, 1, "Начата обработка карточки объявления")
+    single_stage_title = "Обработка карточки объявления"
+    progress("single_ad", 0, 1, "Начата обработка карточки объявления", single_stage_title)
 
     page_html = fetch_html(session, start_url, settings["retry_count"], settings["rate_limit_delay"])
     car = parse_ad_page(start_url, page_html)
     emit([car])
 
-    progress("parse_ads", 1, 1, "Обработано объявлений: 1 из 1")
-    progress("done", 1, 1, "Парсер успешно завершил работу")
+    progress("single_ad", 1, 1, "Обработано объявлений: 1 из 1", single_stage_title)
+    progress("done", 1, 1, "Парсер успешно завершил работу", "Завершение")
 
 
 def run_listing_mode(session, settings):
@@ -770,7 +795,7 @@ def run_listing_mode(session, settings):
     log(f"Collected listing cars: {len(cars)}")
 
     if not cars:
-        progress("error", 0, 0, "Объявления в выдаче не найдены")
+        progress("error", 0, 0, "Объявления в выдаче не найдены", "Ошибка")
         raise RuntimeError(
             "Auto.ru parser did not collect any listing cars. "
             "Запуск остановлен, чтобы не считать пустой сбор успешным."
@@ -779,23 +804,17 @@ def run_listing_mode(session, settings):
     batch = []
     total = len(cars)
 
-    progress("parse_ads", 0, total, "Начата обработка объявлений из выдачи")
-
-    for index, car in enumerate(cars, start=1):
+    for car in cars:
         batch.append(car)
 
         if len(batch) >= settings["batch_size"]:
             emit(batch)
             batch = []
 
-        # Промежуточные события остаются доступными по Enter.
-        progress("parse_ads", index, total, f"Обработано объявлений из выдачи: {index} из {total}")
-
     if batch:
         emit(batch)
 
-    progress("parse_ads", total, total, f"Обработано объявлений из выдачи: {total} из {total}")
-    progress("done", total, total, "Парсер успешно завершил работу")
+    progress("done", total, total, "Парсер успешно завершил работу", "Завершение")
 
 
 def main():
@@ -815,5 +834,5 @@ if __name__ == "__main__":
         main()
     except Exception as error:
         log(f"Fatal error: {error}")
-        progress("error", 0, 0, str(error))
+        progress("error", 0, 0, str(error), "Ошибка")
         sys.exit(1)

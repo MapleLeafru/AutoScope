@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -166,6 +166,7 @@ public class PythonProcessService
             return new ProgressSnapshot
             {
                 Stage = GetString(root, "stage", "stage"),
+                StageTitle = GetString(root, "stageTitle", ""),
                 Message = GetString(root, "message", ""),
                 Percent = GetInt(root, "percent", 0),
                 Current = GetInt(root, "current", 0),
@@ -186,7 +187,7 @@ public class PythonProcessService
             ? "Парсер успешно завершил работу"
             : snapshot.Message;
 
-        return $"[{snapshot.Percent}%] [{DateTime.Now:HH:mm:ss}] {FormatStage(snapshot.Stage)}{counter}: {message}";
+        return $"[{snapshot.Percent}%] [{DateTime.Now:HH:mm:ss}] {FormatStage(snapshot)}{counter}: {message}";
     }
 
     // Потокобезопасно пишет строку в консоль, чтобы progress и Enter не перемешивались.
@@ -220,16 +221,21 @@ public class PythonProcessService
     }
 
     // Переводит технический stage в короткий русский текст для консоли.
-    private string FormatStage(string stage)
+    private string FormatStage(ProgressSnapshot snapshot)
     {
-        return stage switch
+        if (!string.IsNullOrWhiteSpace(snapshot.StageTitle))
+            return snapshot.StageTitle;
+
+        return snapshot.Stage switch
         {
             "collect_links" => "Сбор ссылок",
             "parse_ads" => "Обработка объявлений",
+            "listing_pages" => "Сбор объявлений из выдачи",
+            "single_ad" => "Обработка карточки объявления",
             "done" => "Завершение",
             "rate_limit" => "Ограничение запросов",
             "error" => "Ошибка",
-            _ => stage
+            _ => snapshot.Stage
         };
     }
 
@@ -267,10 +273,7 @@ public class PythonProcessService
                 if (snapshot.Stage == "done")
                     return MarkStageAsPrinted(snapshot.Stage);
 
-                if (snapshot.Stage == "collect_links" && IsStageCompleted(snapshot))
-                    return MarkStageAsPrinted(snapshot.Stage);
-
-                if (snapshot.Stage == "parse_ads" && IsStageCompleted(snapshot))
+                if (IsStageCompleted(snapshot))
                     return MarkStageAsPrinted(snapshot.Stage);
 
                 return false;
@@ -307,6 +310,7 @@ public class PythonProcessService
     private class ProgressSnapshot
     {
         public string Stage { get; set; } = "stage";
+        public string StageTitle { get; set; } = "";
         public string Message { get; set; } = "";
         public int Percent { get; set; }
         public int Current { get; set; }
