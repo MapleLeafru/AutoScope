@@ -1,16 +1,16 @@
-{
+﻿{
   "maxCars": 200,
   "streamBatchSize": 100,
   "pythonPath": "",
   "javaPath": "java",
   "dictionariesPath": "Dictionaries",
+  "requestDelaySeconds": 1.2,
+  "retryCount": 3,
+  "rateLimitDelaySeconds": 5.0,
   "apiSettings": {
     "brandCountryEnrichment": true,
     "transmissionNormalization": false,
     "driveTypeNormalization": false,
     "fuelTypeNormalization": false
-  },
-  "requestDelaySeconds": 1.2,
-  "retryCount": 3,
-  "rateLimitDelaySeconds": 5.0
+  }
 }

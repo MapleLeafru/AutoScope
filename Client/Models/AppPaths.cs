@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 
 // Хранит основные пути проекта, которые нужны консольному клиенту.
@@ -7,6 +7,7 @@ public class AppPaths
     public string RootPath { get; private set; }
     public string DbPath { get; private set; }
     public string ConfigsPath { get; private set; }
+    public string ParserConfigsPath { get; private set; }
     public string ParsersPath { get; private set; }
     public string AnalyzersPath { get; private set; }
     public string PythonPath { get; private set; }
@@ -18,6 +19,7 @@ public class AppPaths
         RootPath = rootPath;
         DbPath = Path.Combine(rootPath, "Databases");
         ConfigsPath = Path.Combine(rootPath, "Configs");
+        ParserConfigsPath = Path.Combine(ConfigsPath, "ParserConfigs");
         ParsersPath = Path.Combine(rootPath, "Parsers");
         AnalyzersPath = Path.Combine(rootPath, "Analyzers");
         PythonPath = Path.Combine(rootPath, @"Python\python.exe");

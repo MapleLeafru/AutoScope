@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -16,8 +16,8 @@ public class SettingsService
     {
         _paths = paths;
         _input = input;
-        _parserSettings = LoadDefaultSettings("ParserDefaultSettings.json");
-        _analyzerSettings = LoadDefaultSettings("AnalyzerDefaultSettings.json");
+        _parserSettings = LoadSettingsFile(Path.Combine(_paths.ConfigsPath, "ParserDefaultSettings.json"));
+        _analyzerSettings = LoadSettingsFile(Path.Combine(_paths.ConfigsPath, "AnalyzerDefaultSettings.json"));
     }
 
     // Возвращает настройки сред выполнения Python и Java.
@@ -35,14 +35,34 @@ public class SettingsService
         };
     }
 
-    // Возвращает параметры парсера. START_URL пользователь всегда указывает явно.
-    public ParserRunSettings ReadParserRunSettings()
+    // Добавляет в сохранённые сценарии новые дополнительные параметры из личного конфига парсера.
+    public ParserRunSettings AddMissingExtraParserSettings(string parserPath, ParserRunSettings parserSettings)
     {
-        int defaultMaxCars = GetIntSetting(_parserSettings, "maxCars", 10);
-        int defaultStreamBatchSize = GetIntSetting(_parserSettings, "streamBatchSize", 5);
-        double defaultRequestDelaySeconds = GetDoubleSetting(_parserSettings, "requestDelaySeconds", 1.2);
-        int defaultRetryCount = GetIntSetting(_parserSettings, "retryCount", 3);
-        double defaultRateLimitDelaySeconds = GetDoubleSetting(_parserSettings, "rateLimitDelaySeconds", 5.0);
+        if (parserSettings.ExtraSettings == null)
+            parserSettings.ExtraSettings = new Dictionary<string, JsonElement>();
+
+        Dictionary<string, JsonElement> mergedSettings = BuildParserSettings(parserPath);
+        Dictionary<string, JsonElement> extraSettings = ExtractExtraParserSettings(mergedSettings);
+
+        foreach (KeyValuePair<string, JsonElement> item in extraSettings)
+        {
+            if (!parserSettings.ExtraSettings.ContainsKey(item.Key))
+                parserSettings.ExtraSettings[item.Key] = item.Value;
+        }
+
+        return parserSettings;
+    }
+
+    // Возвращает параметры парсера. START_URL пользователь всегда указывает явно.
+    public ParserRunSettings ReadParserRunSettings(string parserPath)
+    {
+        Dictionary<string, JsonElement> mergedSettings = BuildParserSettings(parserPath);
+
+        int defaultMaxCars = GetIntSetting(mergedSettings, "maxCars", 10);
+        int defaultStreamBatchSize = GetIntSetting(mergedSettings, "streamBatchSize", 5);
+        double defaultRequestDelaySeconds = GetDoubleSetting(mergedSettings, "requestDelaySeconds", 1.2);
+        int defaultRetryCount = GetIntSetting(mergedSettings, "retryCount", 3);
+        double defaultRateLimitDelaySeconds = GetDoubleSetting(mergedSettings, "rateLimitDelaySeconds", 5.0);
 
         ParserRunSettings parserSettings = new ParserRunSettings
         {
@@ -51,10 +71,11 @@ public class SettingsService
             StreamBatchSize = defaultStreamBatchSize,
             RequestDelaySeconds = defaultRequestDelaySeconds,
             RetryCount = defaultRetryCount,
-            RateLimitDelaySeconds = defaultRateLimitDelaySeconds
+            RateLimitDelaySeconds = defaultRateLimitDelaySeconds,
+            ExtraSettings = ExtractExtraParserSettings(mergedSettings)
         };
 
-        bool useDefaultParserSettings = _input.AskYesNo("Использовать параметры парсера по умолчанию? y/n: ");
+        bool useDefaultParserSettings = _input.AskYesNo("Использовать остальные параметры парсера по умолчанию? y/n: ");
 
         if (useDefaultParserSettings)
             return parserSettings;
@@ -87,13 +108,15 @@ public class SettingsService
         return parserSettings;
     }
 
-    // Возвращает настройки InputApi: либо из конфига, либо после ручного ввода.
-    public ApiSettings ReadApiSettings()
+    // Возвращает настройки InputApi: либо из общего конфига, либо из личного конфига парсера, либо после ручного ввода.
+    public ApiSettings ReadApiSettings(string parserPath)
     {
-        bool defaultBrandCountryEnrichment = GetNestedBoolSetting(_parserSettings, "apiSettings", "brandCountryEnrichment", true);
-        bool defaultTransmissionNormalization = GetNestedBoolSetting(_parserSettings, "apiSettings", "transmissionNormalization", true);
-        bool defaultDriveTypeNormalization = GetNestedBoolSetting(_parserSettings, "apiSettings", "driveTypeNormalization", true);
-        bool defaultFuelTypeNormalization = GetNestedBoolSetting(_parserSettings, "apiSettings", "fuelTypeNormalization", true);
+        Dictionary<string, JsonElement> mergedSettings = BuildParserSettings(parserPath);
+
+        bool defaultBrandCountryEnrichment = GetNestedBoolSetting(mergedSettings, "apiSettings", "brandCountryEnrichment", true);
+        bool defaultTransmissionNormalization = GetNestedBoolSetting(mergedSettings, "apiSettings", "transmissionNormalization", false);
+        bool defaultDriveTypeNormalization = GetNestedBoolSetting(mergedSettings, "apiSettings", "driveTypeNormalization", false);
+        bool defaultFuelTypeNormalization = GetNestedBoolSetting(mergedSettings, "apiSettings", "fuelTypeNormalization", false);
 
         ApiSettings apiSettings = new ApiSettings
         {
@@ -194,11 +217,65 @@ public class SettingsService
         return outputSettings;
     }
 
-    // Загружает JSON-настройки из указанного файла в папке Configs.
-    private Dictionary<string, JsonElement> LoadDefaultSettings(string fileName)
+    // Строит итоговый набор настроек: общий ParserDefaultSettings + личный конфиг выбранного парсера.
+    private Dictionary<string, JsonElement> BuildParserSettings(string parserPath)
     {
-        string configFile = Path.Combine(_paths.ConfigsPath, fileName);
+        Dictionary<string, JsonElement> result = new Dictionary<string, JsonElement>(_parserSettings);
 
+        string parserConfigPath = GetParserConfigPath(parserPath);
+        if (string.IsNullOrWhiteSpace(parserConfigPath) || !File.Exists(parserConfigPath))
+            return result;
+
+        Dictionary<string, JsonElement> parserSpecificSettings = LoadSettingsFile(parserConfigPath);
+        foreach (KeyValuePair<string, JsonElement> item in parserSpecificSettings)
+            result[item.Key] = item.Value;
+
+        return result;
+    }
+
+    // Возвращает путь к личному конфигу выбранного парсера.
+    private string GetParserConfigPath(string parserPath)
+    {
+        if (string.IsNullOrWhiteSpace(parserPath))
+            return "";
+
+        string parserName = Path.GetFileNameWithoutExtension(parserPath);
+        if (string.IsNullOrWhiteSpace(parserName))
+            return "";
+
+        return Path.Combine(_paths.ParserConfigsPath, parserName + ".json");
+    }
+
+    // Отбирает дополнительные parserSettings, которые не входят в базовую модель C#.
+    private Dictionary<string, JsonElement> ExtractExtraParserSettings(Dictionary<string, JsonElement> settings)
+    {
+        HashSet<string> knownKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "startUrl",
+            "maxCars",
+            "streamBatchSize",
+            "requestDelaySeconds",
+            "retryCount",
+            "rateLimitDelaySeconds",
+            "pythonPath",
+            "javaPath",
+            "dictionariesPath",
+            "apiSettings"
+        };
+
+        Dictionary<string, JsonElement> extra = new Dictionary<string, JsonElement>();
+        foreach (KeyValuePair<string, JsonElement> item in settings)
+        {
+            if (!knownKeys.Contains(item.Key))
+                extra[item.Key] = item.Value;
+        }
+
+        return extra;
+    }
+
+    // Загружает JSON-настройки по полному пути.
+    private Dictionary<string, JsonElement> LoadSettingsFile(string configFile)
+    {
         if (!File.Exists(configFile))
             return new Dictionary<string, JsonElement>();
 

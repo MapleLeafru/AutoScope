@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -191,8 +191,8 @@ public class JobManagerService
         Console.WriteLine();
 
         job.ParserPath = selectedParser;
-        job.ParserSettings = _settingsService.ReadParserRunSettings();
-        job.ApiSettings = _settingsService.ReadApiSettings();
+        job.ParserSettings = _settingsService.ReadParserRunSettings(selectedParser);
+        job.ApiSettings = _settingsService.ReadApiSettings(selectedParser);
     }
 
     // Заполняет параметры сценария OutputPipeline.

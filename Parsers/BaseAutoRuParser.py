@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 import sys
 import json
 import re
@@ -11,11 +11,8 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
-try:
-    sys.stdout.reconfigure(encoding="utf-8")
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-except AttributeError:
-    pass
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Базовый Auto.ru-парсер без Selenium.
 # Основной режим для страниц выдачи: собирает данные прямо из карточек выдачи.
@@ -143,11 +140,14 @@ def read_input_settings():
     if not batch_size:
         raise RuntimeError("STREAM_BATCH_SIZE is required")
 
+    request_delay = float(settings.get("requestDelaySeconds", DEFAULT_REQUEST_DELAY_SECONDS))
+
     return {
         "start_url": str(start_url),
         "max_cars": int(max_cars),
         "batch_size": int(batch_size),
-        "request_delay": float(settings.get("requestDelaySeconds", DEFAULT_REQUEST_DELAY_SECONDS)),
+        "request_delay": request_delay,
+        "listing_page_delay": float(settings.get("listingPageDelaySeconds", request_delay)),
         "retry_count": int(settings.get("retryCount", DEFAULT_RETRY_COUNT)),
         "rate_limit_delay": float(settings.get("rateLimitDelaySeconds", DEFAULT_RATE_LIMIT_DELAY_SECONDS)),
     }
@@ -315,7 +315,6 @@ def normalize_url_text(value):
 
     value = html_lib.unescape(str(value))
     value = value.replace("\\u002F", "/")
-    value = value.replace("\\/", "/")
     value = value.replace("\\/", "/")
 
     return value
@@ -539,7 +538,7 @@ def parse_listing_card(card, base_url):
     }
 
 
-def collect_listing_cars(session, start_url, max_cars, request_delay, retry_count, rate_limit_delay):
+def collect_listing_cars(session, start_url, max_cars, listing_page_delay, retry_count, rate_limit_delay):
     # Собирает объявления со страниц выдачи без перехода по карточкам.
     target_count = max_cars if max_cars > 0 else 0
     cars = []
@@ -556,7 +555,20 @@ def collect_listing_cars(session, start_url, max_cars, request_delay, retry_coun
         seen_pages.add(current_url)
         log(f"Loading list page: {current_url}")
 
-        page_html = fetch_html(session, current_url, retry_count, rate_limit_delay)
+        try:
+            page_html = fetch_html(session, current_url, retry_count, rate_limit_delay)
+        except AutoRuBlockedError as error:
+            if cars:
+                progress(
+                    "rate_limit",
+                    len(cars),
+                    target_count,
+                    f"Auto.ru остановил сбор капчей. Сохраняем уже собранные объявления: {len(cars)}. {error}",
+                )
+                break
+
+            raise
+
         cards = find_listing_cards(page_html)
         links = extract_ad_links(page_html, current_url)
 
@@ -595,7 +607,7 @@ def collect_listing_cars(session, start_url, max_cars, request_delay, retry_coun
             break
 
         current_url = next_url
-        time.sleep(request_delay)
+        time.sleep(listing_page_delay)
 
     total = len(cars)
     progress("collect_links", total, total, f"Сбор ссылок завершён: собрано {total} объявлений из выдачи")
@@ -750,7 +762,7 @@ def run_listing_mode(session, settings):
         session=session,
         start_url=settings["start_url"],
         max_cars=settings["max_cars"],
-        request_delay=settings["request_delay"],
+        listing_page_delay=settings["listing_page_delay"],
         retry_count=settings["retry_count"],
         rate_limit_delay=settings["rate_limit_delay"],
     )
