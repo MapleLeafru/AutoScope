@@ -1,0 +1,9 @@
+﻿{
+  "requestDelaySeconds": 2.0,
+  "listingPageDelaySeconds": 2.0,
+  "cardDelaySeconds": 2.0,
+  "browserPageLoadTimeoutSeconds": 40,
+  "manualAccessWaitSeconds": 0,
+  "headless": false,
+  "estimatedListingPageSize": 20
+}

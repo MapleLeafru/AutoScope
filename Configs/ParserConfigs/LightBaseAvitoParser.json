@@ -1,0 +1,8 @@
+﻿{
+  "requestDelaySeconds": 6.0,
+  "listingPageDelaySeconds": 6.0,
+  "estimatedListingPageSize": 50,
+  "rateLimitDelaySeconds": 8.0,
+  "warmupUrl": "https://www.avito.ru/",
+  "requestProfile": "desktop"
+}

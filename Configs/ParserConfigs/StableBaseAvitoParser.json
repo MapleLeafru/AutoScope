@@ -1,0 +1,10 @@
+﻿{
+  "requestDelaySeconds": 4.0,
+  "listingPageDelaySeconds": 5.0,
+  "cardDelaySeconds": 4.0,
+  "browserPageLoadTimeoutSeconds": 45,
+  "manualAccessWaitSeconds": 120,
+  "headless": false,
+  "warmupUrl": "https://www.avito.ru/",
+  "estimatedListingPageSize": 50
+}
