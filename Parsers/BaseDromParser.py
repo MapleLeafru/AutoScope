@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import sys
 import json
 import re
@@ -470,7 +470,7 @@ def parse_ad_page(url, page_html):
         "transmission": specs.get("Коробка передач"),
         "drive_type": specs.get("Привод"),
         "color": specs.get("Цвет"),
-        "body_type": specs.get("Кузов"),
+        "body_type": specs.get("Тип кузова") or specs.get("Кузов"),
         "steering_wheel": specs.get("Руль"),
         "engine_power": safe_int(specs.get("Мощность")),
         "engine_volume": engine_volume,

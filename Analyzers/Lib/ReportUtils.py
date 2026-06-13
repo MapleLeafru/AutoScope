@@ -191,6 +191,7 @@ def percentile(numbers, percent):
 
 
 def format_number(value):
+    # Обычный пользовательский формат без научной записи 1e6/1e7.
     number = to_float(value)
     if number is None:
         return "—"
@@ -198,6 +199,19 @@ def format_number(value):
         return f"{int(round(number)):,}".replace(",", " ")
     except Exception:
         return str(value)
+
+
+def format_axis_number(value):
+    # Для подписей осей matplotlib: 1000000 -> 1 000 000, без scientific notation.
+    return format_number(value)
+
+
+def format_year(value):
+    # Год не должен отображаться как 1985.0.
+    year = to_int(value)
+    if year is None:
+        return "—"
+    return str(year)
 
 
 def format_price(value):
@@ -225,8 +239,12 @@ def h(value):
 
 
 def car_label(item):
-    parts = [item.get("brand"), item.get("model"), item.get("year")]
-    return " ".join([clean_string(part) for part in parts if not is_missing(part)]) or "Без названия"
+    parts = [clean_string(item.get("brand")), clean_string(item.get("model"))]
+    label = " ".join([part for part in parts if part])
+    year = to_int(item.get("year"))
+    if year is not None:
+        label = f"{label} {year}".strip()
+    return label or "Без названия"
 
 
 def display_region(region):
@@ -602,6 +620,42 @@ def empty_chart_message(text="Недостаточно данных для по�
     return f"<p class='small'>{h(text)}</p>"
 
 
+def apply_plain_number_axis(ax, axis="both"):
+    # Отключает подписи вида 1e6 и добавляет обычный формат чисел.
+    import matplotlib.ticker as ticker
+
+    formatter = ticker.FuncFormatter(lambda value, pos: format_axis_number(value))
+
+    if axis in ["x", "both"]:
+        ax.ticklabel_format(style="plain", axis="x", useOffset=False)
+        ax.xaxis.set_major_formatter(formatter)
+    if axis in ["y", "both"]:
+        ax.ticklabel_format(style="plain", axis="y", useOffset=False)
+        ax.yaxis.set_major_formatter(formatter)
+
+
+def apply_plain_integer_axis(ax, axis="both"):
+    import matplotlib.ticker as ticker
+
+    formatter = ticker.FuncFormatter(lambda value, pos: format_number(value))
+    if axis in ["x", "both"]:
+        ax.ticklabel_format(style="plain", axis="x", useOffset=False)
+        ax.xaxis.set_major_formatter(formatter)
+    if axis in ["y", "both"]:
+        ax.ticklabel_format(style="plain", axis="y", useOffset=False)
+        ax.yaxis.set_major_formatter(formatter)
+
+
+def default_histogram_bins(values, preferred=24):
+    try:
+        length = len(values)
+    except Exception:
+        length = preferred
+    if length <= 0:
+        return preferred
+    return max(8, min(40, int(preferred)))
+
+
 def matplotlib_bar_chart(series, title, xlabel="", ylabel="", horizontal=True, limit=12):
     require_visual_libraries()
     import matplotlib.pyplot as plt
@@ -629,10 +683,11 @@ def matplotlib_bar_chart(series, title, xlabel="", ylabel="", horizontal=True, l
 
     ax.set_title(title)
     ax.grid(axis="x" if horizontal else "y", alpha=0.25)
+    apply_plain_integer_axis(ax, axis="x" if horizontal else "y")
     return render_plot_image(plot_to_base64(fig), title)
 
 
-def matplotlib_histogram(values, title, xlabel="", bins=12):
+def matplotlib_histogram(values, title, xlabel="", bins=24):
     require_visual_libraries()
     import matplotlib.pyplot as plt
     import pandas as pd
@@ -643,11 +698,14 @@ def matplotlib_histogram(values, title, xlabel="", bins=12):
         return empty_chart_message()
 
     fig, ax = plt.subplots(figsize=(8.8, 4.6))
-    ax.hist(values, bins=min(bins, max(3, len(values))))
+    bins_count = min(default_histogram_bins(values, bins), max(3, len(values)))
+    ax.hist(values, bins=bins_count)
     ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.set_ylabel("Количество объявлений")
     ax.grid(axis="y", alpha=0.25)
+    apply_plain_number_axis(ax, axis="x")
+    apply_plain_integer_axis(ax, axis="y")
     return render_plot_image(plot_to_base64(fig), title)
 
 
@@ -669,10 +727,11 @@ def matplotlib_line_chart(series, title, xlabel="", ylabel=""):
     ax.set_ylabel(ylabel)
     ax.tick_params(axis="x", rotation=35)
     ax.grid(alpha=0.25)
+    apply_plain_number_axis(ax, axis="y")
     return render_plot_image(plot_to_base64(fig), title)
 
 
-def matplotlib_scatter(df, x_field, y_field, title, xlabel="", ylabel=""):
+def matplotlib_scatter(df, x_field, y_field, title, xlabel="", ylabel="", show_trend=False):
     require_visual_libraries()
     import matplotlib.pyplot as plt
 
@@ -686,10 +745,24 @@ def matplotlib_scatter(df, x_field, y_field, title, xlabel="", ylabel=""):
 
     fig, ax = plt.subplots(figsize=(8.8, 4.8))
     ax.scatter(plot_df[x_field], plot_df[y_field], alpha=0.65)
+
+    if show_trend and len(plot_df) >= 3:
+        try:
+            import numpy as np
+            x = plot_df[x_field].astype(float).to_numpy()
+            y = plot_df[y_field].astype(float).to_numpy()
+            coef = np.polyfit(x, y, 1)
+            xs = np.linspace(x.min(), x.max(), 100)
+            ys = coef[0] * xs + coef[1]
+            ax.plot(xs, ys, linewidth=2)
+        except Exception:
+            pass
+
     ax.set_title(title)
     ax.set_xlabel(xlabel or x_field)
     ax.set_ylabel(ylabel or y_field)
     ax.grid(alpha=0.25)
+    apply_plain_number_axis(ax, axis="both")
     return render_plot_image(plot_to_base64(fig), title)
 
 
@@ -719,7 +792,7 @@ def pandas_metrics(df):
         "meanPrice": float(prices.mean()) if len(prices) else None,
         "minPrice": float(prices.min()) if len(prices) else None,
         "maxPrice": float(prices.max()) if len(prices) else None,
-        "medianYear": float(years.median()) if len(years) else None,
+        "medianYear": int(round(float(years.median()))) if len(years) else None,
         "medianMileage": float(mileage.median()) if len(mileage) else None,
     }
 

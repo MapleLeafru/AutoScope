@@ -62,6 +62,113 @@ def group_price_table(df, field, limit=12):
     return rows
 
 
+
+
+def interactive_price_mileage_chart(df, limit=2000):
+    # Небольшой интерактивный график прямо внутри статического отчёта.
+    # Он нужен именно для включения/выключения линии тренда без перегенерации отчёта.
+    import json
+
+    if df is None or len(df) == 0:
+        return empty_chart_message()
+
+    chart_df = df[["price", "mileage", "brand", "model", "year", "url"]].dropna(subset=["price", "mileage"]).copy()
+    chart_df = chart_df[(chart_df["price"] > 0) & (chart_df["mileage"] > 0)].head(limit)
+    if len(chart_df) < 2:
+        return empty_chart_message()
+
+    points = []
+    for item in dataframe_to_records(chart_df):
+        points.append({
+            "price": to_float(item.get("price")),
+            "mileage": to_float(item.get("mileage")),
+            "label": car_label(item),
+            "url": clean_string(item.get("url")),
+        })
+
+    json_text = json.dumps(points, ensure_ascii=False).replace("</", "<\\/").replace("\u2028", " ").replace("\u2029", " ")
+    element_id = "priceMileageInteractive"
+
+    return f"""
+<div class="interactive-chart-box">
+    <label class="small" style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+        <input type="checkbox" id="{element_id}_trend" checked style="width:auto;">
+        Показывать линию тренда
+    </label>
+    <canvas id="{element_id}" style="width:100%; height:420px; display:block; border:1px solid var(--line); border-radius:14px; background:white;"></canvas>
+    <p class="small">Линия тренда показывает общее направление зависимости цены от пробега. Это упрощённая линейная аппроксимация, а не точная модель стоимости.</p>
+</div>
+<script>
+(function() {{
+    const points = {json_text};
+    const canvas = document.getElementById('{element_id}');
+    const checkbox = document.getElementById('{element_id}_trend');
+    const fmt = new Intl.NumberFormat('ru-RU');
+    function draw() {{
+        const ratio = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        const width = rect.width || 900;
+        const height = 420;
+        canvas.width = width * ratio;
+        canvas.height = height * ratio;
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        if (!points.length) {{ ctx.fillText('Нет данных', 20, 24); return; }}
+        const padL = 86, padR = 24, padT = 22, padB = 56;
+        const xs = points.map(p => Number(p.mileage)).filter(Number.isFinite);
+        const ys = points.map(p => Number(p.price)).filter(Number.isFinite);
+        const minX = Math.min(...xs), maxX = Math.max(...xs);
+        const minY = Math.min(...ys), maxY = Math.max(...ys);
+        const sx = x => padL + (x - minX) / (maxX - minX || 1) * (width - padL - padR);
+        const sy = y => height - padB - (y - minY) / (maxY - minY || 1) * (height - padT - padB);
+
+        ctx.strokeStyle = '#d9e0e7';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, height - padB); ctx.lineTo(width - padR, height - padB); ctx.stroke();
+
+        ctx.fillStyle = '#667085';
+        ctx.font = '12px Arial';
+        ctx.fillText('Цена, ₽', 12, padT + 4);
+        ctx.fillText('Пробег, км', width - 92, height - 16);
+        ctx.fillText(fmt.format(Math.round(maxY)), 8, padT + 18);
+        ctx.fillText(fmt.format(Math.round(minY)), 8, height - padB);
+        ctx.fillText(fmt.format(Math.round(minX)), padL, height - 30);
+        ctx.fillText(fmt.format(Math.round(maxX)), width - padR - 80, height - 30);
+
+        ctx.fillStyle = 'rgba(31,111,235,.62)';
+        for (const p of points) {{
+            const x = sx(Number(p.mileage));
+            const y = sy(Number(p.price));
+            ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+        }}
+
+        if (checkbox.checked && points.length >= 3) {{
+            const n = points.length;
+            const sumX = points.reduce((a,p)=>a+Number(p.mileage),0);
+            const sumY = points.reduce((a,p)=>a+Number(p.price),0);
+            const sumXY = points.reduce((a,p)=>a+Number(p.mileage)*Number(p.price),0);
+            const sumXX = points.reduce((a,p)=>a+Number(p.mileage)*Number(p.mileage),0);
+            const denom = n * sumXX - sumX * sumX;
+            if (denom !== 0) {{
+                const a = (n * sumXY - sumX * sumY) / denom;
+                const b = (sumY - a * sumX) / n;
+                ctx.strokeStyle = '#17212b';
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.moveTo(sx(minX), sy(a * minX + b));
+                ctx.lineTo(sx(maxX), sy(a * maxX + b));
+                ctx.stroke();
+            }}
+        }}
+    }}
+    checkbox.addEventListener('change', draw);
+    window.addEventListener('resize', draw);
+    draw();
+}})();
+</script>
+"""
+
 def main():
     data_raw, meta = read_input_payload()
     df = dataframe_from_data(data_raw)
@@ -75,7 +182,7 @@ def main():
         metric_card("Средняя цена", format_price(metrics["meanPrice"]), "Чувствительна к дорогим объявлениям"),
         metric_card("Минимальная цена", format_price(metrics["minPrice"])),
         metric_card("Максимальная цена", format_price(metrics["maxPrice"])),
-        metric_card("Медианный год", format_number(metrics["medianYear"])),
+        metric_card("Медианный год", format_year(metrics["medianYear"])),
         metric_card("Медианный пробег", format_number(metrics["medianMileage"]), "км"),
     ])
 
@@ -102,8 +209,8 @@ def main():
             matplotlib_line_chart(year_counts, "Распределение объявлений по годам", "Год", "Количество") +
             matplotlib_line_chart(price_by_year, "Медианная цена по годам выпуска", "Год", "Медианная цена, ₽")
         ),
-        section("Связь цены с пробегом", 
-            matplotlib_scatter(df, "mileage", "price", "Цена и пробег", "Пробег, км", "Цена, ₽")
+        section("Связь цены с пробегом",
+            interactive_price_mileage_chart(df)
         ),
     ]
 

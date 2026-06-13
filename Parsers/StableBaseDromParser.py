@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import sys
 import json
 import time
@@ -499,7 +499,7 @@ def parse_ad_page(driver, link):
         "transmission": specs.get("Коробка передач"),
         "drive_type": specs.get("Привод"),
         "color": specs.get("Цвет"),
-        "body_type": specs.get("Кузов"),
+        "body_type": specs.get("Тип кузова") or specs.get("Кузов"),
         "steering_wheel": specs.get("Руль"),
         "engine_power": power,
         "engine_volume": engine_volume,
