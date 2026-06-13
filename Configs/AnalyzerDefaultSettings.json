@@ -1,4 +1,4 @@
-﻿{
+{
   "outputSettings": {
     "latestOnly": true,
     "onlyChanged": false,
@@ -7,5 +7,16 @@
     "saleRegion": "",
     "yearFrom": null,
     "yearTo": null
-  }
+  },
+  "recommendedAnalyzers": [
+    "DataQualityAnalyzer.py",
+    "MarketOverviewAnalyzer.py",
+    "PriceSegmentAnalyzer.py",
+    "DealQualityAnalyzer.py",
+    "DynamicMarketDashboardAnalyzer.py"
+  ],
+  "dependencies": [
+    "pandas",
+    "matplotlib"
+  ]
 }
