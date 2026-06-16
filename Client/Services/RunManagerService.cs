@@ -70,8 +70,25 @@ public class RunManagerService
     }
 
     // Показывает экран конкретного процесса после запуска.
+    // Enter показывает только короткое состояние, 1 — полную карточку, 0 — возврат в меню.
     public void ShowProcessScreen(string runId)
     {
+        RunTaskInfo? initialRun = GetRunSnapshot(runId);
+        if (initialRun == null)
+        {
+            Console.WriteLine("Процесс не найден.");
+            Console.WriteLine();
+            return;
+        }
+
+        Console.WriteLine($"Процесс запущен. ID процесса: {initialRun.ShortId}.");
+        Console.WriteLine("Enter - показать текущее состояние процесса");
+        Console.WriteLine("1 - показать полную информацию о процессе");
+        Console.WriteLine("0 - вернуться в меню и скрыть вывод этого процесса");
+        Console.WriteLine();
+
+        string lastKnownStatus = initialRun.Status;
+
         while (true)
         {
             RunTaskInfo? run = GetRunSnapshot(runId);
@@ -82,24 +99,48 @@ public class RunManagerService
                 return;
             }
 
-            Console.WriteLine($"Процесс запущен. ID процесса: {run.ShortId}.");
-            Console.WriteLine("Enter - показать текущее состояние процесса");
-            Console.WriteLine("0 - вернуться в меню и скрыть вывод этого процесса");
-
-            string? command = Console.ReadLine();
-            if ((command ?? "").Trim() == "0")
+            if (IsActiveStatus(lastKnownStatus) && !IsActiveStatus(run.Status))
             {
+                Console.WriteLine();
+                Console.WriteLine("Процесс завершён.");
+                PrintRunInfo(run);
+                return;
+            }
+
+            lastKnownStatus = run.Status;
+
+            try
+            {
+                if (Console.KeyAvailable)
+                {
+                    ConsoleKeyInfo key = Console.ReadKey(intercept: true);
+
+                    if (key.Key == ConsoleKey.Enter)
+                    {
+                        PrintShortRunState(run);
+                    }
+                    else if (key.Key == ConsoleKey.D1 || key.Key == ConsoleKey.NumPad1)
+                    {
+                        Console.WriteLine();
+                        PrintRunInfo(run);
+                    }
+                    else if (key.Key == ConsoleKey.D0 || key.Key == ConsoleKey.NumPad0)
+                    {
+                        Console.WriteLine();
+                        return;
+                    }
+                }
+            }
+            catch
+            {
+                // Если консоль не поддерживает KeyAvailable, оставляем безопасный ручной выход.
+                Console.WriteLine("Нажмите Enter, чтобы вернуться в меню.");
+                Console.ReadLine();
                 Console.WriteLine();
                 return;
             }
 
-            PrintRunInfo(run);
-
-            if (!IsActiveStatus(run.Status))
-            {
-                Console.WriteLine("Процесс уже завершён. Введите 0, чтобы вернуться в меню.");
-                Console.WriteLine();
-            }
+            System.Threading.Thread.Sleep(100);
         }
     }
 
@@ -189,9 +230,7 @@ public class RunManagerService
             info.Message = success ? "Процесс завершён успешно" : "Процесс завершился с ошибкой";
             info.OutputPreview = BuildPreview(result.Output);
             info.ErrorPreview = BuildPreview(result.Error);
-
-            if (string.IsNullOrWhiteSpace(info.State) || info.State.StartsWith("Процесс выполняется"))
-                info.State = info.Message;
+            info.State = info.Message;
         });
     }
 
@@ -231,6 +270,13 @@ public class RunManagerService
 
         Console.WriteLine($"Удалено завершённых процессов из списка: {removedCount}.");
         Console.WriteLine();
+    }
+
+    // Печатает короткое состояние процесса в одну строку.
+    private void PrintShortRunState(RunTaskInfo run)
+    {
+        string state = FormatValue(run.State);
+        Console.WriteLine(state);
     }
 
     // Печатает одну карточку процесса.
