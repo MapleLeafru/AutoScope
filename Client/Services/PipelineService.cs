@@ -12,6 +12,7 @@ public class PipelineService
     private readonly ModuleDiscoveryService _moduleDiscovery;
     private readonly SettingsService _settingsService;
     private readonly PythonProcessService _pythonProcess;
+    private readonly RunManagerService _runManager;
 
     public PipelineService(
         AppPaths paths,
@@ -19,7 +20,8 @@ public class PipelineService
         DatabaseDiscoveryService databaseDiscovery,
         ModuleDiscoveryService moduleDiscovery,
         SettingsService settingsService,
-        PythonProcessService pythonProcess
+        PythonProcessService pythonProcess,
+        RunManagerService runManager
     )
     {
         _paths = paths;
@@ -28,6 +30,7 @@ public class PipelineService
         _moduleDiscovery = moduleDiscovery;
         _settingsService = settingsService;
         _pythonProcess = pythonProcess;
+        _runManager = runManager;
     }
 
     // Запускает цепочку парсинга: выбор базы, выбор парсера, ввод параметров, запуск Python-менеджера.
@@ -60,7 +63,18 @@ public class PipelineService
             runtimeSettings
         );
         if (!confirmed) { return; }
-        RunInputPipeline(selectedDatabase, selectedParser, parserSettings, apiSettings, runtimeSettings);
+
+        RunTaskInfo run = _runManager.StartRun(
+            title: $"InputPipeline: {Path.GetFileName(selectedParser)}",
+            runType: "input",
+            databasePath: selectedDatabase,
+            modulePath: selectedParser,
+            action: () => RunInputPipeline(selectedDatabase, selectedParser, parserSettings, apiSettings, runtimeSettings, enableProgressInput: false)
+        );
+
+        Console.WriteLine($"InputPipeline запущен в фоне. ID запуска: {run.ShortId}.");
+        Console.WriteLine("Состояние можно посмотреть в пункте <Менеджер запусков>.");
+        Console.WriteLine();
     }
 
     // Запускает цепочку анализа: выбор базы, анализатора, фильтров выборки и запуск Python-менеджера.
@@ -83,7 +97,18 @@ public class PipelineService
         Console.WriteLine();
         OutputFilterSettings outputSettings = _settingsService.ReadOutputFilterSettings();
         RuntimeSettings runtimeSettings = _settingsService.GetRuntimeSettings();
-        RunOutputPipeline(selectedDatabase, selectedAnalyzer, outputSettings, runtimeSettings);
+
+        RunTaskInfo run = _runManager.StartRun(
+            title: $"OutputPipeline: {Path.GetFileName(selectedAnalyzer)}",
+            runType: "output",
+            databasePath: selectedDatabase,
+            modulePath: selectedAnalyzer,
+            action: () => RunOutputPipeline(selectedDatabase, selectedAnalyzer, outputSettings, runtimeSettings, enableProgressInput: false)
+        );
+
+        Console.WriteLine($"OutputPipeline запущен в фоне. ID запуска: {run.ShortId}.");
+        Console.WriteLine("Состояние можно посмотреть в пункте <Менеджер запусков>.");
+        Console.WriteLine();
     }
 
     // Показывает итоговые параметры перед запуском парсера и просит подтверждение пользователя.
@@ -244,7 +269,8 @@ public class PipelineService
         string parserPath,
         ParserRunSettings parserSettings,
         ApiSettings apiSettings,
-        RuntimeSettings runtimeSettings
+        RuntimeSettings runtimeSettings,
+        bool enableProgressInput = true
     )
     {
         parserSettings = _settingsService.AddMissingExtraParserSettings(parserPath, parserSettings);
@@ -274,7 +300,7 @@ public class PipelineService
             dbPath = databasePath,
             configPath = _paths.ConfigsPath
         };
-        return RunPipelineManager(_paths.GetInputPipelineManagerPath(), request);
+        return RunPipelineManager(_paths.GetInputPipelineManagerPath(), request, enableProgressInput);
     }
 
     // Запускает OutputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером сценариев.
@@ -282,7 +308,8 @@ public class PipelineService
         string databasePath,
         string analyzerPath,
         OutputFilterSettings outputSettings,
-        RuntimeSettings runtimeSettings
+        RuntimeSettings runtimeSettings,
+        bool enableProgressInput = true
     )
     {
         PrintOutputFilterSummary(outputSettings);
@@ -314,7 +341,7 @@ public class PipelineService
             dbPath = databasePath,
             configPath = _paths.ConfigsPath
         };
-        ProcessRunResult result = RunPipelineManager(_paths.GetOutputPipelineManagerPath(), request);
+        ProcessRunResult result = RunPipelineManager(_paths.GetOutputPipelineManagerPath(), request, enableProgressInput);
         PrintOutputResultSummary(result);
         return result;
     }
@@ -377,10 +404,10 @@ public class PipelineService
     }
 
     // Сериализует запрос, запускает нужный Python PipelineManager и выводит результат в консоль.
-    private ProcessRunResult RunPipelineManager(string pipelineManagerPath, object request)
+    private ProcessRunResult RunPipelineManager(string pipelineManagerPath, object request, bool enableProgressInput)
     {
         string json = JsonSerializer.Serialize(request);
-        ProcessRunResult result = _pythonProcess.RunScript(pipelineManagerPath, json);
+        ProcessRunResult result = _pythonProcess.RunScript(pipelineManagerPath, json, enableProgressInput);
         Console.WriteLine("=== RESULT ===");
         Console.WriteLine(result.Output);
         if (!string.IsNullOrWhiteSpace(result.Error))

@@ -20,6 +20,12 @@ public class PythonProcessService
     // Запускает Python-файл, передаёт входной JSON и возвращает stdout/stderr.
     public ProcessRunResult RunScript(string scriptPath, string inputJson)
     {
+        return RunScript(scriptPath, inputJson, enableProgressInput: true);
+    }
+
+    // Запускает Python-файл с возможностью отключить чтение Enter для фоновых запусков.
+    public ProcessRunResult RunScript(string scriptPath, string inputJson, bool enableProgressInput)
+    {
         ProcessStartInfo startInfo = new ProcessStartInfo
         {
             FileName = _paths.PythonPath,
@@ -53,7 +59,9 @@ public class PythonProcessService
 
             Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
             Task errorTask = Task.Run(() => ReadErrorStream(process, errorBuilder, progressState));
-            Task progressInputTask = Task.Run(() => WatchProgressRequests(progressState, progressInputCancel.Token));
+            Task? progressInputTask = enableProgressInput
+                ? Task.Run(() => WatchProgressRequests(progressState, progressInputCancel.Token))
+                : null;
 
             process.StandardInput.WriteLine(inputJson);
             process.StandardInput.Flush();
@@ -64,13 +72,16 @@ public class PythonProcessService
 
             Task.WaitAll(outputTask, errorTask);
 
-            try
+            if (progressInputTask != null)
             {
-                progressInputTask.Wait(300);
-            }
-            catch
-            {
-                // Поток чтения Enter не должен мешать завершению процесса.
+                try
+                {
+                    progressInputTask.Wait(300);
+                }
+                catch
+                {
+                    // Поток чтения Enter не должен мешать завершению процесса.
+                }
             }
 
             return new ProcessRunResult

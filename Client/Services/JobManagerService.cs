@@ -13,6 +13,7 @@ public class JobManagerService
     private readonly ModuleDiscoveryService _moduleDiscovery;
     private readonly SettingsService _settingsService;
     private readonly PipelineService _pipelineService;
+    private readonly RunManagerService _runManager;
 
     private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
     {
@@ -27,7 +28,8 @@ public class JobManagerService
         DatabaseDiscoveryService databaseDiscovery,
         ModuleDiscoveryService moduleDiscovery,
         SettingsService settingsService,
-        PipelineService pipelineService
+        PipelineService pipelineService,
+        RunManagerService runManager
     )
     {
         _paths = paths;
@@ -36,6 +38,7 @@ public class JobManagerService
         _moduleDiscovery = moduleDiscovery;
         _settingsService = settingsService;
         _pipelineService = pipelineService;
+        _runManager = runManager;
     }
 
     // Показывает меню сохранённых сценариев.
@@ -138,7 +141,6 @@ public class JobManagerService
         if (string.IsNullOrWhiteSpace(job.ParserPath) && string.IsNullOrWhiteSpace(job.AnalyzerPath))
             return;
 
-        Console.WriteLine();
         int everyHours = _input.ReadIntWithDefault(
             "Введите интервал автоповтора в часах (0 = только ручной запуск, пустое поле = 24): ",
             24
@@ -276,9 +278,27 @@ public class JobManagerService
         }
 
         Console.WriteLine($"=== Ручной запуск сценария: {job.JobName} ===");
-        RunJobAndSaveHistory(selectedJob);
 
-        Console.WriteLine("Ручной запуск сценария завершён.");
+        RunTaskInfo run = _runManager.StartRun(
+            title: $"Сценарий: {job.JobName}",
+            runType: "scenario",
+            databasePath: job.DbPath,
+            modulePath: GetJobModuleName(job),
+            action: () =>
+            {
+                JobRunRecord record = RunJobAndSaveHistory(selectedJob, enableProgressInput: false);
+                bool success = record.Status == "success";
+                return new ProcessRunResult
+                {
+                    Output = record.OutputPreview,
+                    Error = success ? "" : BuildScenarioRunManagerError(record),
+                    ExitCode = success ? record.ExitCode : (record.ExitCode == 0 ? -1 : record.ExitCode)
+                };
+            }
+        );
+
+        Console.WriteLine($"Сценарий запущен в фоне. ID запуска: {run.ShortId}.");
+        Console.WriteLine("Состояние можно посмотреть в пункте <Менеджер запусков>.");
         Console.WriteLine();
     }
 
@@ -367,7 +387,7 @@ public class JobManagerService
     }
 
     // Запускает сценарий, записывает историю запуска и обновляет даты в файле сценария.
-    private void RunJobAndSaveHistory(JobFile jobFile)
+    private JobRunRecord RunJobAndSaveHistory(JobFile jobFile, bool enableProgressInput = true)
     {
         JobConfig job = jobFile.Job;
         DateTime startedAt = DateTime.Now;
@@ -375,7 +395,7 @@ public class JobManagerService
 
         try
         {
-            result = RunJob(job);
+            result = RunJob(job, enableProgressInput);
         }
         catch (Exception ex)
         {
@@ -395,10 +415,24 @@ public class JobManagerService
 
         Console.WriteLine($"Статус запуска: {runRecord.Status}. {runRecord.Message}");
         Console.WriteLine();
+
+        return runRecord;
+    }
+
+    // Формирует короткое сообщение об ошибке сценария для менеджера запусков.
+    private string BuildScenarioRunManagerError(JobRunRecord record)
+    {
+        if (!string.IsNullOrWhiteSpace(record.ErrorPreview))
+            return record.ErrorPreview;
+
+        if (!string.IsNullOrWhiteSpace(record.Message))
+            return record.Message;
+
+        return "Сценарий завершился с ошибкой";
     }
 
     // Запускает сохранённый сценарий через PipelineService.
-    private ProcessRunResult RunJob(JobConfig job)
+    private ProcessRunResult RunJob(JobConfig job, bool enableProgressInput = true)
     {
         if (job.PipelineType == "input")
         {
@@ -407,7 +441,8 @@ public class JobManagerService
                 job.ParserPath,
                 job.ParserSettings,
                 job.ApiSettings,
-                job.RuntimeSettings
+                job.RuntimeSettings,
+                enableProgressInput
             );
         }
 
@@ -417,7 +452,8 @@ public class JobManagerService
                 job.DbPath,
                 job.AnalyzerPath,
                 job.OutputSettings,
-                job.RuntimeSettings
+                job.RuntimeSettings,
+                enableProgressInput
             );
         }
 
