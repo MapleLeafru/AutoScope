@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-// Единый менеджер запусков. Нужен для параллельного запуска ручных пайплайнов,
+// Единый менеджер процессов. Нужен для параллельного запуска ручных пайплайнов,
 // сценариев и будущего графического интерфейса.
 public class RunManagerService
 {
@@ -17,13 +17,13 @@ public class RunManagerService
         _input = input;
     }
 
-    // Добавляет запуск в менеджер и выполняет его в фоне.
+    // Добавляет процесс в менеджер и выполняет его в фоне.
     public RunTaskInfo StartRun(
         string title,
         string runType,
         string databasePath,
         string modulePath,
-        Func<ProcessRunResult> action
+        Func<Action<string>, ProcessRunResult> action
     )
     {
         string runId = Guid.NewGuid().ToString("N");
@@ -34,6 +34,7 @@ public class RunManagerService
             Title = title,
             RunType = runType,
             Status = "queued",
+            State = "Ожидает запуска",
             ModuleName = Path.GetFileName(modulePath),
             DbName = Path.GetFileName(databasePath),
             Message = "Ожидает запуска"
@@ -50,16 +51,68 @@ public class RunManagerService
         return CloneInfo(info);
     }
 
-    // Показывает простое меню менеджера запусков.
+    // Удобная перегрузка для процессов, которым не нужно обновлять progress-состояние.
+    public RunTaskInfo StartRun(
+        string title,
+        string runType,
+        string databasePath,
+        string modulePath,
+        Func<ProcessRunResult> action
+    )
+    {
+        return StartRun(
+            title,
+            runType,
+            databasePath,
+            modulePath,
+            _ => action()
+        );
+    }
+
+    // Показывает экран конкретного процесса после запуска.
+    public void ShowProcessScreen(string runId)
+    {
+        while (true)
+        {
+            RunTaskInfo? run = GetRunSnapshot(runId);
+            if (run == null)
+            {
+                Console.WriteLine("Процесс не найден.");
+                Console.WriteLine();
+                return;
+            }
+
+            Console.WriteLine($"Процесс запущен. ID процесса: {run.ShortId}.");
+            Console.WriteLine("Enter - показать текущее состояние процесса");
+            Console.WriteLine("0 - вернуться в меню и скрыть вывод этого процесса");
+
+            string? command = Console.ReadLine();
+            if ((command ?? "").Trim() == "0")
+            {
+                Console.WriteLine();
+                return;
+            }
+
+            PrintRunInfo(run);
+
+            if (!IsActiveStatus(run.Status))
+            {
+                Console.WriteLine("Процесс уже завершён. Введите 0, чтобы вернуться в меню.");
+                Console.WriteLine();
+            }
+        }
+    }
+
+    // Показывает простое меню менеджера процессов.
     public void ShowMenu()
     {
         while (true)
         {
-            Console.WriteLine("=== Менеджер запусков ===");
+            Console.WriteLine("=== Менеджер процессов ===");
             Console.WriteLine("0 - Вернуться назад");
-            Console.WriteLine("1 - Показать активные запуски");
-            Console.WriteLine("2 - Показать все запуски текущей сессии");
-            Console.WriteLine("3 - Очистить завершённые запуски из списка");
+            Console.WriteLine("1 - Показать активные процессы");
+            Console.WriteLine("2 - Показать все процессы текущей сессии");
+            Console.WriteLine("3 - Очистить завершённые процессы из списка");
 
             int selectedMode = _input.ReadMenuNumber(min: 0, max: 3, "Номер выбранного режима: ");
 
@@ -70,7 +123,7 @@ public class RunManagerService
         }
     }
 
-    // Возвращает снимок всех запусков. Это пригодится будущему UI.
+    // Возвращает снимок всех процессов. Это пригодится будущему UI.
     public List<RunTaskInfo> GetRunsSnapshot()
     {
         lock (_lock)
@@ -81,7 +134,7 @@ public class RunManagerService
         }
     }
 
-    // Возвращает количество активных запусков.
+    // Возвращает количество активных процессов.
     public int GetActiveRunCount()
     {
         lock (_lock)
@@ -99,13 +152,19 @@ public class RunManagerService
             info.Status = "running";
             info.StartedAt = FormatTime(startedAt);
             info.Message = "Выполняется";
+            info.State = "Процесс выполняется. Подробное состояние появится после первого progress-события.";
         });
 
         ProcessRunResult result;
 
         try
         {
-            result = run.Action();
+            Action<string> progressStateChanged = state => UpdateRun(run, info =>
+            {
+                info.State = string.IsNullOrWhiteSpace(state) ? info.State : state;
+            });
+
+            result = run.Action(progressStateChanged);
         }
         catch (Exception ex)
         {
@@ -127,17 +186,16 @@ public class RunManagerService
             info.FinishedAt = FormatTime(finishedAt);
             info.DurationSeconds = Math.Round((finishedAt - startedAt).TotalSeconds, 2);
             info.ExitCode = result.ExitCode;
-            info.Message = success ? "Запуск завершён успешно" : "Запуск завершился с ошибкой";
+            info.Message = success ? "Процесс завершён успешно" : "Процесс завершился с ошибкой";
             info.OutputPreview = BuildPreview(result.Output);
             info.ErrorPreview = BuildPreview(result.Error);
-        });
 
-        Console.WriteLine();
-        Console.WriteLine($"[Менеджер запусков] {run.Info.Title}: {run.Info.Message} (ID: {run.Info.ShortId})");
-        Console.WriteLine();
+            if (string.IsNullOrWhiteSpace(info.State) || info.State.StartsWith("Процесс выполняется"))
+                info.State = info.Message;
+        });
     }
 
-    // Показывает список запусков в консоли.
+    // Показывает список процессов в консоли.
     private void ShowRuns(bool activeOnly)
     {
         List<RunTaskInfo> runs = GetRunsSnapshot();
@@ -147,12 +205,12 @@ public class RunManagerService
 
         if (runs.Count == 0)
         {
-            Console.WriteLine(activeOnly ? "Активных запусков нет." : "Запусков в текущей сессии пока нет.");
+            Console.WriteLine(activeOnly ? "Активных процессов нет." : "Процессов в текущей сессии пока нет.");
             Console.WriteLine();
             return;
         }
 
-        Console.WriteLine(activeOnly ? "=== Активные запуски ===" : "=== Запуски текущей сессии ===");
+        Console.WriteLine(activeOnly ? "=== Активные процессы ===" : "=== Процессы текущей сессии ===");
         Console.WriteLine();
 
         foreach (RunTaskInfo run in runs.OrderByDescending(run => run.StartedAt))
@@ -161,7 +219,7 @@ public class RunManagerService
         Console.WriteLine();
     }
 
-    // Удаляет из списка завершённые запуски. Сами логи pipeline не удаляются.
+    // Удаляет из списка завершённые процессы. Сами логи pipeline не удаляются.
     private void ClearCompletedRuns()
     {
         int removedCount;
@@ -171,17 +229,18 @@ public class RunManagerService
             removedCount = _runs.RemoveAll(run => !IsActiveStatus(run.Info.Status));
         }
 
-        Console.WriteLine($"Удалено завершённых запусков из списка: {removedCount}.");
+        Console.WriteLine($"Удалено завершённых процессов из списка: {removedCount}.");
         Console.WriteLine();
     }
 
-    // Печатает одну карточку запуска.
+    // Печатает одну карточку процесса.
     private void PrintRunInfo(RunTaskInfo run)
     {
         Console.WriteLine($"ID: {run.ShortId}");
         Console.WriteLine($"Название: {run.Title}");
         Console.WriteLine($"Тип: {FormatRunType(run.RunType)}");
         Console.WriteLine($"Статус: {FormatStatus(run.Status)}");
+        Console.WriteLine($"Состояние: {FormatValue(run.State)}");
         Console.WriteLine($"База: {FormatValue(run.DbName)}");
         Console.WriteLine($"Модуль: {FormatValue(run.ModuleName)}");
         Console.WriteLine($"Начало: {FormatValue(run.StartedAt)}");
@@ -200,7 +259,17 @@ public class RunManagerService
         Console.WriteLine();
     }
 
-    // Потокобезопасно меняет состояние запуска.
+    // Возвращает снимок одного процесса.
+    private RunTaskInfo? GetRunSnapshot(string runId)
+    {
+        lock (_lock)
+        {
+            ManagedRun? run = _runs.FirstOrDefault(item => item.Info.RunId == runId);
+            return run == null ? null : CloneInfo(run.Info);
+        }
+    }
+
+    // Потокобезопасно меняет состояние процесса.
     private void UpdateRun(ManagedRun run, Action<RunTaskInfo> update)
     {
         lock (_lock)
@@ -209,7 +278,7 @@ public class RunManagerService
         }
     }
 
-    // Определяет, можно ли считать запуск успешным.
+    // Определяет, можно ли считать процесс успешным.
     private bool IsPipelineRunSuccessful(ProcessRunResult result)
     {
         if (result.ExitCode != 0)
@@ -251,6 +320,7 @@ public class RunManagerService
             Title = source.Title,
             RunType = source.RunType,
             Status = source.Status,
+            State = source.State,
             ModuleName = source.ModuleName,
             DbName = source.DbName,
             StartedAt = source.StartedAt,
@@ -263,7 +333,7 @@ public class RunManagerService
         };
     }
 
-    // Форматирует технический тип запуска для консоли.
+    // Форматирует технический тип процесса для консоли.
     private string FormatRunType(string runType)
     {
         return runType switch
@@ -300,14 +370,14 @@ public class RunManagerService
         return value.ToString("yyyy-MM-dd HH:mm:ss");
     }
 
-    // Внутреннее представление запуска вместе с делегатом выполнения.
+    // Внутреннее представление процесса вместе с делегатом выполнения.
     private class ManagedRun
     {
         public RunTaskInfo Info { get; }
-        public Func<ProcessRunResult> Action { get; }
+        public Func<Action<string>, ProcessRunResult> Action { get; }
         public Task? Task { get; set; }
 
-        public ManagedRun(RunTaskInfo info, Func<ProcessRunResult> action)
+        public ManagedRun(RunTaskInfo info, Func<Action<string>, ProcessRunResult> action)
         {
             Info = info;
             Action = action;

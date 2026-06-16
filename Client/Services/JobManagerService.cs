@@ -284,9 +284,15 @@ public class JobManagerService
             runType: "scenario",
             databasePath: job.DbPath,
             modulePath: GetJobModuleName(job),
-            action: () =>
+            action: progressStateChanged =>
             {
-                JobRunRecord record = RunJobAndSaveHistory(selectedJob, enableProgressInput: false);
+                JobRunRecord record = RunJobAndSaveHistory(
+                    selectedJob,
+                    enableProgressInput: false,
+                    progressStateChanged: progressStateChanged,
+                    printProgressToConsole: false,
+                    printSummary: false
+                );
                 bool success = record.Status == "success";
                 return new ProcessRunResult
                 {
@@ -297,9 +303,7 @@ public class JobManagerService
             }
         );
 
-        Console.WriteLine($"Сценарий запущен в фоне. ID запуска: {run.ShortId}.");
-        Console.WriteLine("Состояние можно посмотреть в пункте <Менеджер запусков>.");
-        Console.WriteLine();
+        _runManager.ShowProcessScreen(run.RunId);
     }
 
     // Показывает последние записи истории запусков выбранного сценария.
@@ -387,7 +391,13 @@ public class JobManagerService
     }
 
     // Запускает сценарий, записывает историю запуска и обновляет даты в файле сценария.
-    private JobRunRecord RunJobAndSaveHistory(JobFile jobFile, bool enableProgressInput = true)
+    private JobRunRecord RunJobAndSaveHistory(
+        JobFile jobFile,
+        bool enableProgressInput = true,
+        Action<string>? progressStateChanged = null,
+        bool printProgressToConsole = true,
+        bool printSummary = true
+    )
     {
         JobConfig job = jobFile.Job;
         DateTime startedAt = DateTime.Now;
@@ -395,7 +405,7 @@ public class JobManagerService
 
         try
         {
-            result = RunJob(job, enableProgressInput);
+            result = RunJob(job, enableProgressInput, progressStateChanged, printProgressToConsole);
         }
         catch (Exception ex)
         {
@@ -413,8 +423,11 @@ public class JobManagerService
         AppendJobRunRecord(job, runRecord);
         UpdateJobRunDates(jobFile, finishedAt);
 
-        Console.WriteLine($"Статус запуска: {runRecord.Status}. {runRecord.Message}");
-        Console.WriteLine();
+        if (printSummary)
+        {
+            Console.WriteLine($"Статус запуска: {runRecord.Status}. {runRecord.Message}");
+            Console.WriteLine();
+        }
 
         return runRecord;
     }
@@ -432,7 +445,12 @@ public class JobManagerService
     }
 
     // Запускает сохранённый сценарий через PipelineService.
-    private ProcessRunResult RunJob(JobConfig job, bool enableProgressInput = true)
+    private ProcessRunResult RunJob(
+        JobConfig job,
+        bool enableProgressInput = true,
+        Action<string>? progressStateChanged = null,
+        bool printProgressToConsole = true
+    )
     {
         if (job.PipelineType == "input")
         {
@@ -442,7 +460,9 @@ public class JobManagerService
                 job.ParserSettings,
                 job.ApiSettings,
                 job.RuntimeSettings,
-                enableProgressInput
+                enableProgressInput,
+                progressStateChanged,
+                printProgressToConsole
             );
         }
 
@@ -453,7 +473,9 @@ public class JobManagerService
                 job.AnalyzerPath,
                 job.OutputSettings,
                 job.RuntimeSettings,
-                enableProgressInput
+                enableProgressInput,
+                progressStateChanged,
+                printProgressToConsole
             );
         }
 

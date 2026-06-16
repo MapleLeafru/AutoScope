@@ -26,6 +26,24 @@ public class PythonProcessService
     // Запускает Python-файл с возможностью отключить чтение Enter для фоновых запусков.
     public ProcessRunResult RunScript(string scriptPath, string inputJson, bool enableProgressInput)
     {
+        return RunScript(
+            scriptPath,
+            inputJson,
+            enableProgressInput,
+            progressStateChanged: null,
+            printProgressToConsole: true
+        );
+    }
+
+    // Запускает Python-файл и передаёт последнее progress-состояние внешнему обработчику.
+    public ProcessRunResult RunScript(
+        string scriptPath,
+        string inputJson,
+        bool enableProgressInput,
+        Action<string>? progressStateChanged,
+        bool printProgressToConsole
+    )
+    {
         ProcessStartInfo startInfo = new ProcessStartInfo
         {
             FileName = _paths.PythonPath,
@@ -58,7 +76,7 @@ public class PythonProcessService
             using CancellationTokenSource progressInputCancel = new CancellationTokenSource();
 
             Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
-            Task errorTask = Task.Run(() => ReadErrorStream(process, errorBuilder, progressState));
+            Task errorTask = Task.Run(() => ReadErrorStream(process, errorBuilder, progressState, progressStateChanged, printProgressToConsole));
             Task? progressInputTask = enableProgressInput
                 ? Task.Run(() => WatchProgressRequests(progressState, progressInputCancel.Token))
                 : null;
@@ -94,7 +112,13 @@ public class PythonProcessService
     }
 
     // Читает stderr Python-процесса. Progress-события показывает по правилам консольного режима.
-    private void ReadErrorStream(Process process, StringBuilder errorBuilder, ProgressState progressState)
+    private void ReadErrorStream(
+        Process process,
+        StringBuilder errorBuilder,
+        ProgressState progressState,
+        Action<string>? progressStateChanged,
+        bool printProgressToConsole
+    )
     {
         string? line;
 
@@ -104,29 +128,39 @@ public class PythonProcessService
                 continue;
 
             if (line.TrimStart().StartsWith("[PROGRESS]"))
-                HandleProgressLine(line, progressState);
+                HandleProgressLine(line, progressState, progressStateChanged, printProgressToConsole);
             else
                 errorBuilder.AppendLine(line);
         }
     }
 
     // Обрабатывает progress-событие: сохраняет последнее состояние и печатает только ключевые этапы.
-    private void HandleProgressLine(string line, ProgressState progressState)
+    private void HandleProgressLine(
+        string line,
+        ProgressState progressState,
+        Action<string>? progressStateChanged,
+        bool printProgressToConsole
+    )
     {
         ProgressSnapshot? snapshot = ParseProgressLine(line);
 
         if (snapshot == null)
         {
-            WriteConsoleLine(line);
+            if (printProgressToConsole)
+                WriteConsoleLine(line);
+
             return;
         }
 
+        string formattedSnapshot = FormatProgressSnapshot(snapshot);
+        progressStateChanged?.Invoke(formattedSnapshot);
+
         bool shouldPrintStartMessage = progressState.Update(snapshot);
-        if (shouldPrintStartMessage)
+        if (printProgressToConsole && shouldPrintStartMessage)
             WriteConsoleLine("Парсер запущен, для вывода актуального состояния нажмите Enter");
 
-        if (progressState.ShouldPrintAutomatically(snapshot))
-            WriteConsoleLine(FormatProgressSnapshot(snapshot));
+        if (printProgressToConsole && progressState.ShouldPrintAutomatically(snapshot))
+            WriteConsoleLine(formattedSnapshot);
     }
 
     // Следит за нажатием Enter во время работы Python-процесса и выводит актуальное состояние.

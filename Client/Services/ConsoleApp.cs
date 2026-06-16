@@ -70,7 +70,7 @@ public class ConsoleApp
         Console.WriteLine("2 - Запустить OutputPipeline (анализ)");
         Console.WriteLine("3 - Менеджер сценариев");
         Console.WriteLine("4 - Открыть инструменты");
-        Console.WriteLine($"5 - Менеджер запусков (активных: {_runManagerService.GetActiveRunCount()})");
+        Console.WriteLine($"5 - Менеджер процессов (активных: {_runManagerService.GetActiveRunCount()})");
 
         int modeNumber = _input.ReadMenuNumber(min: 0, max: 5, "Номер выбранного режима: ");
 

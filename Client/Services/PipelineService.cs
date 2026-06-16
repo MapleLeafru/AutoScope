@@ -69,12 +69,19 @@ public class PipelineService
             runType: "input",
             databasePath: selectedDatabase,
             modulePath: selectedParser,
-            action: () => RunInputPipeline(selectedDatabase, selectedParser, parserSettings, apiSettings, runtimeSettings, enableProgressInput: false)
+            action: progressStateChanged => RunInputPipeline(
+                selectedDatabase,
+                selectedParser,
+                parserSettings,
+                apiSettings,
+                runtimeSettings,
+                enableProgressInput: false,
+                progressStateChanged: progressStateChanged,
+                printProgressToConsole: false
+            )
         );
 
-        Console.WriteLine($"InputPipeline запущен в фоне. ID запуска: {run.ShortId}.");
-        Console.WriteLine("Состояние можно посмотреть в пункте <Менеджер запусков>.");
-        Console.WriteLine();
+        _runManager.ShowProcessScreen(run.RunId);
     }
 
     // Запускает цепочку анализа: выбор базы, анализатора, фильтров выборки и запуск Python-менеджера.
@@ -103,12 +110,18 @@ public class PipelineService
             runType: "output",
             databasePath: selectedDatabase,
             modulePath: selectedAnalyzer,
-            action: () => RunOutputPipeline(selectedDatabase, selectedAnalyzer, outputSettings, runtimeSettings, enableProgressInput: false)
+            action: progressStateChanged => RunOutputPipeline(
+                selectedDatabase,
+                selectedAnalyzer,
+                outputSettings,
+                runtimeSettings,
+                enableProgressInput: false,
+                progressStateChanged: progressStateChanged,
+                printProgressToConsole: false
+            )
         );
 
-        Console.WriteLine($"OutputPipeline запущен в фоне. ID запуска: {run.ShortId}.");
-        Console.WriteLine("Состояние можно посмотреть в пункте <Менеджер запусков>.");
-        Console.WriteLine();
+        _runManager.ShowProcessScreen(run.RunId);
     }
 
     // Показывает итоговые параметры перед запуском парсера и просит подтверждение пользователя.
@@ -270,7 +283,9 @@ public class PipelineService
         ParserRunSettings parserSettings,
         ApiSettings apiSettings,
         RuntimeSettings runtimeSettings,
-        bool enableProgressInput = true
+        bool enableProgressInput = true,
+        Action<string>? progressStateChanged = null,
+        bool printProgressToConsole = true
     )
     {
         parserSettings = _settingsService.AddMissingExtraParserSettings(parserPath, parserSettings);
@@ -300,7 +315,13 @@ public class PipelineService
             dbPath = databasePath,
             configPath = _paths.ConfigsPath
         };
-        return RunPipelineManager(_paths.GetInputPipelineManagerPath(), request, enableProgressInput);
+        return RunPipelineManager(
+            _paths.GetInputPipelineManagerPath(),
+            request,
+            enableProgressInput,
+            progressStateChanged,
+            printProgressToConsole
+        );
     }
 
     // Запускает OutputPipeline по уже готовым параметрам. Используется обычным запуском и менеджером сценариев.
@@ -309,10 +330,14 @@ public class PipelineService
         string analyzerPath,
         OutputFilterSettings outputSettings,
         RuntimeSettings runtimeSettings,
-        bool enableProgressInput = true
+        bool enableProgressInput = true,
+        Action<string>? progressStateChanged = null,
+        bool printProgressToConsole = true
     )
     {
-        PrintOutputFilterSummary(outputSettings);
+        if (printProgressToConsole)
+            PrintOutputFilterSummary(outputSettings);
+
         var request = new
         {
             analyzer = new
@@ -341,8 +366,16 @@ public class PipelineService
             dbPath = databasePath,
             configPath = _paths.ConfigsPath
         };
-        ProcessRunResult result = RunPipelineManager(_paths.GetOutputPipelineManagerPath(), request, enableProgressInput);
-        PrintOutputResultSummary(result);
+        ProcessRunResult result = RunPipelineManager(
+            _paths.GetOutputPipelineManagerPath(),
+            request,
+            enableProgressInput,
+            progressStateChanged,
+            printProgressToConsole
+        );
+        if (printProgressToConsole)
+            PrintOutputResultSummary(result);
+
         return result;
     }
 
@@ -403,18 +436,35 @@ public class PipelineService
         return value.HasValue ? value.Value.ToString() : "не задано";
     }
 
-    // Сериализует запрос, запускает нужный Python PipelineManager и выводит результат в консоль.
-    private ProcessRunResult RunPipelineManager(string pipelineManagerPath, object request, bool enableProgressInput)
+    // Сериализует запрос, запускает нужный Python PipelineManager и при необходимости выводит результат в консоль.
+    private ProcessRunResult RunPipelineManager(
+        string pipelineManagerPath,
+        object request,
+        bool enableProgressInput,
+        Action<string>? progressStateChanged = null,
+        bool printProgressToConsole = true
+    )
     {
         string json = JsonSerializer.Serialize(request);
-        ProcessRunResult result = _pythonProcess.RunScript(pipelineManagerPath, json, enableProgressInput);
-        Console.WriteLine("=== RESULT ===");
-        Console.WriteLine(result.Output);
-        if (!string.IsNullOrWhiteSpace(result.Error))
+        ProcessRunResult result = _pythonProcess.RunScript(
+            pipelineManagerPath,
+            json,
+            enableProgressInput,
+            progressStateChanged,
+            printProgressToConsole
+        );
+
+        if (printProgressToConsole)
         {
-            Console.WriteLine("=== ERRORS ===");
-            Console.WriteLine(result.Error);
+            Console.WriteLine("=== RESULT ===");
+            Console.WriteLine(result.Output);
+            if (!string.IsNullOrWhiteSpace(result.Error))
+            {
+                Console.WriteLine("=== ERRORS ===");
+                Console.WriteLine(result.Error);
+            }
         }
+
         return result;
     }
 }
