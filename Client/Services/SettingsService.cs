@@ -293,7 +293,8 @@ public class SettingsService
             "dictionariesPath",
             "apiSettings",
             "metadata",
-            "settings"
+            "settings",
+            "settingsSchema"
         };
 
         Dictionary<string, JsonElement> extra = new Dictionary<string, JsonElement>();
@@ -318,8 +319,8 @@ public class SettingsService
     }
 
     // Загружает рабочие settings из личного конфига модуля.
-    // Новый формат: { "metadata": {...}, "settings": {...} }.
-    // Старый плоский формат поддерживается, но metadata не попадает в parserSettings/analyzer settings.
+    // Новый формат: { "metadata": {...}, "settings": {...}, "settingsSchema": {...} }.
+    // Старый плоский формат поддерживается, но metadata/settingsSchema не попадают в parserSettings/analyzer settings.
     private Dictionary<string, JsonElement> LoadModuleSettingsFile(string configFile)
     {
         Dictionary<string, JsonElement> rawSettings = LoadSettingsFile(configFile);
@@ -333,8 +334,11 @@ public class SettingsService
         Dictionary<string, JsonElement> result = new Dictionary<string, JsonElement>();
         foreach (KeyValuePair<string, JsonElement> item in rawSettings)
         {
-            if (!item.Key.Equals("metadata", StringComparison.OrdinalIgnoreCase))
+            if (!item.Key.Equals("metadata", StringComparison.OrdinalIgnoreCase) &&
+                !item.Key.Equals("settingsSchema", StringComparison.OrdinalIgnoreCase))
+            {
                 result[item.Key] = item.Value;
+            }
         }
 
         return result;

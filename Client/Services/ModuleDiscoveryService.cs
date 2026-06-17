@@ -152,7 +152,7 @@ public class ModuleDiscoveryService
         };
 
         if (info.HasConfig)
-            ApplyMetadataFromConfig(info, configPath);
+            ApplyModuleConfig(info, configPath);
 
         return info;
     }
@@ -216,8 +216,8 @@ public class ModuleDiscoveryService
         Console.ForegroundColor = previousColor;
     }
 
-    // Применяет metadata из личного конфига. Поддерживает новый формат metadata/settings и старый плоский формат.
-    private void ApplyMetadataFromConfig(ModuleInfo info, string configPath)
+    // Применяет metadata и settingsSchema из личного конфига. Поддерживает новый формат metadata/settings/settingsSchema и старый плоский формат.
+    private void ApplyModuleConfig(ModuleInfo info, string configPath)
     {
         try
         {
@@ -243,12 +243,92 @@ public class ModuleDiscoveryService
             info.Recommended = GetBoolProperty(metadata, "recommended", info.Recommended);
 
             info.HasMetadata = HasAnyMetadata(metadata);
+
+            if (root.TryGetProperty("settingsSchema", out JsonElement settingsSchema) &&
+                settingsSchema.ValueKind == JsonValueKind.Object)
+            {
+                info.SettingsSchema = ReadSettingsSchema(settingsSchema);
+            }
         }
         catch
         {
             // Невалидный личный конфиг не должен ломать обнаружение модулей.
             info.HasMetadata = false;
+            info.SettingsSchema = new Dictionary<string, ModuleSettingSchema>();
         }
+    }
+
+    // Читает необязательную схему настроек модуля.
+    // Схема нужна будущему UI, но не влияет на выполнение модуля.
+    private Dictionary<string, ModuleSettingSchema> ReadSettingsSchema(JsonElement schemaRoot)
+    {
+        Dictionary<string, ModuleSettingSchema> result = new Dictionary<string, ModuleSettingSchema>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (JsonProperty property in schemaRoot.EnumerateObject())
+        {
+            ModuleSettingSchema schema = BuildSettingSchema(property.Name, property.Value);
+            if (!string.IsNullOrWhiteSpace(schema.Key))
+                result[schema.Key] = schema;
+        }
+
+        return result;
+    }
+
+    // Формирует описание одного поля settingsSchema.
+    private ModuleSettingSchema BuildSettingSchema(string key, JsonElement source)
+    {
+        ModuleSettingSchema schema = new ModuleSettingSchema
+        {
+            Key = key,
+            DisplayName = key
+        };
+
+        if (source.ValueKind == JsonValueKind.String)
+        {
+            schema.Type = source.GetString() ?? "string";
+            return schema;
+        }
+
+        if (source.ValueKind != JsonValueKind.Object)
+            return schema;
+
+        schema.DisplayName = GetStringProperty(source, "displayName", schema.DisplayName);
+        schema.Description = GetStringProperty(source, "description", schema.Description);
+        schema.Type = GetStringProperty(source, "type", schema.Type);
+        schema.Group = GetStringProperty(source, "group", schema.Group);
+        schema.Unit = GetStringProperty(source, "unit", schema.Unit);
+        schema.Placeholder = GetStringProperty(source, "placeholder", schema.Placeholder);
+        schema.Required = GetBoolProperty(source, "required", schema.Required);
+        schema.Advanced = GetBoolProperty(source, "advanced", schema.Advanced);
+        schema.Min = GetNullableDoubleProperty(source, "min");
+        schema.Max = GetNullableDoubleProperty(source, "max");
+
+        if (source.TryGetProperty("default", out JsonElement defaultValue))
+            schema.DefaultValue = defaultValue.Clone();
+
+        if (source.TryGetProperty("options", out JsonElement options) && options.ValueKind == JsonValueKind.Array)
+            schema.Options = options.EnumerateArray().Select(option => option.ToString()).Where(option => !string.IsNullOrWhiteSpace(option)).ToArray();
+
+        return schema;
+    }
+
+    // Безопасно получает nullable double-поле из JSON.
+    private double? GetNullableDoubleProperty(JsonElement element, string key)
+    {
+        if (!element.TryGetProperty(key, out JsonElement value))
+            return null;
+
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out double result))
+            return result;
+
+        if (value.ValueKind == JsonValueKind.String)
+        {
+            string raw = (value.GetString() ?? "").Trim().Replace(",", ".");
+            if (double.TryParse(raw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out result))
+                return result;
+        }
+
+        return null;
     }
 
     // Проверяет, есть ли в блоке metadata хотя бы одно пользовательское поле.

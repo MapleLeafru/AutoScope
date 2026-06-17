@@ -16,5 +16,138 @@
     "headless": false,
     "warmupUrl": "https://www.avito.ru/",
     "estimatedListingPageSize": 50
+  },
+  "settingsSchema": {
+    "startUrl": {
+      "displayName": "Стартовый URL",
+      "description": "Страница выдачи, с которой начнётся сбор объявлений.",
+      "type": "string",
+      "group": "Основные параметры",
+      "required": true,
+      "placeholder": "https://..."
+    },
+    "maxCars": {
+      "displayName": "Максимум объявлений",
+      "description": "Сколько объявлений нужно собрать. Значение 0 означает сбор всех доступных объявлений.",
+      "type": "int",
+      "group": "Основные параметры",
+      "required": false,
+      "min": 0
+    },
+    "streamBatchSize": {
+      "displayName": "Размер пакета",
+      "description": "Сколько объявлений передавать в pipeline за один пакет.",
+      "type": "int",
+      "group": "Основные параметры",
+      "required": false,
+      "min": 1,
+      "advanced": true
+    },
+    "requestDelaySeconds": {
+      "displayName": "Пауза между запросами",
+      "description": "Задержка между HTTP-запросами или открытием карточек объявлений.",
+      "type": "double",
+      "group": "Ограничение нагрузки",
+      "unit": "сек.",
+      "required": false,
+      "min": 0,
+      "advanced": true
+    },
+    "retryCount": {
+      "displayName": "Повторы при ошибке",
+      "description": "Сколько раз повторять запрос при временной ошибке.",
+      "type": "int",
+      "group": "Ограничение нагрузки",
+      "required": false,
+      "min": 0,
+      "advanced": true
+    },
+    "rateLimitDelaySeconds": {
+      "displayName": "Пауза при ограничении доступа",
+      "description": "Базовая задержка после ответа вроде HTTP 429 или похожего ограничения.",
+      "type": "double",
+      "group": "Ограничение нагрузки",
+      "unit": "сек.",
+      "required": false,
+      "min": 0,
+      "advanced": true
+    },
+    "listingPageDelaySeconds": {
+      "displayName": "Пауза между страницами выдачи",
+      "description": "Задержка между обработкой страниц выдачи.",
+      "type": "double",
+      "group": "Ограничение нагрузки",
+      "unit": "сек.",
+      "required": false,
+      "min": 0,
+      "advanced": true
+    },
+    "estimatedListingPageSize": {
+      "displayName": "Оценка объявлений на странице",
+      "description": "Примерное количество объявлений на одной странице выдачи. Используется для оценки времени выполнения.",
+      "type": "int",
+      "group": "Оценка выполнения",
+      "required": false,
+      "min": 1,
+      "advanced": true
+    },
+    "cardDelaySeconds": {
+      "displayName": "Пауза между карточками",
+      "description": "Задержка между открытием отдельных объявлений в браузере.",
+      "type": "double",
+      "group": "Браузерный режим",
+      "unit": "сек.",
+      "required": false,
+      "min": 0,
+      "advanced": true
+    },
+    "browserPageLoadTimeoutSeconds": {
+      "displayName": "Таймаут загрузки страницы",
+      "description": "Сколько секунд браузер ждёт загрузку страницы перед ошибкой.",
+      "type": "int",
+      "group": "Браузерный режим",
+      "unit": "сек.",
+      "required": false,
+      "min": 1,
+      "advanced": true
+    },
+    "manualAccessWaitSeconds": {
+      "displayName": "Ожидание ручного доступа",
+      "description": "Время ожидания, если сайту требуется ручное действие в браузере. 0 отключает ожидание.",
+      "type": "int",
+      "group": "Браузерный режим",
+      "unit": "сек.",
+      "required": false,
+      "min": 0,
+      "advanced": true
+    },
+    "headless": {
+      "displayName": "Скрытый режим браузера",
+      "description": "Запускать браузер без видимого окна.",
+      "type": "bool",
+      "group": "Браузерный режим",
+      "required": false,
+      "advanced": true
+    },
+    "warmupUrl": {
+      "displayName": "Страница прогрева сессии",
+      "description": "Адрес, который открывается перед основной выдачей для подготовки сессии.",
+      "type": "string",
+      "group": "Доступ к сайту",
+      "required": false,
+      "advanced": true
+    },
+    "requestProfile": {
+      "displayName": "Профиль запроса",
+      "description": "Набор HTTP-заголовков для запроса.",
+      "type": "select",
+      "group": "Доступ к сайту",
+      "options": [
+        "desktop",
+        "mobile"
+      ],
+      "required": false,
+      "advanced": true
+    }
   }
 }
