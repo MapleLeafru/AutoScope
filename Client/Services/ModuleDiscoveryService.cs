@@ -161,9 +161,7 @@ public class ModuleDiscoveryService
     private void PrintModuleListItem(int number, ModuleInfo module)
     {
         string displayName = module.GetDisplayName();
-        string filePart = displayName.Equals(module.FileNameWithoutExtension, StringComparison.OrdinalIgnoreCase)
-            ? ""
-            : $" ({module.FileName})";
+        bool hasReadableMetadata = module.HasMetadata && !displayName.Equals(module.FileNameWithoutExtension, StringComparison.OrdinalIgnoreCase);
 
         List<string> details = new List<string>();
         if (!string.IsNullOrWhiteSpace(module.Source)) details.Add($"источник: {module.Source}");
@@ -171,11 +169,51 @@ public class ModuleDiscoveryService
         if (!string.IsNullOrWhiteSpace(module.Category)) details.Add($"категория: {module.Category}");
         if (module.Recommended) details.Add("рекомендовано");
 
-        string detailsPart = details.Count == 0 ? "" : " | " + string.Join(", ", details);
-        Console.WriteLine($"{number}: {displayName}{filePart}{detailsPart}");
+        WriteColored($"{number}: ", ConsoleColor.White);
+
+        if (hasReadableMetadata)
+        {
+            WriteColored(displayName, ConsoleColor.White);
+            WriteColored(" (", ConsoleColor.White);
+            WriteColored(module.FileName, ConsoleColor.DarkCyan);
+            WriteColored(")", ConsoleColor.White);
+        }
+        else
+        {
+            WriteColored(displayName, ConsoleColor.DarkCyan);
+        }
+
+        foreach (string detail in details)
+        {
+            WriteColored(" | ", ConsoleColor.White);
+            WriteColored(detail, ConsoleColor.Gray);
+        }
+
+        Console.WriteLine();
 
         if (!string.IsNullOrWhiteSpace(module.Description))
-            Console.WriteLine($"   {module.Description}");
+        {
+            WriteColored("   ", ConsoleColor.White);
+            WriteColoredLine(module.Description, ConsoleColor.DarkYellow);
+        }
+    }
+
+    // Пишет фрагмент строки выбранным цветом и возвращает предыдущий цвет консоли.
+    private void WriteColored(string text, ConsoleColor color)
+    {
+        ConsoleColor previousColor = Console.ForegroundColor;
+        Console.ForegroundColor = color;
+        Console.Write(text);
+        Console.ForegroundColor = previousColor;
+    }
+
+    // Пишет строку выбранным цветом и возвращает предыдущий цвет консоли.
+    private void WriteColoredLine(string text, ConsoleColor color)
+    {
+        ConsoleColor previousColor = Console.ForegroundColor;
+        Console.ForegroundColor = color;
+        Console.WriteLine(text);
+        Console.ForegroundColor = previousColor;
     }
 
     // Применяет metadata из личного конфига. Поддерживает новый формат metadata/settings и старый плоский формат.
