@@ -46,6 +46,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Dictionaries", "Dictionarie
 		Configs\Dictionaries\TransmissionMap.json = Configs\Dictionaries\TransmissionMap.json
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoScope.WpfClient", "AutoScope.WpfClient\AutoScope.WpfClient.csproj", "{08A23BC3-B54E-276F-0617-974421F6D462}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -68,6 +70,10 @@ Global
 		{EA9AE078-9C11-4E5D-B446-5CECC0718C75}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{80239E5D-2F46-4645-8A7B-4835B0AB4C54}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{80239E5D-2F46-4645-8A7B-4835B0AB4C54}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08A23BC3-B54E-276F-0617-974421F6D462}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{08A23BC3-B54E-276F-0617-974421F6D462}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{08A23BC3-B54E-276F-0617-974421F6D462}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08A23BC3-B54E-276F-0617-974421F6D462}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
