@@ -1,8 +1,11 @@
-using System;
+﻿﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 
 // Ищет доступные внешние модули: парсеры и анализаторы.
+// Личный конфиг модуля необязателен. Если он есть, из него читаются metadata/settings.
 public class ModuleDiscoveryService
 {
     private readonly AppPaths _paths;
@@ -34,13 +37,43 @@ public class ModuleDiscoveryService
     // Возвращает список доступных парсеров.
     public string[] ScanParsers(bool consoleOutput = true, bool returnOnlyFileNames = false, string cancelText = "Вернуться назад")
     {
-        return ScanModules(_paths.ParsersPath, "парсеров", "Найденные парсеры:", consoleOutput, returnOnlyFileNames, cancelText);
+        return ScanModules(
+            _paths.ParsersPath,
+            _paths.ParserConfigsPath,
+            "parser",
+            "парсеров",
+            "Найденные парсеры:",
+            consoleOutput,
+            returnOnlyFileNames,
+            cancelText
+        );
     }
 
     // Возвращает список доступных анализаторов.
     public string[] ScanAnalyzers(bool consoleOutput = true, bool returnOnlyFileNames = false, string cancelText = "Вернуться назад")
     {
-        return ScanModules(_paths.AnalyzersPath, "анализаторов", "Найденные анализаторы:", consoleOutput, returnOnlyFileNames, cancelText);
+        return ScanModules(
+            _paths.AnalyzersPath,
+            _paths.AnalyzerConfigsPath,
+            "analyzer",
+            "анализаторов",
+            "Найденные анализаторы:",
+            consoleOutput,
+            returnOnlyFileNames,
+            cancelText
+        );
+    }
+
+    // Возвращает расширенную информацию о парсерах.
+    public ModuleInfo[] GetParsers()
+    {
+        return BuildModuleInfos(_paths.ParsersPath, _paths.ParserConfigsPath, "parser");
+    }
+
+    // Возвращает расширенную информацию об анализаторах.
+    public ModuleInfo[] GetAnalyzers()
+    {
+        return BuildModuleInfos(_paths.AnalyzersPath, _paths.AnalyzerConfigsPath, "analyzer");
     }
 
     // Определяет runtime по расширению файла модуля.
@@ -58,6 +91,8 @@ public class ModuleDiscoveryService
     // Ищет модули в папке и выводит список с нумерацией от 1.
     private string[] ScanModules(
         string folderPath,
+        string configFolderPath,
+        string defaultModuleType,
         string emptyLabel,
         string listTitle,
         bool consoleOutput,
@@ -65,11 +100,9 @@ public class ModuleDiscoveryService
         string cancelText
     )
     {
-        string[] files = Directory.Exists(folderPath)
-            ? Directory.GetFiles(folderPath).Where(IsSupportedModuleFile).OrderBy(Path.GetFileName).ToArray()
-            : new string[0];
+        ModuleInfo[] modules = BuildModuleInfos(folderPath, configFolderPath, defaultModuleType);
 
-        if (files.Length == 0)
+        if (modules.Length == 0)
         {
             if (consoleOutput) Console.WriteLine($"Нет доступных {emptyLabel}.");
             return new string[0];
@@ -79,14 +112,161 @@ public class ModuleDiscoveryService
         {
             Console.WriteLine(listTitle);
             Console.WriteLine($"0: {cancelText}");
-            for (int i = 0; i < files.Length; i++)
-                Console.WriteLine($"{i + 1}: {Path.GetFileName(files[i])}");
+            for (int i = 0; i < modules.Length; i++)
+                PrintModuleListItem(i + 1, modules[i]);
         }
 
         if (returnOnlyFileNames)
-            return files.Select(Path.GetFileName).ToArray();
+            return modules.Select(module => module.FileName).ToArray();
 
-        return files;
+        return modules.Select(module => module.ModulePath).ToArray();
+    }
+
+    // Собирает список модулей и дополняет его необязательными метаданными из личного конфига.
+    private ModuleInfo[] BuildModuleInfos(string folderPath, string configFolderPath, string defaultModuleType)
+    {
+        string[] files = Directory.Exists(folderPath)
+            ? Directory.GetFiles(folderPath).Where(IsSupportedModuleFile).OrderBy(Path.GetFileName).ToArray()
+            : new string[0];
+
+        return files
+            .Select(path => BuildModuleInfo(path, configFolderPath, defaultModuleType))
+            .ToArray();
+    }
+
+    // Формирует описание одного модуля.
+    private ModuleInfo BuildModuleInfo(string modulePath, string configFolderPath, string defaultModuleType)
+    {
+        string fileName = Path.GetFileName(modulePath);
+        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(modulePath);
+        string configPath = GetModuleConfigPath(configFolderPath, modulePath);
+
+        ModuleInfo info = new ModuleInfo
+        {
+            ModulePath = modulePath,
+            FileName = fileName,
+            FileNameWithoutExtension = fileNameWithoutExtension,
+            ModuleType = defaultModuleType,
+            DisplayName = fileNameWithoutExtension,
+            HasConfig = File.Exists(configPath)
+        };
+
+        if (info.HasConfig)
+            ApplyMetadataFromConfig(info, configPath);
+
+        return info;
+    }
+
+    // Выводит один пункт списка модулей.
+    private void PrintModuleListItem(int number, ModuleInfo module)
+    {
+        string displayName = module.GetDisplayName();
+        string filePart = displayName.Equals(module.FileNameWithoutExtension, StringComparison.OrdinalIgnoreCase)
+            ? ""
+            : $" ({module.FileName})";
+
+        List<string> details = new List<string>();
+        if (!string.IsNullOrWhiteSpace(module.Source)) details.Add($"источник: {module.Source}");
+        if (!string.IsNullOrWhiteSpace(module.Mode)) details.Add($"режим: {module.Mode}");
+        if (!string.IsNullOrWhiteSpace(module.Category)) details.Add($"категория: {module.Category}");
+        if (module.Recommended) details.Add("рекомендовано");
+
+        string detailsPart = details.Count == 0 ? "" : " | " + string.Join(", ", details);
+        Console.WriteLine($"{number}: {displayName}{filePart}{detailsPart}");
+
+        if (!string.IsNullOrWhiteSpace(module.Description))
+            Console.WriteLine($"   {module.Description}");
+    }
+
+    // Применяет metadata из личного конфига. Поддерживает новый формат metadata/settings и старый плоский формат.
+    private void ApplyMetadataFromConfig(ModuleInfo info, string configPath)
+    {
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(configPath));
+            JsonElement root = document.RootElement;
+
+            if (root.ValueKind != JsonValueKind.Object)
+                return;
+
+            JsonElement metadata = root;
+            if (root.TryGetProperty("metadata", out JsonElement nestedMetadata) && nestedMetadata.ValueKind == JsonValueKind.Object)
+                metadata = nestedMetadata;
+
+            string displayName = GetStringProperty(metadata, "displayName", "");
+            if (!string.IsNullOrWhiteSpace(displayName))
+                info.DisplayName = displayName;
+
+            info.Description = GetStringProperty(metadata, "description", info.Description);
+            info.ModuleType = GetStringProperty(metadata, "moduleType", info.ModuleType);
+            info.Source = GetStringProperty(metadata, "source", info.Source);
+            info.Mode = GetStringProperty(metadata, "mode", info.Mode);
+            info.Category = GetStringProperty(metadata, "category", info.Category);
+            info.Recommended = GetBoolProperty(metadata, "recommended", info.Recommended);
+
+            info.HasMetadata = HasAnyMetadata(metadata);
+        }
+        catch
+        {
+            // Невалидный личный конфиг не должен ломать обнаружение модулей.
+            info.HasMetadata = false;
+        }
+    }
+
+    // Проверяет, есть ли в блоке metadata хотя бы одно пользовательское поле.
+    private bool HasAnyMetadata(JsonElement metadata)
+    {
+        string[] keys = new[] { "displayName", "description", "moduleType", "source", "mode", "category", "recommended" };
+        foreach (string key in keys)
+        {
+            if (metadata.TryGetProperty(key, out _))
+                return true;
+        }
+
+        return false;
+    }
+
+    // Безопасно получает строковое поле из JSON.
+    private string GetStringProperty(JsonElement element, string key, string fallback)
+    {
+        if (!element.TryGetProperty(key, out JsonElement value))
+            return fallback;
+
+        if (value.ValueKind == JsonValueKind.String)
+            return value.GetString() ?? fallback;
+
+        if (value.ValueKind == JsonValueKind.Null || value.ValueKind == JsonValueKind.Undefined)
+            return fallback;
+
+        return value.ToString();
+    }
+
+    // Безопасно получает bool-поле из JSON.
+    private bool GetBoolProperty(JsonElement element, string key, bool fallback)
+    {
+        if (!element.TryGetProperty(key, out JsonElement value))
+            return fallback;
+
+        if (value.ValueKind == JsonValueKind.True)
+            return true;
+
+        if (value.ValueKind == JsonValueKind.False)
+            return false;
+
+        if (value.ValueKind == JsonValueKind.String && bool.TryParse(value.GetString(), out bool result))
+            return result;
+
+        return fallback;
+    }
+
+    // Возвращает путь к личному конфигу модуля.
+    private string GetModuleConfigPath(string configFolderPath, string modulePath)
+    {
+        string moduleName = Path.GetFileNameWithoutExtension(modulePath);
+        if (string.IsNullOrWhiteSpace(moduleName))
+            return "";
+
+        return Path.Combine(configFolderPath, moduleName + ".json");
     }
 
     // Проверяет, является ли файл поддерживаемым внешним модулем.

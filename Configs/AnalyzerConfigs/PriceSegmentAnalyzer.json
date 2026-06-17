@@ -1,0 +1,10 @@
+﻿{
+  "metadata": {
+    "displayName": "Ценовые сегменты",
+    "description": "Анализирует распределение цен, квартильные сегменты, дешёвые и дорогие предложения.",
+    "moduleType": "analyzer",
+    "category": "price",
+    "recommended": true
+  },
+  "settings": {}
+}

@@ -1,5 +1,15 @@
 ﻿{
-  "requestDelaySeconds": 6.0,
-  "listingPageDelaySeconds": 6.0,
-  "estimatedListingPageSize": 37
+  "metadata": {
+    "displayName": "Auto.ru — быстрый парсер",
+    "description": "Быстро собирает объявления прямо из выдачи Auto.ru без перехода в каждую карточку.",
+    "moduleType": "parser",
+    "source": "auto.ru",
+    "mode": "light",
+    "recommended": true
+  },
+  "settings": {
+    "requestDelaySeconds": 6.0,
+    "listingPageDelaySeconds": 6.0,
+    "estimatedListingPageSize": 37
+  }
 }

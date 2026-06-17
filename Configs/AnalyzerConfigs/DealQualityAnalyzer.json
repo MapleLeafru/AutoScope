@@ -1,0 +1,10 @@
+﻿{
+  "metadata": {
+    "displayName": "Рыночная позиция объявлений",
+    "description": "Оценивает объявление относительно похожих предложений и выделяет перспективные, спорные и дорогие варианты.",
+    "moduleType": "analyzer",
+    "category": "ranking",
+    "recommended": true
+  },
+  "settings": {}
+}

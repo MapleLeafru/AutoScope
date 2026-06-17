@@ -1,8 +1,18 @@
 ﻿{
-  "requestDelaySeconds": 6.0,
-  "listingPageDelaySeconds": 6.0,
-  "estimatedListingPageSize": 50,
-  "rateLimitDelaySeconds": 8.0,
-  "warmupUrl": "https://www.avito.ru/",
-  "requestProfile": "desktop"
+  "metadata": {
+    "displayName": "Avito — быстрый парсер",
+    "description": "Экспериментальный light-парсер Avito. Может получать блокировку по IP и не гарантирует стабильный сбор.",
+    "moduleType": "parser",
+    "source": "avito",
+    "mode": "light",
+    "recommended": false
+  },
+  "settings": {
+    "requestDelaySeconds": 6.0,
+    "listingPageDelaySeconds": 6.0,
+    "estimatedListingPageSize": 50,
+    "rateLimitDelaySeconds": 8.0,
+    "warmupUrl": "https://www.avito.ru/",
+    "requestProfile": "desktop"
+  }
 }

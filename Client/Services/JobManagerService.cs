@@ -211,7 +211,7 @@ public class JobManagerService
         Console.WriteLine();
 
         job.AnalyzerPath = selectedAnalyzer;
-        job.OutputSettings = _settingsService.ReadOutputFilterSettings();
+        job.OutputSettings = _settingsService.ReadOutputFilterSettings(selectedAnalyzer);
     }
 
     // Показывает сохранённые сценарии в виде коротких карточек.

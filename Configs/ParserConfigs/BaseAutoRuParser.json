@@ -1,5 +1,15 @@
 ﻿{
-  "requestDelaySeconds": 6.0,
-  "listingPageDelaySeconds": 6.0,
-  "estimatedListingPageSize": 37
+  "metadata": {
+    "displayName": "Auto.ru — базовый парсер",
+    "description": "Парсер Auto.ru с исходной логикой сбора. Оставлен как экспериментальный вариант.",
+    "moduleType": "parser",
+    "source": "auto.ru",
+    "mode": "base",
+    "recommended": false
+  },
+  "settings": {
+    "requestDelaySeconds": 6.0,
+    "listingPageDelaySeconds": 6.0,
+    "estimatedListingPageSize": 37
+  }
 }

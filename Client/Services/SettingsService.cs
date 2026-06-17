@@ -75,8 +75,7 @@ public class SettingsService
             ExtraSettings = ExtractExtraParserSettings(mergedSettings)
         };
 
-        Console.WriteLine();
-        bool useDefaultParserSettings = _input.AskYesNo("Использовать параметры парсера по умолчанию? y/n: ");
+        bool useDefaultParserSettings = _input.AskYesNo("Использовать остальные параметры парсера по умолчанию? y/n: ");
 
         if (useDefaultParserSettings)
             return parserSettings;
@@ -127,7 +126,6 @@ public class SettingsService
             FuelTypeNormalization = defaultFuelTypeNormalization
         };
 
-        Console.WriteLine();
         bool useDefaultApiSettings = _input.AskYesNo("Использовать настройки API по умолчанию? y/n: ");
         if (useDefaultApiSettings)
             return apiSettings;
@@ -156,15 +154,17 @@ public class SettingsService
     }
 
     // Возвращает настройки выборки OutputPipeline: либо из конфига анализатора, либо после ручного ввода.
-    public OutputFilterSettings ReadOutputFilterSettings()
+    public OutputFilterSettings ReadOutputFilterSettings(string analyzerPath = "")
     {
-        bool defaultLatestOnly = GetNestedBoolSetting(_analyzerSettings, "outputSettings", "latestOnly", true);
-        bool defaultOnlyChanged = GetNestedBoolSetting(_analyzerSettings, "outputSettings", "onlyChanged", false);
-        string defaultBrand = GetNestedStringSetting(_analyzerSettings, "outputSettings", "brand", "");
-        string defaultModel = GetNestedStringSetting(_analyzerSettings, "outputSettings", "model", "");
-        string defaultSaleRegion = GetNestedStringSetting(_analyzerSettings, "outputSettings", "saleRegion", "");
-        int? defaultYearFrom = GetNestedNullableIntSetting(_analyzerSettings, "outputSettings", "yearFrom", null);
-        int? defaultYearTo = GetNestedNullableIntSetting(_analyzerSettings, "outputSettings", "yearTo", null);
+        Dictionary<string, JsonElement> analyzerSettings = BuildAnalyzerSettings(analyzerPath);
+
+        bool defaultLatestOnly = GetNestedBoolSetting(analyzerSettings, "outputSettings", "latestOnly", true);
+        bool defaultOnlyChanged = GetNestedBoolSetting(analyzerSettings, "outputSettings", "onlyChanged", false);
+        string defaultBrand = GetNestedStringSetting(analyzerSettings, "outputSettings", "brand", "");
+        string defaultModel = GetNestedStringSetting(analyzerSettings, "outputSettings", "model", "");
+        string defaultSaleRegion = GetNestedStringSetting(analyzerSettings, "outputSettings", "saleRegion", "");
+        int? defaultYearFrom = GetNestedNullableIntSetting(analyzerSettings, "outputSettings", "yearFrom", null);
+        int? defaultYearTo = GetNestedNullableIntSetting(analyzerSettings, "outputSettings", "yearTo", null);
 
         OutputFilterSettings outputSettings = new OutputFilterSettings
         {
@@ -219,7 +219,7 @@ public class SettingsService
         return outputSettings;
     }
 
-    // Строит итоговый набор настроек: общий ParserDefaultSettings + личный конфиг выбранного парсера.
+    // Строит итоговый набор настроек: общий ParserDefaultSettings + settings из личного конфига выбранного парсера.
     private Dictionary<string, JsonElement> BuildParserSettings(string parserPath)
     {
         Dictionary<string, JsonElement> result = new Dictionary<string, JsonElement>(_parserSettings);
@@ -228,8 +228,24 @@ public class SettingsService
         if (string.IsNullOrWhiteSpace(parserConfigPath) || !File.Exists(parserConfigPath))
             return result;
 
-        Dictionary<string, JsonElement> parserSpecificSettings = LoadSettingsFile(parserConfigPath);
+        Dictionary<string, JsonElement> parserSpecificSettings = LoadModuleSettingsFile(parserConfigPath);
         foreach (KeyValuePair<string, JsonElement> item in parserSpecificSettings)
+            result[item.Key] = item.Value;
+
+        return result;
+    }
+
+    // Строит итоговый набор настроек: общий AnalyzerDefaultSettings + settings из личного конфига выбранного анализатора.
+    private Dictionary<string, JsonElement> BuildAnalyzerSettings(string analyzerPath)
+    {
+        Dictionary<string, JsonElement> result = new Dictionary<string, JsonElement>(_analyzerSettings);
+
+        string analyzerConfigPath = GetAnalyzerConfigPath(analyzerPath);
+        if (string.IsNullOrWhiteSpace(analyzerConfigPath) || !File.Exists(analyzerConfigPath))
+            return result;
+
+        Dictionary<string, JsonElement> analyzerSpecificSettings = LoadModuleSettingsFile(analyzerConfigPath);
+        foreach (KeyValuePair<string, JsonElement> item in analyzerSpecificSettings)
             result[item.Key] = item.Value;
 
         return result;
@@ -248,6 +264,19 @@ public class SettingsService
         return Path.Combine(_paths.ParserConfigsPath, parserName + ".json");
     }
 
+    // Возвращает путь к личному конфигу выбранного анализатора.
+    private string GetAnalyzerConfigPath(string analyzerPath)
+    {
+        if (string.IsNullOrWhiteSpace(analyzerPath))
+            return "";
+
+        string analyzerName = Path.GetFileNameWithoutExtension(analyzerPath);
+        if (string.IsNullOrWhiteSpace(analyzerName))
+            return "";
+
+        return Path.Combine(_paths.AnalyzerConfigsPath, analyzerName + ".json");
+    }
+
     // Отбирает дополнительные parserSettings, которые не входят в базовую модель C#.
     private Dictionary<string, JsonElement> ExtractExtraParserSettings(Dictionary<string, JsonElement> settings)
     {
@@ -262,7 +291,9 @@ public class SettingsService
             "pythonPath",
             "javaPath",
             "dictionariesPath",
-            "apiSettings"
+            "apiSettings",
+            "metadata",
+            "settings"
         };
 
         Dictionary<string, JsonElement> extra = new Dictionary<string, JsonElement>();
@@ -284,6 +315,40 @@ public class SettingsService
         string configJson = File.ReadAllText(configFile);
         return JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(configJson)
             ?? new Dictionary<string, JsonElement>();
+    }
+
+    // Загружает рабочие settings из личного конфига модуля.
+    // Новый формат: { "metadata": {...}, "settings": {...} }.
+    // Старый плоский формат поддерживается, но metadata не попадает в parserSettings/analyzer settings.
+    private Dictionary<string, JsonElement> LoadModuleSettingsFile(string configFile)
+    {
+        Dictionary<string, JsonElement> rawSettings = LoadSettingsFile(configFile);
+
+        if (rawSettings.TryGetValue("settings", out JsonElement settingsSection) &&
+            settingsSection.ValueKind == JsonValueKind.Object)
+        {
+            return JsonObjectToDictionary(settingsSection);
+        }
+
+        Dictionary<string, JsonElement> result = new Dictionary<string, JsonElement>();
+        foreach (KeyValuePair<string, JsonElement> item in rawSettings)
+        {
+            if (!item.Key.Equals("metadata", StringComparison.OrdinalIgnoreCase))
+                result[item.Key] = item.Value;
+        }
+
+        return result;
+    }
+
+    // Преобразует JSON-объект в словарь и клонирует значения, чтобы они безопасно жили после выхода из метода.
+    private Dictionary<string, JsonElement> JsonObjectToDictionary(JsonElement section)
+    {
+        Dictionary<string, JsonElement> result = new Dictionary<string, JsonElement>();
+
+        foreach (JsonProperty property in section.EnumerateObject())
+            result[property.Name] = property.Value.Clone();
+
+        return result;
     }
 
     // Безопасно получает строковое значение из JSON-настроек.

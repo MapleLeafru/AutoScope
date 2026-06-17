@@ -1,0 +1,10 @@
+﻿{
+  "metadata": {
+    "displayName": "Обзор рынка",
+    "description": "Формирует общий HTML-отчёт по рынку: цены, пробег, годы, бренды, модели, регионы и графики.",
+    "moduleType": "analyzer",
+    "category": "overview",
+    "recommended": true
+  },
+  "settings": {}
+}

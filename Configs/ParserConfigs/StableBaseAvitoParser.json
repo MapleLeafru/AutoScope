@@ -1,10 +1,20 @@
 ﻿{
-  "requestDelaySeconds": 4.0,
-  "listingPageDelaySeconds": 5.0,
-  "cardDelaySeconds": 4.0,
-  "browserPageLoadTimeoutSeconds": 45,
-  "manualAccessWaitSeconds": 120,
-  "headless": false,
-  "warmupUrl": "https://www.avito.ru/",
-  "estimatedListingPageSize": 50
+  "metadata": {
+    "displayName": "Avito — стабильный браузерный парсер",
+    "description": "Экспериментальный Selenium-парсер Avito. Добавлен для проверки браузерного режима, но сайт может блокировать доступ.",
+    "moduleType": "parser",
+    "source": "avito",
+    "mode": "stable",
+    "recommended": false
+  },
+  "settings": {
+    "requestDelaySeconds": 4.0,
+    "listingPageDelaySeconds": 5.0,
+    "cardDelaySeconds": 4.0,
+    "browserPageLoadTimeoutSeconds": 45,
+    "manualAccessWaitSeconds": 120,
+    "headless": false,
+    "warmupUrl": "https://www.avito.ru/",
+    "estimatedListingPageSize": 50
+  }
 }

@@ -1,0 +1,10 @@
+﻿{
+  "metadata": {
+    "displayName": "Интерактивный обзор рынка",
+    "description": "Создаёт HTML-дашборд с фильтрами, динамическими графиками и сортируемой таблицей объявлений.",
+    "moduleType": "analyzer",
+    "category": "interactive",
+    "recommended": true
+  },
+  "settings": {}
+}

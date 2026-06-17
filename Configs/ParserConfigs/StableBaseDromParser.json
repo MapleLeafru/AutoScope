@@ -1,9 +1,19 @@
 ﻿{
-  "requestDelaySeconds": 2.0,
-  "listingPageDelaySeconds": 2.0,
-  "cardDelaySeconds": 2.0,
-  "browserPageLoadTimeoutSeconds": 40,
-  "manualAccessWaitSeconds": 0,
-  "headless": false,
-  "estimatedListingPageSize": 20
+  "metadata": {
+    "displayName": "Drom — стабильный браузерный парсер",
+    "description": "Selenium-парсер Drom: собирает ссылки из выдачи и затем открывает каждое объявление для более подробных данных.",
+    "moduleType": "parser",
+    "source": "drom",
+    "mode": "stable",
+    "recommended": true
+  },
+  "settings": {
+    "requestDelaySeconds": 2.0,
+    "listingPageDelaySeconds": 2.0,
+    "cardDelaySeconds": 2.0,
+    "browserPageLoadTimeoutSeconds": 40,
+    "manualAccessWaitSeconds": 0,
+    "headless": false,
+    "estimatedListingPageSize": 20
+  }
 }

@@ -102,7 +102,7 @@ public class PipelineService
         if (string.IsNullOrWhiteSpace(selectedAnalyzer)) { return; }
         Console.WriteLine($"Выбран анализатор: {Path.GetFileName(selectedAnalyzer)}");
         Console.WriteLine();
-        OutputFilterSettings outputSettings = _settingsService.ReadOutputFilterSettings();
+        OutputFilterSettings outputSettings = _settingsService.ReadOutputFilterSettings(selectedAnalyzer);
         RuntimeSettings runtimeSettings = _settingsService.GetRuntimeSettings();
 
         RunTaskInfo run = _runManager.StartRun(

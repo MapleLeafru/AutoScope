@@ -1,5 +1,15 @@
 ﻿{
-  "requestDelaySeconds": 1.2,
-  "listingPageDelaySeconds": 1.5,
-  "estimatedListingPageSize": 20
+  "metadata": {
+    "displayName": "Drom — быстрый парсер",
+    "description": "Быстро собирает объявления из выдачи Drom без перехода в каждую карточку. Подходит для быстрого обзора рынка.",
+    "moduleType": "parser",
+    "source": "drom",
+    "mode": "light",
+    "recommended": true
+  },
+  "settings": {
+    "requestDelaySeconds": 1.2,
+    "listingPageDelaySeconds": 1.5,
+    "estimatedListingPageSize": 20
+  }
 }
