@@ -13,7 +13,7 @@ public class StatusToBrushConverter : IValueConverter
     {
         string resourceKey = value switch
         {
-            DashboardStateKind.Running => "AccentBrush",
+            DashboardStateKind.Running => "RunningBrush",
             DashboardStateKind.Success => "SuccessBrush",
             DashboardStateKind.Error => "ErrorBrush",
             DashboardStateKind.Warning => "WarningBrush",

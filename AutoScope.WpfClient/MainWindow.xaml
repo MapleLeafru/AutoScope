@@ -3,20 +3,21 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:AutoScope.WpfClient.Converters"
         Title="AutoScope" Height="780" Width="1280" MinHeight="680" MinWidth="1050"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackgroundBrush}">
 
     <Window.Resources>
         <conv:StatusToBrushConverter x:Key="StatusToBrushConverter"/>
     </Window.Resources>
 
-    <Grid Margin="22">
+    <Grid Margin="22" Background="{DynamicResource WindowBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="{DynamicResource PanelBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="18" Padding="22" Margin="0,0,0,14">
+        <Border Grid.Row="0" Background="{DynamicResource PanelBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="18" Padding="22" Margin="0,0,0,7">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
