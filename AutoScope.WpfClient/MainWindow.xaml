@@ -256,10 +256,10 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel>
                                 <TextBlock Text="Процессы" Style="{StaticResource CardTitle}"/>
-                                <TextBlock Text="Активная работа, завершения и ошибки текущей UI-сессии." Style="{StaticResource SectionCaption}"/>
+                                <TextBlock Text="Активные процессы сверху, история подгружается отдельно." Style="{StaticResource SectionCaption}"/>
                             </StackPanel>
                             <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                                <Button Content="Управление" Style="{StaticResource SmallButton}" Click="Stub_Click" Tag="Подробный менеджер процессов будет подключён к RunManagerService следующим шагом."/>
+                                <Button Content="Управление" Style="{StaticResource SmallButton}" Click="Stub_Click" Tag="Подробный менеджер процессов будет выполнен в карточном стиле: расширенный список процессов, фильтры, логи и действия."/>
                             </WrapPanel>
                         </Grid>
 
@@ -267,20 +267,82 @@
                             <ItemsControl ItemsSource="{Binding Processes}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Style="{StaticResource ListRow}">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="10"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Border Width="6" CornerRadius="3" Background="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}"/>
-                                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                                    <TextBlock Text="{Binding StatusText}" Foreground="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}" FontSize="12" Margin="0,2,0,0"/>
-                                                    <TextBlock Text="{Binding Details}" Style="{StaticResource MutedText}" Margin="0,3,0,0"/>
+                                        <Grid>
+                                            <Border x:Name="ProcessContent" Style="{StaticResource ProcessCard}">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="10"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Border Width="6" CornerRadius="3" Background="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}"/>
+
+                                                    <StackPanel Grid.Column="1" Margin="10,0,10,0">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding TimeText}" Style="{StaticResource MutedText}" Margin="12,1,0,0"/>
+                                                        </Grid>
+
+                                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                            <TextBlock Text="{Binding StatusText}" Foreground="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}" FontSize="12" FontWeight="SemiBold"/>
+                                                            <TextBlock Text=" · " Style="{StaticResource MutedText}"/>
+                                                            <TextBlock Text="{Binding TypeText}" Style="{StaticResource MutedText}"/>
+                                                        </StackPanel>
+
+                                                        <StackPanel x:Name="ProgressArea" Margin="0,7,0,0">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Text="{Binding StageText}" Style="{StaticResource MutedText}"/>
+                                                                <TextBlock Grid.Column="1" Text="{Binding ProgressText}" Foreground="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}" FontSize="12" FontWeight="SemiBold"/>
+                                                            </Grid>
+                                                            <ProgressBar Style="{StaticResource ProcessProgressBar}" Value="{Binding ProgressPercent}" Foreground="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}" Margin="0,5,0,0"/>
+                                                            <TextBlock Text="{Binding CountText}" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
+                                                        </StackPanel>
+
+                                                        <TextBlock Text="{Binding Details}" Style="{StaticResource MutedText}" Margin="0,7,0,0" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                                                        <Button Content="Лог" Style="{StaticResource SmallButton}" Click="OpenProcessLog_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenLog}"/>
+                                                        <Button Content="Открыть" Style="{StaticResource SmallButton}" Click="ShowProcessInfo_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenDetails}"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+
+                                            <Border x:Name="HistoryActionPanel" Style="{StaticResource ProcessHistoryActionCard}" Visibility="Collapsed">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding ActionHint}" Style="{StaticResource MutedText}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="2*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Button Content="{Binding PrimaryActionText}" Style="{StaticResource SmallButton}" Click="LoadProcessHistory_Click" Tag="{Binding}" IsEnabled="{Binding IsPrimaryActionEnabled}" HorizontalAlignment="Stretch" Margin="0,0,6,0"/>
+                                                        <Button x:Name="LoadAllHistoryButton" Grid.Column="1" Content="{Binding SecondaryActionText}" Style="{StaticResource SmallButton}" Click="LoadAllProcessHistory_Click" Tag="{Binding}" HorizontalAlignment="Stretch" Margin="0" Visibility="Collapsed"/>
+                                                    </Grid>
                                                 </StackPanel>
-                                            </Grid>
-                                        </Border>
+                                            </Border>
+                                        </Grid>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsProgressVisible}" Value="False">
+                                                <Setter TargetName="ProgressArea" Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsActionRow}" Value="True">
+                                                <Setter TargetName="ProcessContent" Property="Visibility" Value="Collapsed"/>
+                                                <Setter TargetName="HistoryActionPanel" Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsSecondaryActionVisible}" Value="True">
+                                                <Setter TargetName="LoadAllHistoryButton" Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

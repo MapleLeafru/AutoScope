@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -21,6 +22,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string _statusMessage = "";
     private Rect? _restoreBoundsBeforeCustomMaximize;
     private bool _isCustomMaximized;
+    private readonly HashSet<string> _sessionProcessIds = new(StringComparer.OrdinalIgnoreCase);
+    private int _historyVisibleCount;
+    private bool _showAllHistory;
 
     public ObservableCollection<ScenarioDashboardItem> Scenarios { get; } = new();
     public ObservableCollection<DatabaseDashboardItem> Databases { get; } = new();
@@ -59,6 +63,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ReloadDashboard();
     }
 
+    private void RefreshProcesses_Click(object sender, RoutedEventArgs e)
+    {
+        ReloadProcesses();
+        StatusMessage = $"Процессы обновлены: {DateTime.Now:HH:mm:ss}.";
+    }
+
+    private void LoadProcessHistory_Click(object sender, RoutedEventArgs e)
+    {
+        int totalHistoryCount = _dataService.CountHistoryProcesses(_sessionProcessIds);
+        if (_showAllHistory || _historyVisibleCount >= totalHistoryCount)
+        {
+            StatusMessage = "Вся доступная история процессов уже отображена.";
+            return;
+        }
+
+        _historyVisibleCount = _historyVisibleCount <= 0 ? 10 : _historyVisibleCount + 10;
+        ReloadProcesses();
+        StatusMessage = $"История процессов подгружена: {Math.Min(_historyVisibleCount, totalHistoryCount)} из {totalHistoryCount}.";
+    }
+
+    private void LoadAllProcessHistory_Click(object sender, RoutedEventArgs e)
+    {
+        _showAllHistory = true;
+        ReloadProcesses();
+        StatusMessage = "Отображается вся найденная история процессов.";
+    }
+
     private void OpenRootFolder_Click(object sender, RoutedEventArgs e)
     {
         _dataService.OpenFolder(_dataService.RootPath);
@@ -89,6 +120,51 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         if (!opened)
             MessageBox.Show(message, "AutoScope", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void OpenProcessLog_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || element.Tag is not ProcessDashboardItem process)
+            return;
+
+        try
+        {
+            _dataService.OpenFile(process.LogPath);
+            StatusMessage = $"Открыт лог процесса: {process.Name}.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Лог процесса открыть не удалось.";
+            MessageBox.Show(ex.Message, "AutoScope", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void ShowProcessInfo_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || element.Tag is not ProcessDashboardItem process)
+            return;
+
+        List<string> lines = new()
+        {
+            $"Название: {process.Name}",
+            $"Тип: {process.TypeText}",
+            $"Статус: {process.StatusText}",
+            $"Время: {process.TimeText}"
+        };
+
+        if (process.IsProgressVisible)
+        {
+            lines.Add($"Этап: {process.StageText}");
+            lines.Add($"Прогресс: {process.ProgressText}");
+            lines.Add($"Количество: {process.CountText}");
+        }
+
+        lines.Add($"Состояние: {process.Details}");
+        lines.Add(string.IsNullOrWhiteSpace(process.LogPath) ? "Лог: не задан" : $"Лог: {process.LogPath}");
+
+        string message = string.Join(Environment.NewLine, lines);
+
+        MessageBox.Show(message, "Процесс AutoScope", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)
@@ -244,6 +320,98 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         public int Bottom;
     }
 
+    private void ReloadProcesses()
+    {
+        Processes.Clear();
+
+        List<ProcessDashboardItem> observedProcesses = _dataService.LoadObservedProcesses(_sessionProcessIds);
+
+        foreach (ProcessDashboardItem item in observedProcesses)
+        {
+            if (item.IsRunningLike)
+                _sessionProcessIds.Add(item.Id);
+        }
+
+        observedProcesses = _dataService.LoadObservedProcesses(_sessionProcessIds);
+        foreach (ProcessDashboardItem item in observedProcesses)
+        {
+            item.IsSessionItem = _sessionProcessIds.Contains(item.Id);
+            Processes.Add(item);
+        }
+
+        if (observedProcesses.Count == 0)
+            Processes.Add(CreateNoActiveProcessesItem());
+
+        if (_historyVisibleCount > 0 || _showAllHistory)
+        {
+            foreach (ProcessDashboardItem historyItem in _dataService.LoadHistoryProcesses(_historyVisibleCount, _showAllHistory, _sessionProcessIds))
+                Processes.Add(historyItem);
+        }
+
+        Processes.Add(CreateHistoryActionItem());
+    }
+
+    private ProcessDashboardItem CreateNoActiveProcessesItem()
+    {
+        return new ProcessDashboardItem
+        {
+            Name = "Активных процессов нет",
+            StatusText = "ожидание",
+            TypeText = "текущая сессия",
+            TimeText = "",
+            Details = "Когда парсинг или анализ будет запущен из UI, здесь появится карточка с этапом, процентом и текущим состоянием. Завершённые процессы этой же сессии останутся в списке.",
+            CanOpenLog = false,
+            CanOpenDetails = false,
+            StateKind = DashboardStateKind.Neutral
+        };
+    }
+
+    private ProcessDashboardItem CreateHistoryActionItem()
+    {
+        int totalHistoryCount = _dataService.CountHistoryProcesses(_sessionProcessIds);
+        bool hasVisibleHistory = _historyVisibleCount > 0 || _showAllHistory;
+        bool hasMoreHistory = !_showAllHistory && _historyVisibleCount < totalHistoryCount;
+
+        string primaryText;
+        string secondaryText = "Вся история";
+        string hint;
+
+        if (!hasVisibleHistory)
+        {
+            primaryText = totalHistoryCount > 0
+                ? "Показать последние 10 завершённых процессов"
+                : "История процессов пока не найдена";
+            hint = totalHistoryCount > 0
+                ? "История по логам скрыта, чтобы не мешать активным процессам. Её можно подгрузить вручную."
+                : "В папке Logs пока нет завершённых pipeline-логов, которые можно показать как историю.";
+        }
+        else if (hasMoreHistory)
+        {
+            primaryText = "Отобразить ещё 10 завершённых процессов";
+            int visibleCount = Math.Min(_historyVisibleCount, totalHistoryCount);
+            hint = $"Показано завершённых процессов: {visibleCount} из {totalHistoryCount}.";
+        }
+        else
+        {
+            primaryText = "Вся доступная история отображена";
+            hint = $"Показано завершённых процессов: {totalHistoryCount} из {totalHistoryCount}.";
+        }
+
+        return new ProcessDashboardItem
+        {
+            IsActionRow = true,
+            PrimaryActionText = primaryText,
+            SecondaryActionText = secondaryText,
+            ActionHint = hint,
+            IsSecondaryActionVisible = hasVisibleHistory && hasMoreHistory,
+            IsPrimaryActionEnabled = totalHistoryCount > 0 && hasMoreHistory,
+            CanOpenLog = false,
+            CanOpenDetails = false,
+            StateKind = DashboardStateKind.Neutral
+        };
+    }
+
+
     private void ReloadDashboard()
     {
         Scenarios.Clear();
@@ -254,9 +422,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         foreach (DatabaseDashboardItem item in _dataService.LoadDatabases())
             Databases.Add(item);
 
-        Processes.Clear();
-        foreach (ProcessDashboardItem item in _dataService.LoadInitialProcesses())
-            Processes.Add(item);
+        ReloadProcesses();
 
         if (Scenarios.Count == 0)
         {
@@ -280,7 +446,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             });
         }
 
-        StatusMessage = $"Обновлено: {DateTime.Now:HH:mm:ss}. Сценариев: {Scenarios.Count}, баз: {Databases.Count}.";
+        StatusMessage = $"Обновлено: {DateTime.Now:HH:mm:ss}. Сценариев: {Scenarios.Count}, баз: {Databases.Count}, процессов: {Processes.Count}.";
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

@@ -54,6 +54,40 @@
         <Setter Property="Margin" Value="0,0,0,8"/>
     </Style>
 
+    <Style x:Key="ProcessCard" TargetType="Border" BasedOn="{StaticResource ListRow}">
+        <Setter Property="Padding" Value="10"/>
+        <Setter Property="Margin" Value="0,0,0,9"/>
+    </Style>
+
+
+    <Style x:Key="ProcessHistoryActionCard" TargetType="Border" BasedOn="{StaticResource ListRow}">
+        <Setter Property="Padding" Value="12"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+    </Style>
+
+    <Style x:Key="ProcessProgressBar" TargetType="ProgressBar">
+        <Setter Property="Height" Value="7"/>
+        <Setter Property="Minimum" Value="0"/>
+        <Setter Property="Maximum" Value="100"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource CardBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="4" ClipToBounds="True">
+                        <Grid x:Name="PART_Track">
+                            <Rectangle x:Name="PART_Indicator"
+                                       HorizontalAlignment="Left"
+                                       Fill="{TemplateBinding Foreground}"/>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="BaseButton" TargetType="Button">
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
