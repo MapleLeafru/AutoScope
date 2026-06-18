@@ -27,6 +27,7 @@ public class DatabaseDashboardItem
     public string Path { get; set; } = "";
     public string Details { get; set; } = "";
     public string RecordsText { get; set; } = "";
+    public string SizeText { get; set; } = "";
     public DashboardStateKind StateKind { get; set; } = DashboardStateKind.Neutral;
 
     public string ConfigText => string.IsNullOrWhiteSpace(ConfigName)

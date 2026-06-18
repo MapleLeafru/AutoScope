@@ -2,12 +2,24 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:AutoScope.WpfClient.Models"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Формирование отчёта" Height="650" Width="780"
         WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
         ResizeMode="CanResize"
         MinHeight="590" MinWidth="700"
-        Background="{DynamicResource WindowBackgroundBrush}"
-        Foreground="{DynamicResource TextPrimaryBrush}">
+        Background="Transparent"
+        AllowsTransparency="True"
+        Foreground="{DynamicResource TextPrimaryBrush}"
+        UseLayoutRounding="True">
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0"
+                            ResizeBorderThickness="6"
+                            CornerRadius="0"
+                            GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+
     <Window.Resources>
         <DataTemplate x:Key="DatabaseComboItemTemplate" DataType="{x:Type models:DatabaseDashboardItem}">
             <StackPanel>
@@ -18,10 +30,17 @@
                            Foreground="{DynamicResource TextSecondaryBrush}"
                            FontSize="11"
                            Margin="0,2,0,0"/>
-                <TextBlock Text="{Binding FileText}"
-                           Foreground="{DynamicResource TextMutedBrush}"
-                           FontSize="11"
-                           Margin="0,1,0,0"/>
+                <WrapPanel Margin="0,1,0,0">
+                    <TextBlock Text="{Binding FileText}"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               FontSize="11"/>
+                    <TextBlock Text=" · "
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               FontSize="11"/>
+                    <TextBlock Text="{Binding SizeText}"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               FontSize="11"/>
+                </WrapPanel>
             </StackPanel>
         </DataTemplate>
 
@@ -38,7 +57,51 @@
         </DataTemplate>
     </Window.Resources>
 
-    <Border Margin="18" Style="{StaticResource HubCard}">
+        <Border x:Name="RootWindowBorder"
+            Background="{DynamicResource WindowOutlineBrush}"
+            CornerRadius="12"
+            SnapsToDevicePixels="True">
+        <Border Background="{DynamicResource WindowBackgroundBrush}"
+                CornerRadius="11"
+                Margin="1"
+                SnapsToDevicePixels="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="38"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border x:Name="TitleBar"
+                        Grid.Row="0"
+                        Background="{DynamicResource TitleBarBackgroundBrush}"
+                        BorderBrush="{DynamicResource TitleBarBorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+                        CornerRadius="11,11,0,0">
+                    <Grid>
+                        <TextBlock Text="Формирование отчёта"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   Margin="14,0,0,0"/>
+                        <Button HorizontalAlignment="Right"
+                                Style="{StaticResource TitleBarCloseButton}"
+                                Click="Close_Click"
+                                Margin="0,2,6,2"
+                                shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                            <Viewbox Width="19" Height="19" Stretch="Uniform">
+                                <Canvas Width="18" Height="18">
+                                    <Path Stroke="{DynamicResource TextPrimaryBrush}"
+                                          StrokeThickness="2.0"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          Data="M 4 4 L 14 14 M 14 4 L 4 14"/>
+                                </Canvas>
+                            </Viewbox>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Margin="18" Style="{StaticResource HubCard}">
         <DockPanel LastChildFill="True">
             <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
                 <TextBlock Text="Формирование отчёта" Style="{StaticResource CardTitle}"/>
@@ -148,5 +211,8 @@
                 </StackPanel>
             </ScrollViewer>
         </DockPanel>
+                </Border>
+            </Grid>
+        </Border>
     </Border>
 </Window>

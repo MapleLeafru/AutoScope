@@ -51,6 +51,8 @@ public class DashboardDataService
             if (string.IsNullOrWhiteSpace(recordsText))
                 recordsText = "Записей: не считалось";
 
+            string sizeText = $"Размер: {FormatFileSize(file.Length)}";
+
             (string displayName, string configName) = SplitDatabaseFileName(file.Name);
             string configDetails = string.IsNullOrWhiteSpace(configName)
                 ? "Конфиг: не указан"
@@ -66,8 +68,9 @@ public class DashboardDataService
                 FileName = file.Name,
                 ConfigName = configName,
                 Path = file.FullName,
-                Details = $"{configDetails} · Файл: {file.Name} · Размер: {FormatFileSize(file.Length)} · {availabilityDetails}",
+                Details = $"{configDetails} · Файл: {file.Name} · {sizeText} · {availabilityDetails}",
                 RecordsText = recordsText,
+                SizeText = sizeText,
                 StateKind = DashboardStateKind.Neutral
             });
 

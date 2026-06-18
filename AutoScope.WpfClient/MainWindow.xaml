@@ -215,7 +215,7 @@
                             </StackPanel>
                             <WrapPanel Grid.Column="1">
                                 <Button Content="Папка" Style="{StaticResource SmallButton}" Click="OpenDatabasesFolder_Click"/>
-                                <Button Content="Управление" Style="{StaticResource SmallButton}" Click="Stub_Click" Tag="Подробное управление базами добавим после проверки хаба."/>
+                                <Button Content="Управление" Style="{StaticResource SmallButton}" Click="OpenDatabaseManager_Click"/>
                             </WrapPanel>
                         </Grid>
 
@@ -231,7 +231,11 @@
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel>
                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                                    <TextBlock Text="{Binding RecordsText}" Foreground="{DynamicResource AccentBrush}" FontSize="12" Margin="0,2,0,0"/>
+                                                    <WrapPanel Margin="0,2,0,0">
+                                                        <TextBlock Text="{Binding RecordsText}" Foreground="{DynamicResource AccentBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                                        <TextBlock Text=" · " Style="{StaticResource MutedText}"/>
+                                                        <TextBlock Text="{Binding SizeText}" Foreground="{DynamicResource AccentBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                                    </WrapPanel>
                                                     <TextBlock Text="{Binding Details}" Style="{StaticResource MutedText}" Margin="0,3,0,0"/>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">

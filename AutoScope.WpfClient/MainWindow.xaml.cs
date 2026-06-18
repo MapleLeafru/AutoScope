@@ -115,6 +115,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _dataService.OpenFolder(_dataService.GetJobsFolderPath());
     }
 
+
+    private void OpenDatabaseManager_Click(object sender, RoutedEventArgs e)
+    {
+        DatabaseManagementWindow window = new DatabaseManagementWindow(_dataService.RootPath)
+        {
+            Owner = this
+        };
+
+        window.ShowDialog();
+        ReloadDashboard();
+        StatusMessage = $"Базы данных обновлены после управления: {DateTime.Now:HH:mm:ss}.";
+    }
+
     private void OpenDbBrowser_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement element || element.Tag is not DatabaseDashboardItem database)
@@ -480,6 +493,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 Name = "Базы не найдены",
                 RecordsText = "нет данных",
+                SizeText = "размер: —",
                 Details = "SQLite-файлы .db в проекте пока не найдены.",
                 StateKind = DashboardStateKind.Neutral
             });

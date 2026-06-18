@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using AutoScope.WpfClient.Models;
 using AutoScope.WpfClient.Services;
 
@@ -274,6 +275,29 @@ public partial class OutputPipelineLaunchWindow : Window, INotifyPropertyChanged
     {
         DialogResult = false;
         Close();
+    }
+
+    private void Close_Click(object sender, RoutedEventArgs e)
+    {
+        Cancel_Click(sender, e);
+    }
+
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+            return;
+
+        if (e.LeftButton != MouseButtonState.Pressed)
+            return;
+
+        try
+        {
+            DragMove();
+        }
+        catch (InvalidOperationException)
+        {
+            // Окно могло уже потерять захват мыши. Для UI это не критично.
+        }
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
