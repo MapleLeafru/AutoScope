@@ -70,7 +70,7 @@
                                    FontWeight="SemiBold"
                                    FontSize="11"
                                    TextAlignment="Center"
-                                   Padding="0,2,0,0"/>
+                                   Padding="0,1,0,0"/>
                     </Grid>
                     <TextBlock Text="AutoScope" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
