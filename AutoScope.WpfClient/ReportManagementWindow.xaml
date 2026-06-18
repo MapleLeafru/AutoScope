@@ -1,19 +1,15 @@
-﻿<Window x:Class="AutoScope.WpfClient.ScenarioManagementWindow"
+<Window x:Class="AutoScope.WpfClient.ReportManagementWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        xmlns:conv="clr-namespace:AutoScope.WpfClient.Converters"
-        Title="Сценарии AutoScope" Height="640" Width="880"
+        Title="Отчёты AutoScope" Height="640" Width="880"
+        MinHeight="520" MinWidth="760"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="CanResize"
         Background="Transparent"
         AllowsTransparency="True"
         UseLayoutRounding="True">
-
-    <Window.Resources>
-        <conv:StatusToBrushConverter x:Key="StatusToBrushConverter"/>
-    </Window.Resources>
 
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="0"
@@ -46,7 +42,7 @@
                         MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
                         CornerRadius="11,11,0,0">
                     <Grid>
-                        <TextBlock Text="Сценарии AutoScope"
+                        <TextBlock Text="Отчёты AutoScope"
                                    FontWeight="SemiBold"
                                    VerticalAlignment="Center"
                                    Margin="14,0,0,0"/>
@@ -75,97 +71,61 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <StackPanel Margin="0,0,18,0">
-                            <TextBlock Text="Управление сценариями" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Список строится по JSON-файлам из папки Jobs. Сценарии можно запускать вручную, включать, выключать и редактировать через UI."
-                                       Style="{StaticResource SectionCaption}"
-                                       TextWrapping="Wrap"/>
+                        <StackPanel>
+                            <TextBlock Text="Найденные отчёты" Style="{StaticResource CardTitle}"/>
+                            <TextBlock Text="HTML-отчёты из папки Reports. Последние отчёты отображаются сверху." Style="{StaticResource SectionCaption}"/>
+                            <TextBlock Text="{Binding ReportsFolderText}" Style="{StaticResource MutedText}"/>
                         </StackPanel>
 
                         <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                            <Button Content="Создать сценарий" Style="{StaticResource AccentSmallButton}" Click="CreateScenario_Click"/>
                             <Button Content="Обновить" Style="{StaticResource SmallButton}" Click="Refresh_Click"/>
-                            <Button Content="Папка" Style="{StaticResource SmallButton}" Click="OpenJobsFolder_Click"/>
+                            <Button Content="Папка" Style="{StaticResource SmallButton}" Click="OpenReportsFolder_Click"/>
                         </WrapPanel>
                     </Grid>
                 </Border>
 
                 <Border Grid.Row="2" Style="{StaticResource HubCard}" Margin="18,0,18,10">
                     <DockPanel LastChildFill="True">
-                        <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel>
-                                <TextBlock Text="Найденные сценарии" Style="{StaticResource CardTitle}"/>
-                                <TextBlock Text="Включённые сценарии подсвечены зелёным, выключенные — красным, ручные — нейтральным."
-                                           Style="{StaticResource SectionCaption}"
-                                           TextWrapping="Wrap"/>
-                            </StackPanel>
-
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding ScenarioCountText}"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       FontWeight="SemiBold"
-                                       VerticalAlignment="Top"
-                                       Margin="12,2,0,0"/>
-                        </Grid>
-
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <ItemsControl ItemsSource="{Binding Scenarios}">
+                            <ItemsControl ItemsSource="{Binding Reports}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Style="{StaticResource ListRow}">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="10"/>
                                                     <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
 
-                                                <Border Width="6"
-                                                        CornerRadius="3"
-                                                        Background="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}"/>
-
-                                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                <StackPanel>
                                                     <TextBlock Text="{Binding Name}"
-                                                               FontWeight="SemiBold"
                                                                FontSize="16"
+                                                               FontWeight="SemiBold"
                                                                TextTrimming="CharacterEllipsis"
-                                                               ToolTip="{Binding Name}"/>
-
+                                                               ToolTip="{Binding FileName}"/>
+                                                    <TextBlock Text="{Binding AnalyzerText}"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="12"
+                                                               Margin="0,2,0,0"/>
                                                     <WrapPanel Margin="0,3,0,0">
-                                                        <TextBlock Text="{Binding PipelineText}"
-                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                        <TextBlock Text="{Binding DateText}"
+                                                                   Foreground="{DynamicResource AccentBrush}"
                                                                    FontSize="12"
                                                                    FontWeight="SemiBold"/>
                                                         <TextBlock Text=" · " Style="{StaticResource MutedText}"/>
-                                                        <TextBlock Text="{Binding StatusText}"
-                                                                   Foreground="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}"
+                                                        <TextBlock Text="{Binding SizeText}"
+                                                                   Foreground="{DynamicResource AccentBrush}"
                                                                    FontSize="12"
                                                                    FontWeight="SemiBold"/>
                                                     </WrapPanel>
-
-                                                    <WrapPanel Margin="0,3,0,0">
-                                                        <TextBlock Text="{Binding ScheduleText}" Foreground="{DynamicResource AccentBrush}" FontSize="12" FontWeight="SemiBold"/>
-                                                        <TextBlock Text=" · " Style="{StaticResource MutedText}"/>
-                                                        <TextBlock Text="{Binding NextRunText}" Foreground="{DynamicResource AccentBrush}" FontSize="12" FontWeight="SemiBold"/>
-                                                    </WrapPanel>
-
-                                                    <TextBlock Text="{Binding Details}" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
                                                     <TextBlock Text="{Binding FileName}" Style="{StaticResource MutedText}" Margin="0,3,0,0"/>
-
-                                                    <WrapPanel Margin="0,12,0,0" HorizontalAlignment="Left">
-                                                        <Button Content="Запустить" Style="{StaticResource AccentSmallButton}" Click="RunScenario_Click" Tag="{Binding}" IsEnabled="{Binding CanRun}"/>
-                                                        <Button Content="Редактировать" Style="{StaticResource SmallButton}" Click="EditScenario_Click" Tag="{Binding}" IsEnabled="{Binding CanEdit}"/>
-                                                        <Button Content="Подробнее" Style="{StaticResource SmallButton}" Click="Details_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenFile}"/>
-                                                        <Button Content="{Binding ToggleActionText}" Style="{StaticResource SmallButton}" Click="ToggleScenario_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenFile}"/>
-                                                        <Button Content="История" Style="{StaticResource SmallButton}" Click="History_Click" Tag="{Binding}" IsEnabled="{Binding CanShowHistory}"/>
-                                                        <Button Content="Файл" Style="{StaticResource SmallButton}" Click="OpenScenarioFile_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenFile}"/>
-                                                        <Button Content="Удалить" Style="{StaticResource DangerSmallButton}" Click="DeleteScenario_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenFile}"/>
-                                                    </WrapPanel>
                                                 </StackPanel>
+
+                                                <WrapPanel Grid.Column="1" VerticalAlignment="Top" Margin="12,0,0,0">
+                                                    <Button Content="Открыть" Style="{StaticResource AccentSmallButton}" Click="OpenReport_Click" Tag="{Binding}" IsEnabled="{Binding CanOpen}"/>
+                                                    <Button Content="Папка" Style="{StaticResource SmallButton}" Click="OpenReportFolder_Click" Tag="{Binding}" IsEnabled="{Binding CanOpen}"/>
+                                                    <Button Content="Удалить" Style="{StaticResource DangerSmallButton}" Click="DeleteReport_Click" Tag="{Binding}" IsEnabled="{Binding CanOpen}"/>
+                                                </WrapPanel>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>

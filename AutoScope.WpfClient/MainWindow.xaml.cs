@@ -100,6 +100,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _dataService.OpenFolder(_dataService.GetReportsFolderPath());
     }
 
+    private void OpenReportsManager_Click(object sender, RoutedEventArgs e)
+    {
+        ReportManagementWindow window = new ReportManagementWindow(_dataService.RootPath)
+        {
+            Owner = this
+        };
+
+        window.ShowDialog();
+        StatusMessage = $"Отчёты обновлены после просмотра: {DateTime.Now:HH:mm:ss}.";
+    }
+
     private void OpenDatabasesFolder_Click(object sender, RoutedEventArgs e)
     {
         _dataService.OpenFolder(_dataService.GetDatabasesFolderPath());

@@ -3,11 +3,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:AutoScope.WpfClient.Models"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="Запуск парсинга" Height="610" Width="760"
+        Title="Запуск парсинга" Height="760" Width="780"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="CanResize"
-        MinHeight="560" MinWidth="680"
+        MinHeight="650" MinWidth="720"
         Background="Transparent"
         AllowsTransparency="True"
         Foreground="{DynamicResource TextPrimaryBrush}"
@@ -116,7 +116,7 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Пока доступны основные настройки. Дополнительные параметры берутся из Configs/ParserConfigs." Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Пустые числовые поля используют значения из конфига выбранного парсера." Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
                     <Button Grid.Column="1" Content="Отмена" Style="{StaticResource BaseButton}" Click="Cancel_Click" Margin="8,0,8,0"/>
                     <Button Grid.Column="2" Content="Запустить" Style="{StaticResource AccentButton}" Click="Start_Click" Margin="0"/>
                 </Grid>
@@ -152,17 +152,83 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel>
-                            <TextBlock Text="Максимум объявлений" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                            <TextBlock Text="MAX_CARS" FontWeight="SemiBold" Margin="0,0,0,6"/>
                             <TextBox Text="{Binding MaxCarsText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SettingsTextBox}"/>
-                            <TextBlock Text="0 — собрать все доступные объявления." Style="{StaticResource MutedText}" Margin="0,5,0,0"/>
+                            <TextBlock Text="0 — собрать все доступные, пусто — из конфига." Style="{StaticResource MutedText}" Margin="0,5,0,0"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="Размер пакета" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                            <TextBlock Text="STREAM_BATCH_SIZE" FontWeight="SemiBold" Margin="0,0,0,6"/>
                             <TextBox Text="{Binding BatchSizeText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SettingsTextBox}"/>
-                            <TextBlock Text="Сколько объявлений передавать в pipeline за один пакет." Style="{StaticResource MutedText}" Margin="0,5,0,0"/>
+                            <TextBlock Text="Пустое поле — значение из конфига." Style="{StaticResource MutedText}" Margin="0,5,0,0"/>
                         </StackPanel>
                     </Grid>
+
+                    <Grid Margin="0,14,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="Задержка HTTP, сек." FontWeight="SemiBold" Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding RequestDelaySecondsText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SettingsTextBox}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Повторы" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding RetryCountText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SettingsTextBox}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="Пауза HTTP 429, сек." FontWeight="SemiBold" Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding RateLimitDelaySecondsText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SettingsTextBox}"/>
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Text="Для этих полей пустое значение означает настройку из конфига выбранного парсера." Style="{StaticResource MutedText}" Margin="0,5,0,0"/>
+
+                    <Border Style="{StaticResource ListRow}" Margin="0,18,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Настройки InputApi" FontWeight="SemiBold"/>
+                            <TextBlock Text="По умолчанию — использовать значение из конфига. Явный выбор перезапишет его только для этого запуска." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,10"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel>
+                                    <TextBlock Text="Страна бренда" Style="{StaticResource SectionCaption}"/>
+                                    <ComboBox ItemsSource="{Binding BrandCountryOptions}" SelectedItem="{Binding SelectedBrandCountryEnrichment}" DisplayMemberPath="DisplayName" Style="{StaticResource SettingsComboBox}" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Коробка передач" Style="{StaticResource SectionCaption}"/>
+                                    <ComboBox ItemsSource="{Binding TransmissionOptions}" SelectedItem="{Binding SelectedTransmissionNormalization}" DisplayMemberPath="DisplayName" Style="{StaticResource SettingsComboBox}" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2">
+                                    <TextBlock Text="Тип привода" Style="{StaticResource SectionCaption}"/>
+                                    <ComboBox ItemsSource="{Binding DriveTypeOptions}" SelectedItem="{Binding SelectedDriveTypeNormalization}" DisplayMemberPath="DisplayName" Style="{StaticResource SettingsComboBox}" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2" Grid.Column="2">
+                                    <TextBlock Text="Тип топлива" Style="{StaticResource SectionCaption}"/>
+                                    <ComboBox ItemsSource="{Binding FuelTypeOptions}" SelectedItem="{Binding SelectedFuelTypeNormalization}" DisplayMemberPath="DisplayName" Style="{StaticResource SettingsComboBox}" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
                     <Border Style="{StaticResource ListRow}" Margin="0,18,0,0">
                         <StackPanel>

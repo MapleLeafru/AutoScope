@@ -151,7 +151,7 @@
                         <WrapPanel>
                             <Button Content="Запустить парсинг" Style="{StaticResource AccentButton}" Click="LaunchInputPipeline_Click"/>
                             <Button Content="Сформировать отчёт" Style="{StaticResource AccentButton}" Click="LaunchOutputPipeline_Click"/>
-                            <Button Content="Открыть папку отчётов" Style="{StaticResource BaseButton}" Click="OpenReportsFolder_Click"/>
+                            <Button Content="Отчёты" Style="{StaticResource BaseButton}" Click="OpenReportsManager_Click"/>
                             <Button Content="Открыть папку логов" Style="{StaticResource BaseButton}" Click="OpenLogsFolder_Click"/>
                             <Button Content="Настройки" Style="{StaticResource BaseButton}" Click="Settings_Click"/>
                         </WrapPanel>

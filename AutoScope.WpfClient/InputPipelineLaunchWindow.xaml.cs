@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -16,12 +18,23 @@ public partial class InputPipelineLaunchWindow : Window, INotifyPropertyChanged
     private DatabaseDashboardItem? _selectedDatabase;
     private ParserLaunchItem? _selectedParser;
     private string _startUrl = "";
-    private string _maxCarsText = "20";
-    private string _batchSizeText = "5";
+    private string _maxCarsText = "";
+    private string _batchSizeText = "";
+    private string _requestDelaySecondsText = "";
+    private string _retryCountText = "";
+    private string _rateLimitDelaySecondsText = "";
     private string _statusMessage = "";
+    private BooleanChoiceOption? _selectedBrandCountryEnrichment;
+    private BooleanChoiceOption? _selectedTransmissionNormalization;
+    private BooleanChoiceOption? _selectedDriveTypeNormalization;
+    private BooleanChoiceOption? _selectedFuelTypeNormalization;
 
     public ObservableCollection<DatabaseDashboardItem> Databases { get; } = new();
     public ObservableCollection<ParserLaunchItem> Parsers { get; } = new();
+    public ObservableCollection<BooleanChoiceOption> BrandCountryOptions { get; } = new();
+    public ObservableCollection<BooleanChoiceOption> TransmissionOptions { get; } = new();
+    public ObservableCollection<BooleanChoiceOption> DriveTypeOptions { get; } = new();
+    public ObservableCollection<BooleanChoiceOption> FuelTypeOptions { get; } = new();
 
     public bool RunStarted { get; private set; }
     public string ResultMessage { get; private set; } = "";
@@ -62,6 +75,48 @@ public partial class InputPipelineLaunchWindow : Window, INotifyPropertyChanged
         set { _batchSizeText = value; OnPropertyChanged(); OnPropertyChanged(nameof(SummaryText)); }
     }
 
+    public string RequestDelaySecondsText
+    {
+        get => _requestDelaySecondsText;
+        set { _requestDelaySecondsText = value; OnPropertyChanged(); OnPropertyChanged(nameof(SummaryText)); }
+    }
+
+    public string RetryCountText
+    {
+        get => _retryCountText;
+        set { _retryCountText = value; OnPropertyChanged(); OnPropertyChanged(nameof(SummaryText)); }
+    }
+
+    public string RateLimitDelaySecondsText
+    {
+        get => _rateLimitDelaySecondsText;
+        set { _rateLimitDelaySecondsText = value; OnPropertyChanged(); OnPropertyChanged(nameof(SummaryText)); }
+    }
+
+    public BooleanChoiceOption? SelectedBrandCountryEnrichment
+    {
+        get => _selectedBrandCountryEnrichment;
+        set { _selectedBrandCountryEnrichment = value; OnPropertyChanged(); OnPropertyChanged(nameof(SummaryText)); }
+    }
+
+    public BooleanChoiceOption? SelectedTransmissionNormalization
+    {
+        get => _selectedTransmissionNormalization;
+        set { _selectedTransmissionNormalization = value; OnPropertyChanged(); OnPropertyChanged(nameof(SummaryText)); }
+    }
+
+    public BooleanChoiceOption? SelectedDriveTypeNormalization
+    {
+        get => _selectedDriveTypeNormalization;
+        set { _selectedDriveTypeNormalization = value; OnPropertyChanged(); OnPropertyChanged(nameof(SummaryText)); }
+    }
+
+    public BooleanChoiceOption? SelectedFuelTypeNormalization
+    {
+        get => _selectedFuelTypeNormalization;
+        set { _selectedFuelTypeNormalization = value; OnPropertyChanged(); OnPropertyChanged(nameof(SummaryText)); }
+    }
+
     public string StatusMessage
     {
         get => _statusMessage;
@@ -74,9 +129,12 @@ public partial class InputPipelineLaunchWindow : Window, INotifyPropertyChanged
         {
             string database = SelectedDatabase?.LaunchDisplayName ?? "база не выбрана";
             string parser = SelectedParser?.DisplayName ?? "парсер не выбран";
-            string maxCars = string.IsNullOrWhiteSpace(MaxCarsText) ? "не задано" : MaxCarsText;
-            string batchSize = string.IsNullOrWhiteSpace(BatchSizeText) ? "не задано" : BatchSizeText;
-            return $"База: {database}\nПарсер: {parser}\nМаксимум объявлений: {maxCars}\nРазмер пакета: {batchSize}";
+            string maxCars = FormatOptionalNumber(MaxCarsText, "из конфига");
+            string batchSize = FormatOptionalNumber(BatchSizeText, "из конфига");
+            string delay = FormatOptionalNumber(RequestDelaySecondsText, "из конфига");
+            string retries = FormatOptionalNumber(RetryCountText, "из конфига");
+            string rateLimit = FormatOptionalNumber(RateLimitDelaySecondsText, "из конфига");
+            return $"База: {database}\nПарсер: {parser}\nМаксимум объявлений: {maxCars}\nРазмер пакета: {batchSize}\nЗадержка HTTP: {delay} сек. · Повторы: {retries} · Пауза 429: {rateLimit} сек.\nAPI: страна бренда — {FormatChoice(SelectedBrandCountryEnrichment)}, коробка — {FormatChoice(SelectedTransmissionNormalization)}, привод — {FormatChoice(SelectedDriveTypeNormalization)}, топливо — {FormatChoice(SelectedFuelTypeNormalization)}";
         }
     }
 
@@ -119,7 +177,7 @@ public partial class InputPipelineLaunchWindow : Window, INotifyPropertyChanged
 
     private void Start_Click(object sender, RoutedEventArgs e)
     {
-        if (!Validate(out int maxCars, out int batchSize))
+        if (!Validate(out int? maxCars, out int? batchSize, out double? requestDelaySeconds, out int? retryCount, out double? rateLimitDelaySeconds))
             return;
 
         InputPipelineLaunchRequest request = new InputPipelineLaunchRequest
@@ -128,7 +186,14 @@ public partial class InputPipelineLaunchWindow : Window, INotifyPropertyChanged
             Parser = SelectedParser!,
             StartUrl = StartUrl,
             MaxCars = maxCars,
-            StreamBatchSize = batchSize
+            StreamBatchSize = batchSize,
+            RequestDelaySeconds = requestDelaySeconds,
+            RetryCount = retryCount,
+            RateLimitDelaySeconds = rateLimitDelaySeconds,
+            BrandCountryEnrichment = SelectedBrandCountryEnrichment?.Value,
+            TransmissionNormalization = SelectedTransmissionNormalization?.Value,
+            DriveTypeNormalization = SelectedDriveTypeNormalization?.Value,
+            FuelTypeNormalization = SelectedFuelTypeNormalization?.Value
         };
 
         PipelineLaunchResult result = _launchService.StartInputPipeline(request);
@@ -146,10 +211,13 @@ public partial class InputPipelineLaunchWindow : Window, INotifyPropertyChanged
         Close();
     }
 
-    private bool Validate(out int maxCars, out int batchSize)
+    private bool Validate(out int? maxCars, out int? batchSize, out double? requestDelaySeconds, out int? retryCount, out double? rateLimitDelaySeconds)
     {
-        maxCars = 0;
-        batchSize = 0;
+        maxCars = null;
+        batchSize = null;
+        requestDelaySeconds = null;
+        retryCount = null;
+        rateLimitDelaySeconds = null;
 
         if (SelectedDatabase == null)
         {
@@ -169,19 +237,56 @@ public partial class InputPipelineLaunchWindow : Window, INotifyPropertyChanged
             return false;
         }
 
-        if (!int.TryParse(MaxCarsText, out maxCars) || maxCars < 0)
-        {
-            StatusMessage = "Максимум объявлений должен быть целым числом 0 или больше.";
+        if (!TryParseOptionalInt(MaxCarsText, 0, "Максимум объявлений должен быть целым числом 0 или больше.", out maxCars))
             return false;
-        }
 
-        if (!int.TryParse(BatchSizeText, out batchSize) || batchSize <= 0)
-        {
-            StatusMessage = "Размер пакета должен быть целым числом больше 0.";
+        if (!TryParseOptionalInt(BatchSizeText, 1, "Размер пакета должен быть целым числом больше 0.", out batchSize))
             return false;
-        }
+
+        if (!TryParseOptionalDouble(RequestDelaySecondsText, 0, "Задержка между HTTP-запросами должна быть числом 0 или больше.", out requestDelaySeconds))
+            return false;
+
+        if (!TryParseOptionalInt(RetryCountText, 0, "Количество повторов должно быть целым числом 0 или больше.", out retryCount))
+            return false;
+
+        if (!TryParseOptionalDouble(RateLimitDelaySecondsText, 0, "Пауза при HTTP 429 должна быть числом 0 или больше.", out rateLimitDelaySeconds))
+            return false;
 
         return true;
+    }
+
+    private bool TryParseOptionalInt(string text, int minimum, string errorMessage, out int? result)
+    {
+        result = null;
+        text = (text ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(text))
+            return true;
+
+        if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) && parsed >= minimum)
+        {
+            result = parsed;
+            return true;
+        }
+
+        StatusMessage = errorMessage;
+        return false;
+    }
+
+    private bool TryParseOptionalDouble(string text, double minimum, string errorMessage, out double? result)
+    {
+        result = null;
+        text = (text ?? "").Trim().Replace(",", ".");
+        if (string.IsNullOrWhiteSpace(text))
+            return true;
+
+        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed) && parsed >= minimum)
+        {
+            result = parsed;
+            return true;
+        }
+
+        StatusMessage = errorMessage;
+        return false;
     }
 
     private void ApplyParserDefaults(ParserLaunchItem? parser)
@@ -190,8 +295,49 @@ public partial class InputPipelineLaunchWindow : Window, INotifyPropertyChanged
             return;
 
         StartUrl = parser.Settings.StartUrl;
-        MaxCarsText = parser.Settings.MaxCars.ToString();
-        BatchSizeText = parser.Settings.StreamBatchSize.ToString();
+        MaxCarsText = parser.Settings.MaxCars.ToString(CultureInfo.InvariantCulture);
+        BatchSizeText = parser.Settings.StreamBatchSize.ToString(CultureInfo.InvariantCulture);
+        RequestDelaySecondsText = parser.Settings.RequestDelaySeconds.ToString("0.###", CultureInfo.InvariantCulture);
+        RetryCountText = parser.Settings.RetryCount.ToString(CultureInfo.InvariantCulture);
+        RateLimitDelaySecondsText = parser.Settings.RateLimitDelaySeconds.ToString("0.###", CultureInfo.InvariantCulture);
+
+        ResetApiChoices(parser.Settings.ApiSettings);
+    }
+
+    private void ResetApiChoices(InputApiLaunchSettings settings)
+    {
+        FillChoiceOptions(BrandCountryOptions, settings.BrandCountryEnrichment);
+        FillChoiceOptions(TransmissionOptions, settings.TransmissionNormalization);
+        FillChoiceOptions(DriveTypeOptions, settings.DriveTypeNormalization);
+        FillChoiceOptions(FuelTypeOptions, settings.FuelTypeNormalization);
+
+        SelectedBrandCountryEnrichment = BrandCountryOptions.FirstOrDefault();
+        SelectedTransmissionNormalization = TransmissionOptions.FirstOrDefault();
+        SelectedDriveTypeNormalization = DriveTypeOptions.FirstOrDefault();
+        SelectedFuelTypeNormalization = FuelTypeOptions.FirstOrDefault();
+    }
+
+    private void FillChoiceOptions(ObservableCollection<BooleanChoiceOption> target, bool defaultValue)
+    {
+        target.Clear();
+        target.Add(new BooleanChoiceOption("default", $"По умолчанию ({FormatBool(defaultValue)})", null));
+        target.Add(new BooleanChoiceOption("yes", "Включено", true));
+        target.Add(new BooleanChoiceOption("no", "Выключено", false));
+    }
+
+    private string FormatOptionalNumber(string value, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+    }
+
+    private string FormatChoice(BooleanChoiceOption? option)
+    {
+        return option?.DisplayName ?? "по умолчанию";
+    }
+
+    private string FormatBool(bool value)
+    {
+        return value ? "включено" : "выключено";
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)

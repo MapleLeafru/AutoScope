@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -59,8 +59,24 @@ public class InputPipelineLaunchService
             string pythonPath = ResolvePythonPath();
             ParserLaunchSettings settings = CloneSettings(launchRequest.Parser.Settings);
             settings.StartUrl = launchRequest.StartUrl.Trim();
-            settings.MaxCars = launchRequest.MaxCars;
-            settings.StreamBatchSize = launchRequest.StreamBatchSize;
+            if (launchRequest.MaxCars.HasValue)
+                settings.MaxCars = launchRequest.MaxCars.Value;
+            if (launchRequest.StreamBatchSize.HasValue)
+                settings.StreamBatchSize = launchRequest.StreamBatchSize.Value;
+            if (launchRequest.RequestDelaySeconds.HasValue)
+                settings.RequestDelaySeconds = launchRequest.RequestDelaySeconds.Value;
+            if (launchRequest.RetryCount.HasValue)
+                settings.RetryCount = launchRequest.RetryCount.Value;
+            if (launchRequest.RateLimitDelaySeconds.HasValue)
+                settings.RateLimitDelaySeconds = launchRequest.RateLimitDelaySeconds.Value;
+            if (launchRequest.BrandCountryEnrichment.HasValue)
+                settings.ApiSettings.BrandCountryEnrichment = launchRequest.BrandCountryEnrichment.Value;
+            if (launchRequest.TransmissionNormalization.HasValue)
+                settings.ApiSettings.TransmissionNormalization = launchRequest.TransmissionNormalization.Value;
+            if (launchRequest.DriveTypeNormalization.HasValue)
+                settings.ApiSettings.DriveTypeNormalization = launchRequest.DriveTypeNormalization.Value;
+            if (launchRequest.FuelTypeNormalization.HasValue)
+                settings.ApiSettings.FuelTypeNormalization = launchRequest.FuelTypeNormalization.Value;
 
             object payload = BuildInputPayload(launchRequest.DatabasePath, launchRequest.Parser, settings, pythonPath);
             string json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
@@ -172,11 +188,16 @@ public class InputPipelineLaunchService
                 item.Description = ReadString(metadata, "description", item.Description);
             }
 
+            if (root.TryGetProperty("apiSettings", out JsonElement rootApiSettings))
+                ApplyApiSettings(item.Settings.ApiSettings, rootApiSettings);
+
             JsonElement settingsElement = root.TryGetProperty("settings", out JsonElement nestedSettings)
                 ? nestedSettings
                 : root;
 
             ApplySettings(item.Settings, settingsElement);
+            if (settingsElement.TryGetProperty("apiSettings", out JsonElement nestedApiSettings))
+                ApplyApiSettings(item.Settings.ApiSettings, nestedApiSettings);
         }
         catch
         {
@@ -197,6 +218,8 @@ public class InputPipelineLaunchService
         {
             using JsonDocument document = JsonDocument.Parse(File.ReadAllText(defaultSettingsPath));
             ApplySettings(settings, document.RootElement);
+            if (document.RootElement.TryGetProperty("apiSettings", out JsonElement apiSettings))
+                ApplyApiSettings(settings.ApiSettings, apiSettings);
         }
         catch
         {
@@ -253,8 +276,61 @@ public class InputPipelineLaunchService
                 continue;
             }
 
+            if (string.Equals(name, "apiSettings", StringComparison.OrdinalIgnoreCase) && value.ValueKind == JsonValueKind.Object)
+            {
+                ApplyApiSettings(settings.ApiSettings, value);
+                continue;
+            }
+
             settings.ExtraSettings[name] = ConvertJsonElement(value);
         }
+    }
+
+
+    private void ApplyApiSettings(InputApiLaunchSettings settings, JsonElement source)
+    {
+        foreach (JsonProperty property in source.EnumerateObject())
+        {
+            string name = property.Name;
+            JsonElement value = property.Value;
+
+            if (string.Equals(name, "brandCountryEnrichment", StringComparison.OrdinalIgnoreCase))
+            {
+                settings.BrandCountryEnrichment = ReadElementAsBool(value, settings.BrandCountryEnrichment);
+                continue;
+            }
+
+            if (string.Equals(name, "transmissionNormalization", StringComparison.OrdinalIgnoreCase))
+            {
+                settings.TransmissionNormalization = ReadElementAsBool(value, settings.TransmissionNormalization);
+                continue;
+            }
+
+            if (string.Equals(name, "driveTypeNormalization", StringComparison.OrdinalIgnoreCase))
+            {
+                settings.DriveTypeNormalization = ReadElementAsBool(value, settings.DriveTypeNormalization);
+                continue;
+            }
+
+            if (string.Equals(name, "fuelTypeNormalization", StringComparison.OrdinalIgnoreCase))
+            {
+                settings.FuelTypeNormalization = ReadElementAsBool(value, settings.FuelTypeNormalization);
+            }
+        }
+    }
+
+    private bool ReadElementAsBool(JsonElement value, bool fallback)
+    {
+        if (value.ValueKind == JsonValueKind.True)
+            return true;
+
+        if (value.ValueKind == JsonValueKind.False)
+            return false;
+
+        if (value.ValueKind == JsonValueKind.String && bool.TryParse(value.GetString(), out bool result))
+            return result;
+
+        return fallback;
     }
 
     private object BuildInputPayload(string databasePath, ParserLaunchItem parser, ParserLaunchSettings settings, string pythonPath)
@@ -290,10 +366,10 @@ public class InputPipelineLaunchService
             parserSettings,
             apiSettings = new
             {
-                brandCountryEnrichment = true,
-                transmissionNormalization = false,
-                driveTypeNormalization = false,
-                fuelTypeNormalization = false
+                brandCountryEnrichment = settings.ApiSettings.BrandCountryEnrichment,
+                transmissionNormalization = settings.ApiSettings.TransmissionNormalization,
+                driveTypeNormalization = settings.ApiSettings.DriveTypeNormalization,
+                fuelTypeNormalization = settings.ApiSettings.FuelTypeNormalization
             },
             runtimeSettings = new
             {
@@ -315,6 +391,13 @@ public class InputPipelineLaunchService
             RequestDelaySeconds = source.RequestDelaySeconds,
             RetryCount = source.RetryCount,
             RateLimitDelaySeconds = source.RateLimitDelaySeconds,
+            ApiSettings = new InputApiLaunchSettings
+            {
+                BrandCountryEnrichment = source.ApiSettings.BrandCountryEnrichment,
+                TransmissionNormalization = source.ApiSettings.TransmissionNormalization,
+                DriveTypeNormalization = source.ApiSettings.DriveTypeNormalization,
+                FuelTypeNormalization = source.ApiSettings.FuelTypeNormalization
+            },
             ExtraSettings = new Dictionary<string, object?>(source.ExtraSettings, StringComparer.OrdinalIgnoreCase)
         };
     }

@@ -143,7 +143,8 @@ public partial class ScenarioManagementWindow : Window, INotifyPropertyChanged
 
         try
         {
-            ScenarioEditWindow window = new ScenarioEditWindow(_scenarioService, scenario)
+            ScenarioEditDraft draft = _scenarioService.LoadEditDraft(scenario);
+            ScenarioEditWindow window = new ScenarioEditWindow(_scenarioService, draft)
             {
                 Owner = this
             };

@@ -99,8 +99,8 @@ public class ScenarioManagementService
         {
             if (string.IsNullOrWhiteSpace(draft.StartUrl))
                 return ScenarioOperationResult.Fail("Для сценария парсинга нужен стартовый URL.");
-            if (draft.MaxCars <= 0)
-                return ScenarioOperationResult.Fail("Максимум объявлений должен быть больше нуля.");
+            if (draft.MaxCars < 0)
+                return ScenarioOperationResult.Fail("Максимум объявлений должен быть 0 или больше.");
             if (draft.StreamBatchSize <= 0)
                 return ScenarioOperationResult.Fail("Размер пакета должен быть больше нуля.");
         }
@@ -143,13 +143,7 @@ public class ScenarioManagementService
 
                 obj["parserPath"] = parser.Path;
                 obj["parserSettings"] = JsonSerializer.SerializeToNode(parserSettings) ?? new JsonObject();
-                obj["apiSettings"] = new JsonObject
-                {
-                    ["brandCountryEnrichment"] = true,
-                    ["transmissionNormalization"] = false,
-                    ["driveTypeNormalization"] = false,
-                    ["fuelTypeNormalization"] = false
-                };
+                obj["apiSettings"] = JsonSerializer.SerializeToNode(BuildApiSettings(draft)) ?? new JsonObject();
             }
             else
             {
@@ -233,22 +227,48 @@ public class ScenarioManagementService
 
         string scheduleType = ReadNestedString(root, "schedule", "type") ?? "manual";
         int everyHours = ReadNestedInt(root, "schedule", "everyHours") ?? 0;
-        string pipelineType = ReadString(root, "pipelineType") ?? "";
-        string parserPath = ReadString(root, "parserPath") ?? "";
-        string analyzerPath = ReadString(root, "analyzerPath") ?? "";
+        string pipelineType = ReadString(root, "pipelineType") ?? "input";
+        string dbPath = ResolveProjectPath(ReadString(root, "dbPath") ?? "");
+        string parserPath = ResolveProjectPath(ReadString(root, "parserPath") ?? "");
+        string analyzerPath = ResolveProjectPath(ReadString(root, "analyzerPath") ?? "");
         string modulePath = string.IsNullOrWhiteSpace(parserPath) ? analyzerPath : parserPath;
+
+        Dictionary<string, object?> parserSettings = ReadObjectAsDictionary(root, "parserSettings");
+        Dictionary<string, object?> apiSettings = ReadObjectAsDictionary(root, "apiSettings");
+        Dictionary<string, object?> outputSettings = ReadObjectAsDictionary(root, "outputSettings");
 
         return new ScenarioEditDraft
         {
             FilePath = scenario.Path,
+            FileName = Path.GetFileName(scenario.Path),
             Name = ReadString(root, "jobName", "scenarioName", "name") ?? scenario.Name,
             Enabled = ReadBool(root, "enabled") ?? true,
             IsManualOnly = string.Equals(scheduleType, "manual", StringComparison.OrdinalIgnoreCase) || everyHours <= 0,
             EveryHours = everyHours > 0 ? everyHours : 24,
+            PipelineType = string.Equals(pipelineType, "output", StringComparison.OrdinalIgnoreCase) ? "output" : "input",
+            DatabasePath = dbPath,
+            ParserPath = parserPath,
+            AnalyzerPath = analyzerPath,
             PipelineText = FormatPipelineType(pipelineType),
-            DatabaseName = Path.GetFileName(ReadString(root, "dbPath") ?? ""),
+            DatabaseName = Path.GetFileName(dbPath),
             ModuleName = Path.GetFileName(modulePath),
-            FileName = Path.GetFileName(scenario.Path)
+            StartUrl = ReadStringValue(parserSettings, "startUrl") ?? "",
+            MaxCars = ReadIntValue(parserSettings, "maxCars") ?? 20,
+            StreamBatchSize = ReadIntValue(parserSettings, "streamBatchSize") ?? ReadIntValue(parserSettings, "batchSize") ?? 5,
+            RequestDelaySeconds = ReadDoubleValue(parserSettings, "requestDelaySeconds") ?? 1.2,
+            RetryCount = ReadIntValue(parserSettings, "retryCount") ?? 3,
+            RateLimitDelaySeconds = ReadDoubleValue(parserSettings, "rateLimitDelaySeconds") ?? 5,
+            BrandCountryEnrichment = ReadBoolValue(apiSettings, "brandCountryEnrichment") ?? true,
+            TransmissionNormalization = ReadBoolValue(apiSettings, "transmissionNormalization") ?? false,
+            DriveTypeNormalization = ReadBoolValue(apiSettings, "driveTypeNormalization") ?? false,
+            FuelTypeNormalization = ReadBoolValue(apiSettings, "fuelTypeNormalization") ?? false,
+            LatestOnly = ReadBoolValue(outputSettings, "latestOnly") ?? true,
+            OnlyChanged = ReadBoolValue(outputSettings, "onlyChanged") ?? false,
+            Brand = ReadStringValue(outputSettings, "brand") ?? "",
+            Model = ReadStringValue(outputSettings, "model") ?? "",
+            SaleRegion = ReadStringValue(outputSettings, "saleRegion") ?? "",
+            YearFrom = ReadIntValue(outputSettings, "yearFrom"),
+            YearTo = ReadIntValue(outputSettings, "yearTo")
         };
     }
 
@@ -261,9 +281,34 @@ public class ScenarioManagementService
         if (string.IsNullOrWhiteSpace(newName))
             return ScenarioOperationResult.Fail("Название сценария не может быть пустым.");
 
+        if (draft.Database == null || string.IsNullOrWhiteSpace(draft.Database.Path))
+            return ScenarioOperationResult.Fail("Выбери базу данных.");
+
+        bool isInput = string.Equals(draft.PipelineType, "input", StringComparison.OrdinalIgnoreCase);
+        bool isOutput = string.Equals(draft.PipelineType, "output", StringComparison.OrdinalIgnoreCase);
+
+        if (!isInput && !isOutput)
+            return ScenarioOperationResult.Fail("Выбери тип сценария: парсинг или анализ.");
+
+        if (isInput && (draft.Parser == null || string.IsNullOrWhiteSpace(draft.Parser.Path)))
+            return ScenarioOperationResult.Fail("Выбери парсер.");
+
+        if (isOutput && (draft.Analyzer == null || string.IsNullOrWhiteSpace(draft.Analyzer.Path)))
+            return ScenarioOperationResult.Fail("Выбери анализатор.");
+
         int everyHours = Math.Max(0, draft.EveryHours);
         if (!draft.IsManualOnly && everyHours <= 0)
             return ScenarioOperationResult.Fail("Интервал автоповтора должен быть больше нуля.");
+
+        if (isInput)
+        {
+            if (string.IsNullOrWhiteSpace(draft.StartUrl))
+                return ScenarioOperationResult.Fail("Для сценария парсинга нужен стартовый URL.");
+            if (draft.MaxCars < 0)
+                return ScenarioOperationResult.Fail("Максимум объявлений должен быть 0 или больше.");
+            if (draft.StreamBatchSize <= 0)
+                return ScenarioOperationResult.Fail("Размер пакета должен быть больше нуля.");
+        }
 
         try
         {
@@ -279,6 +324,17 @@ public class ScenarioManagementService
                 obj["name"] = newName;
 
             obj["enabled"] = draft.Enabled;
+            obj["pipelineType"] = isInput ? "input" : "output";
+            obj["dbPath"] = draft.Database.Path;
+
+            if (obj["runtimeSettings"] is not JsonObject)
+            {
+                obj["runtimeSettings"] = new JsonObject
+                {
+                    ["pythonPath"] = ResolveDefaultPythonPath(),
+                    ["javaPath"] = ResolveDefaultJavaPath()
+                };
+            }
 
             JsonObject schedule;
             if (obj["schedule"] is JsonObject existingSchedule)
@@ -303,6 +359,29 @@ public class ScenarioManagementService
                 string currentNextRun = ReadStringFromNode(obj, "nextRunAt");
                 if (string.IsNullOrWhiteSpace(currentNextRun))
                     obj["nextRunAt"] = FormatJobTime(DateTime.Now.AddHours(everyHours));
+            }
+
+            if (isInput)
+            {
+                ParserLaunchItem parser = draft.Parser!;
+                obj["parserPath"] = parser.Path;
+                obj["parserSettings"] = JsonSerializer.SerializeToNode(BuildParserSettings(draft)) ?? new JsonObject();
+                obj["apiSettings"] = JsonSerializer.SerializeToNode(BuildApiSettings(draft)) ?? new JsonObject();
+
+                obj.Remove("analyzerPath");
+                obj.Remove("outputSettings");
+                obj.Remove("analyzerSettings");
+            }
+            else
+            {
+                AnalyzerLaunchItem analyzer = draft.Analyzer!;
+                obj["analyzerPath"] = analyzer.Path;
+                obj["outputSettings"] = JsonSerializer.SerializeToNode(BuildOutputSettings(draft)) ?? new JsonObject();
+                obj["analyzerSettings"] = JsonSerializer.SerializeToNode(new Dictionary<string, object?>(analyzer.Settings, StringComparer.OrdinalIgnoreCase)) ?? new JsonObject();
+
+                obj.Remove("parserPath");
+                obj.Remove("parserSettings");
+                obj.Remove("apiSettings");
             }
 
             File.WriteAllText(draft.FilePath, obj.ToJsonString(_jsonOptions));
@@ -730,6 +809,12 @@ public class ScenarioManagementService
             parserSettings["maxCars"] = 20;
         if (!parserSettings.ContainsKey("streamBatchSize") && !parserSettings.ContainsKey("batchSize"))
             parserSettings["streamBatchSize"] = 5;
+        if (!parserSettings.ContainsKey("requestDelaySeconds"))
+            parserSettings["requestDelaySeconds"] = 1.2;
+        if (!parserSettings.ContainsKey("retryCount"))
+            parserSettings["retryCount"] = 3;
+        if (!parserSettings.ContainsKey("rateLimitDelaySeconds"))
+            parserSettings["rateLimitDelaySeconds"] = 5;
 
         if (!apiSettings.ContainsKey("brandCountryEnrichment"))
             apiSettings["brandCountryEnrichment"] = true;
@@ -759,9 +844,9 @@ public class ScenarioManagementService
             ["maxCars"] = draft.MaxCars,
             ["streamBatchSize"] = draft.StreamBatchSize,
             ["batchSize"] = draft.StreamBatchSize,
-            ["requestDelaySeconds"] = source.RequestDelaySeconds,
-            ["retryCount"] = source.RetryCount,
-            ["rateLimitDelaySeconds"] = source.RateLimitDelaySeconds
+            ["requestDelaySeconds"] = draft.RequestDelaySeconds,
+            ["retryCount"] = draft.RetryCount,
+            ["rateLimitDelaySeconds"] = draft.RateLimitDelaySeconds
         };
 
         foreach (KeyValuePair<string, object?> item in source.ExtraSettings)
@@ -771,6 +856,17 @@ public class ScenarioManagementService
         }
 
         return parserSettings;
+    }
+
+    private Dictionary<string, object?> BuildApiSettings(ScenarioCreateDraft draft)
+    {
+        return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["brandCountryEnrichment"] = draft.BrandCountryEnrichment,
+            ["transmissionNormalization"] = draft.TransmissionNormalization,
+            ["driveTypeNormalization"] = draft.DriveTypeNormalization,
+            ["fuelTypeNormalization"] = draft.FuelTypeNormalization
+        };
     }
 
     private Dictionary<string, object?> BuildOutputSettings(ScenarioCreateDraft draft)
@@ -793,6 +889,74 @@ public class ScenarioManagementService
         }
 
         return outputSettings;
+    }
+
+
+    private string? ReadStringValue(Dictionary<string, object?> values, string key)
+    {
+        if (!values.TryGetValue(key, out object? value) || value == null)
+            return null;
+
+        string text = Convert.ToString(value, CultureInfo.InvariantCulture) ?? "";
+        return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
+
+    private int? ReadIntValue(Dictionary<string, object?> values, string key)
+    {
+        if (!values.TryGetValue(key, out object? value) || value == null)
+            return null;
+
+        if (value is int intValue)
+            return intValue;
+
+        if (value is long longValue)
+            return (int)longValue;
+
+        if (value is double doubleValue)
+            return (int)doubleValue;
+
+        if (int.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out int parsed))
+            return parsed;
+
+        return null;
+    }
+
+    private double? ReadDoubleValue(Dictionary<string, object?> values, string key)
+    {
+        if (!values.TryGetValue(key, out object? value) || value == null)
+            return null;
+
+        if (value is double doubleValue)
+            return doubleValue;
+
+        if (value is float floatValue)
+            return floatValue;
+
+        if (value is int intValue)
+            return intValue;
+
+        if (value is long longValue)
+            return longValue;
+
+        string text = (Convert.ToString(value, CultureInfo.InvariantCulture) ?? "").Replace(",", ".");
+        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed))
+            return parsed;
+
+        return null;
+    }
+
+    private bool? ReadBoolValue(Dictionary<string, object?> values, string key)
+    {
+        if (!values.TryGetValue(key, out object? value) || value == null)
+            return null;
+
+        if (value is bool boolValue)
+            return boolValue;
+
+        if (bool.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out bool parsed))
+            return parsed;
+
+        return null;
     }
 
     private string BuildNewJobId(string scenarioName)
@@ -1210,32 +1374,38 @@ public class ScenarioOperationResult
     }
 }
 
-public class ScenarioEditDraft
+public class ScenarioEditDraft : ScenarioCreateDraft
 {
     public string FilePath { get; set; } = "";
-    public string Name { get; set; } = "";
-    public bool Enabled { get; set; }
-    public bool IsManualOnly { get; set; }
-    public int EveryHours { get; set; } = 24;
+    public string FileName { get; set; } = "";
     public string PipelineText { get; set; } = "";
     public string DatabaseName { get; set; } = "";
     public string ModuleName { get; set; } = "";
-    public string FileName { get; set; } = "";
+    public string DatabasePath { get; set; } = "";
+    public string ParserPath { get; set; } = "";
+    public string AnalyzerPath { get; set; } = "";
 }
 
 public class ScenarioCreateDraft
 {
     public string Name { get; set; } = "";
     public bool Enabled { get; set; } = true;
-    public bool IsManualOnly { get; set; } = true;
+    public bool IsManualOnly { get; set; } = false;
     public int EveryHours { get; set; } = 24;
     public string PipelineType { get; set; } = "input";
     public DatabaseDashboardItem? Database { get; set; }
     public ParserLaunchItem? Parser { get; set; }
     public AnalyzerLaunchItem? Analyzer { get; set; }
     public string StartUrl { get; set; } = "";
-    public int MaxCars { get; set; } = 20;
-    public int StreamBatchSize { get; set; } = 5;
+    public int MaxCars { get; set; } = 200;
+    public int StreamBatchSize { get; set; } = 100;
+    public double RequestDelaySeconds { get; set; } = 1.2;
+    public int RetryCount { get; set; } = 3;
+    public double RateLimitDelaySeconds { get; set; } = 5;
+    public bool BrandCountryEnrichment { get; set; } = true;
+    public bool TransmissionNormalization { get; set; } = false;
+    public bool DriveTypeNormalization { get; set; } = false;
+    public bool FuelTypeNormalization { get; set; } = false;
     public bool LatestOnly { get; set; } = true;
     public bool OnlyChanged { get; set; }
     public string Brand { get; set; } = "";
