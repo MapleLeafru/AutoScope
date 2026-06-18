@@ -21,6 +21,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<DatabaseDashboardItem> Databases { get; } = new();
     public ObservableCollection<ProcessDashboardItem> Processes { get; } = new();
 
+    public string AppVersionText => $"Версия {AppVersionService.Version}";
+
     public string RootPathText
     {
         get => _rootPathText;
@@ -65,6 +67,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void OpenLogsFolder_Click(object sender, RoutedEventArgs e)
     {
         _dataService.OpenFolder(_dataService.GetLogsFolderPath());
+    }
+
+    private void OpenJobsFolder_Click(object sender, RoutedEventArgs e)
+    {
+        _dataService.OpenFolder(_dataService.GetJobsFolderPath());
     }
 
     private void OpenDbBrowser_Click(object sender, RoutedEventArgs e)

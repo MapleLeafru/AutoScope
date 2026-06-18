@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -36,17 +36,27 @@ public class DashboardDataService
     {
         List<DatabaseDashboardItem> result = new List<DatabaseDashboardItem>();
 
-        foreach (string dbPath in EnumerateDatabaseFiles().Take(30))
+        foreach (string dbPath in EnumerateDatabaseFiles().Take(60))
         {
+            if (!IsSQLiteDatabaseFile(dbPath))
+                continue;
+
             FileInfo file = new FileInfo(dbPath);
+            string? recordsText = TryCountAdsWithProjectPython(file.FullName);
+            if (string.IsNullOrWhiteSpace(recordsText))
+                continue;
+
             result.Add(new DatabaseDashboardItem
             {
                 Name = file.Name,
                 Path = file.FullName,
                 Details = $"Размер: {FormatFileSize(file.Length)}",
-                RecordsText = TryCountAdsWithProjectPython(file.FullName),
+                RecordsText = recordsText,
                 StateKind = DashboardStateKind.Neutral
             });
+
+            if (result.Count >= 30)
+                break;
         }
 
         return result;
@@ -78,6 +88,11 @@ public class DashboardDataService
     public string GetLogsFolderPath()
     {
         return Path.Combine(RootPath, "Logs");
+    }
+
+    public string GetJobsFolderPath()
+    {
+        return Path.Combine(RootPath, "Jobs");
     }
 
     public void OpenFolder(string path)
@@ -184,7 +199,10 @@ public class DashboardDataService
             $"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
             $"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",
             $"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}",
-            $"{Path.DirectorySeparatorChar}Python{Path.DirectorySeparatorChar}Lib{Path.DirectorySeparatorChar}"
+            $"{Path.DirectorySeparatorChar}Python{Path.DirectorySeparatorChar}Lib{Path.DirectorySeparatorChar}",
+            $"{Path.DirectorySeparatorChar}DB Browser{Path.DirectorySeparatorChar}",
+            $"{Path.DirectorySeparatorChar}DB Browser for SQLite{Path.DirectorySeparatorChar}",
+            $"{Path.DirectorySeparatorChar}sqlitebrowser{Path.DirectorySeparatorChar}"
         };
 
         return Directory.EnumerateFiles(RootPath, "*.db", SearchOption.AllDirectories)
@@ -192,7 +210,25 @@ public class DashboardDataService
             .OrderByDescending(File.GetLastWriteTime);
     }
 
-    private string TryCountAdsWithProjectPython(string databasePath)
+    private bool IsSQLiteDatabaseFile(string path)
+    {
+        try
+        {
+            byte[] header = new byte[16];
+            using FileStream stream = File.OpenRead(path);
+            if (stream.Read(header, 0, header.Length) != header.Length)
+                return false;
+
+            string signature = System.Text.Encoding.ASCII.GetString(header);
+            return signature == "SQLite format 3\0";
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private string? TryCountAdsWithProjectPython(string databasePath)
     {
         string pythonPath = Path.Combine(RootPath, "Python", "python.exe");
         if (!File.Exists(pythonPath))
@@ -215,20 +251,20 @@ public class DashboardDataService
             if (!process.WaitForExit(1200))
             {
                 try { process.Kill(); } catch { }
-                return "Записей: долго считать";
+                return null;
             }
 
             if (process.ExitCode != 0)
-                return "Записей: не считалось";
+                return null;
 
             string output = process.StandardOutput.ReadToEnd().Trim();
             return int.TryParse(output, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count)
                 ? $"Записей: {count:N0}".Replace(',', ' ')
-                : "Записей: не считалось";
+                : null;
         }
         catch
         {
-            return "Записей: не считалось";
+            return null;
         }
     }
 

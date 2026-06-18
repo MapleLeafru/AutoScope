@@ -13,6 +13,8 @@ public sealed class ThemeOption
     public required string DisplayName { get; init; }
     public required string ResourcePath { get; init; }
     public required string Description { get; init; }
+
+    public override string ToString() => DisplayName;
 }
 
 public static class ThemeService
