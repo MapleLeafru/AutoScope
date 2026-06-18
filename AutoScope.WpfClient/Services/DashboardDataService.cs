@@ -22,16 +22,7 @@ public class DashboardDataService
 
     public List<ScenarioDashboardItem> LoadScenarios()
     {
-        string jobsPath = Path.Combine(RootPath, "Jobs");
-        if (!Directory.Exists(jobsPath))
-            return new List<ScenarioDashboardItem>();
-
-        return Directory.GetFiles(jobsPath, "*.json")
-            .OrderBy(Path.GetFileName)
-            .Select(ReadScenario)
-            .Where(item => item != null)
-            .Cast<ScenarioDashboardItem>()
-            .ToList();
+        return new ScenarioManagementService(RootPath).LoadScenarios();
     }
 
     public List<DatabaseDashboardItem> LoadDatabases()

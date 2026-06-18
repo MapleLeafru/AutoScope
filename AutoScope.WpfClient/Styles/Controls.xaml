@@ -229,6 +229,14 @@
         <Setter Property="MinHeight" Value="0"/>
     </Style>
 
+    <Style x:Key="AccentSmallButton" TargetType="Button" BasedOn="{StaticResource AccentButton}">
+        <Setter Property="Padding" Value="9,4"/>
+        <Setter Property="Margin" Value="0,0,6,6"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="VerticalAlignment" Value="Top"/>
+        <Setter Property="MinHeight" Value="0"/>
+    </Style>
+
     <Style x:Key="DangerSmallButton" TargetType="Button" BasedOn="{StaticResource SmallButton}">
         <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}"/>

@@ -13,9 +13,28 @@ public enum DashboardStateKind
 
 public class ScenarioDashboardItem
 {
+    public string Id { get; set; } = "";
     public string Name { get; set; } = "";
+    public string FileName { get; set; } = "";
+    public string Path { get; set; } = "";
     public string StatusText { get; set; } = "";
     public string Details { get; set; } = "";
+    public string PipelineType { get; set; } = "";
+    public string PipelineText { get; set; } = "";
+    public string ModuleName { get; set; } = "";
+    public string DatabaseName { get; set; } = "";
+    public string ScheduleText { get; set; } = "";
+    public string LastRunText { get; set; } = "";
+    public string NextRunText { get; set; } = "";
+    public string CreatedText { get; set; } = "";
+    public string ToggleActionText { get; set; } = "";
+    public bool Enabled { get; set; }
+    public bool CanOpenFile { get; set; }
+    public bool CanShowHistory { get; set; }
+    public bool CanRun { get; set; }
+    public bool CanEdit { get; set; }
+    public int ScheduleEveryHours { get; set; }
+    public bool IsManualOnly { get; set; }
     public DashboardStateKind StateKind { get; set; } = DashboardStateKind.Neutral;
 }
 

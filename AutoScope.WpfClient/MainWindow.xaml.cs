@@ -128,6 +128,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         StatusMessage = $"Базы данных обновлены после управления: {DateTime.Now:HH:mm:ss}.";
     }
 
+    private void OpenScenarioManager_Click(object sender, RoutedEventArgs e)
+    {
+        ScenarioManagementWindow window = new ScenarioManagementWindow(_dataService.RootPath)
+        {
+            Owner = this
+        };
+
+        window.ShowDialog();
+        ReloadDashboard();
+        StatusMessage = $"Сценарии обновлены после управления: {DateTime.Now:HH:mm:ss}.";
+    }
+
     private void OpenDbBrowser_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement element || element.Tag is not DatabaseDashboardItem database)

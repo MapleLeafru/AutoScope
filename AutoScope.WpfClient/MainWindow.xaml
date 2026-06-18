@@ -172,7 +172,7 @@
                             </StackPanel>
                             <WrapPanel Grid.Column="1" VerticalAlignment="Top">
                                 <Button Content="Папка" Style="{StaticResource SmallButton}" Click="OpenJobsFolder_Click"/>
-                                <Button Content="Управление" Style="{StaticResource SmallButton}" Click="Stub_Click" Tag="Подробный экран сценариев будет следующим отдельным экраном."/>
+                                <Button Content="Управление" Style="{StaticResource SmallButton}" Click="OpenScenarioManager_Click"/>
                             </WrapPanel>
                         </Grid>
 
