@@ -111,12 +111,21 @@ public class InputPipelineLaunchService
                 };
             }
 
-            _ = Task.Run(async () => await FeedAndDrainProcessAsync(process, json));
+            string runId = WpfRunManagerService.Instance.RegisterProcess(
+                process,
+                json,
+                _rootPath,
+                $"Парсинг: {launchRequest.Parser.DisplayName}",
+                "парсинг",
+                launchRequest.Parser.FileName,
+                Path.GetFileName(launchRequest.DatabasePath),
+                "input_pipeline_");
 
             return new PipelineLaunchResult
             {
                 Started = true,
-                Message = $"Парсинг запущен: {launchRequest.Parser.DisplayName} → {Path.GetFileName(launchRequest.DatabasePath)}. Обнови хаб через общую кнопку, чтобы увидеть карточку процесса."
+                RunId = runId,
+                Message = $"Парсинг запущен: {launchRequest.Parser.DisplayName} → {Path.GetFileName(launchRequest.DatabasePath)}. Карточка процесса появится в хабе автоматически."
             };
         }
         catch (Exception ex)

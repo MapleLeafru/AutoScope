@@ -207,9 +207,25 @@ public class ScenarioManagementService
             if (process == null)
                 return ScenarioOperationResult.Fail("Python-процесс не удалось создать.");
 
-            _ = Task.Run(async () => await RunScenarioProcessAsync(process, inputJson, scenario.Path));
+            string modulePath = string.Equals(pipelineType, "output", StringComparison.OrdinalIgnoreCase)
+                ? ReadString(root, "analyzerPath") ?? ""
+                : ReadString(root, "parserPath") ?? "";
+            string databasePath = ReadString(root, "dbPath") ?? "";
+            string typeText = string.Equals(pipelineType, "output", StringComparison.OrdinalIgnoreCase) ? "анализ" : "парсинг";
+            string logPrefix = string.Equals(pipelineType, "output", StringComparison.OrdinalIgnoreCase) ? "output_pipeline_" : "input_pipeline_";
 
-            return ScenarioOperationResult.Ok($"Сценарий «{jobName}» запущен вручную. После завершения запись появится в истории сценария и в логах pipeline.");
+            WpfRunManagerService.Instance.RegisterProcess(
+                process,
+                inputJson,
+                _rootPath,
+                $"Сценарий: {jobName}",
+                typeText,
+                Path.GetFileName(modulePath),
+                Path.GetFileName(databasePath),
+                logPrefix,
+                result => SaveScenarioRunResult(scenario.Path, result.StartedAt, result.FinishedAt, result.ExitCode, result.StandardOutput, result.StandardError));
+
+            return ScenarioOperationResult.Ok($"Сценарий «{jobName}» запущен вручную. Карточка процесса появится в хабе автоматически, а после завершения запись появится в истории сценария.");
         }
         catch (Exception ex)
         {

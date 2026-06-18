@@ -114,4 +114,5 @@ public class PipelineLaunchResult
 {
     public bool Started { get; set; }
     public string Message { get; set; } = "";
+    public string RunId { get; set; } = "";
 }

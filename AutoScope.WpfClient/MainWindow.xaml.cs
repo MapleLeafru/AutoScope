@@ -4,12 +4,14 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Runtime.InteropServices;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 using AutoScope.WpfClient.Models;
 using AutoScope.WpfClient.Services;
 
@@ -22,6 +24,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string _statusMessage = "";
     private Rect? _restoreBoundsBeforeCustomMaximize;
     private bool _isCustomMaximized;
+    private readonly DispatcherTimer _processRefreshTimer = new();
     private readonly HashSet<string> _sessionProcessIds = new(StringComparer.OrdinalIgnoreCase);
     private int _historyVisibleCount;
     private bool _showAllHistory;
@@ -54,6 +57,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RootPathText = $"Корень проекта: {rootPath}";
 
         ReloadDashboard();
+
+        _processRefreshTimer.Interval = TimeSpan.FromSeconds(1.5);
+        _processRefreshTimer.Tick += ProcessRefreshTimer_Tick;
+        _processRefreshTimer.Start();
+        Closed += (_, _) => _processRefreshTimer.Stop();
+    }
+
+    private void ProcessRefreshTimer_Tick(object? sender, EventArgs e)
+    {
+        ReloadProcesses();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -71,7 +84,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void LoadProcessHistory_Click(object sender, RoutedEventArgs e)
     {
-        int totalHistoryCount = _dataService.CountHistoryProcesses(_sessionProcessIds);
+        int totalHistoryCount = _dataService.CountHistoryProcesses(BuildExcludedHistoryProcessIds(WpfRunManagerService.Instance.GetProcessItems()));
         if (_showAllHistory || _historyVisibleCount >= totalHistoryCount)
         {
             StatusMessage = "Вся доступная история процессов уже отображена.";
@@ -399,31 +412,54 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         Processes.Clear();
 
-        List<ProcessDashboardItem> observedProcesses = _dataService.LoadObservedProcesses(_sessionProcessIds);
+        List<ProcessDashboardItem> sessionProcesses = WpfRunManagerService.Instance.GetProcessItems();
+        foreach (ProcessDashboardItem item in sessionProcesses)
+            _sessionProcessIds.Add(item.Id);
 
-        foreach (ProcessDashboardItem item in observedProcesses)
-        {
-            if (item.IsRunningLike)
-                _sessionProcessIds.Add(item.Id);
-        }
+        HashSet<string> excludedHistoryIds = BuildExcludedHistoryProcessIds(sessionProcesses);
 
-        observedProcesses = _dataService.LoadObservedProcesses(_sessionProcessIds);
-        foreach (ProcessDashboardItem item in observedProcesses)
-        {
-            item.IsSessionItem = _sessionProcessIds.Contains(item.Id);
+        List<ProcessDashboardItem> observedExternalProcesses = _dataService.LoadObservedProcesses(excludedHistoryIds)
+            .Where(item => item.IsRunningLike)
+            .Where(item => !sessionProcesses.Any(session => SameLogPath(session.LogPath, item.LogPath)))
+            .ToList();
+
+        foreach (ProcessDashboardItem item in sessionProcesses)
             Processes.Add(item);
-        }
 
-        if (observedProcesses.Count == 0)
+        foreach (ProcessDashboardItem item in observedExternalProcesses)
+            Processes.Add(item);
+
+        if (sessionProcesses.Count == 0 && observedExternalProcesses.Count == 0)
             Processes.Add(CreateNoActiveProcessesItem());
 
         if (_historyVisibleCount > 0 || _showAllHistory)
         {
-            foreach (ProcessDashboardItem historyItem in _dataService.LoadHistoryProcesses(_historyVisibleCount, _showAllHistory, _sessionProcessIds))
+            foreach (ProcessDashboardItem historyItem in _dataService.LoadHistoryProcesses(_historyVisibleCount, _showAllHistory, excludedHistoryIds))
                 Processes.Add(historyItem);
         }
 
-        Processes.Add(CreateHistoryActionItem());
+        Processes.Add(CreateHistoryActionItem(excludedHistoryIds));
+    }
+
+    private HashSet<string> BuildExcludedHistoryProcessIds(IEnumerable<ProcessDashboardItem> sessionProcesses)
+    {
+        HashSet<string> excluded = new HashSet<string>(_sessionProcessIds, StringComparer.OrdinalIgnoreCase);
+
+        foreach (ProcessDashboardItem process in sessionProcesses)
+        {
+            if (!string.IsNullOrWhiteSpace(process.LogPath))
+                excluded.Add(process.LogPath);
+        }
+
+        return excluded;
+    }
+
+    private bool SameLogPath(string left, string right)
+    {
+        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+            return false;
+
+        return string.Equals(Path.GetFullPath(left), Path.GetFullPath(right), StringComparison.OrdinalIgnoreCase);
     }
 
     private ProcessDashboardItem CreateNoActiveProcessesItem()
@@ -434,16 +470,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             StatusText = "ожидание",
             TypeText = "текущая сессия",
             TimeText = "",
-            Details = "Когда парсинг или анализ будет запущен из UI, здесь появится карточка с этапом, процентом и текущим состоянием. Завершённые процессы этой же сессии останутся в списке.",
+            Details = "После запуска парсинга, анализа или сценария здесь сразу появится живая карточка процесса. Завершённые процессы этой же сессии останутся в списке.",
             CanOpenLog = false,
             CanOpenDetails = false,
             StateKind = DashboardStateKind.Neutral
         };
     }
 
-    private ProcessDashboardItem CreateHistoryActionItem()
+    private ProcessDashboardItem CreateHistoryActionItem(IReadOnlyCollection<string> excludedHistoryIds)
     {
-        int totalHistoryCount = _dataService.CountHistoryProcesses(_sessionProcessIds);
+        int totalHistoryCount = _dataService.CountHistoryProcesses(excludedHistoryIds);
         bool hasVisibleHistory = _historyVisibleCount > 0 || _showAllHistory;
         bool hasMoreHistory = !_showAllHistory && _historyVisibleCount < totalHistoryCount;
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -120,12 +120,21 @@ public class OutputPipelineLaunchService
                 };
             }
 
-            _ = Task.Run(async () => await FeedAndDrainProcessAsync(process, json));
+            string runId = WpfRunManagerService.Instance.RegisterProcess(
+                process,
+                json,
+                _rootPath,
+                $"Анализ: {launchRequest.Analyzer.DisplayName}",
+                "анализ",
+                launchRequest.Analyzer.FileName,
+                Path.GetFileName(launchRequest.DatabasePath),
+                "output_pipeline_");
 
             return new PipelineLaunchResult
             {
                 Started = true,
-                Message = $"Анализ запущен: {launchRequest.Analyzer.DisplayName} → {Path.GetFileName(launchRequest.DatabasePath)}. После завершения отчёт появится в папке Reports, а процесс — в блоке процессов после обновления хаба."
+                RunId = runId,
+                Message = $"Анализ запущен: {launchRequest.Analyzer.DisplayName} → {Path.GetFileName(launchRequest.DatabasePath)}. Карточка процесса появится в хабе автоматически, а отчёт после завершения — в папке Reports."
             };
         }
         catch (Exception ex)
