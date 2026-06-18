@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using IOPath = System.IO.Path;
@@ -85,21 +85,44 @@ public static class ThemeService
     private static List<ThemeOption> LoadThemesFromFolder(string rootPath)
     {
         List<ThemeOption> themes = new();
-        string themesDirectory = IOPath.Combine(rootPath, "AutoScope.WpfClient", "Styles", "Themes");
 
-        if (!Directory.Exists(themesDirectory))
-            return themes;
-
-        foreach (string themeFile in Directory.GetFiles(themesDirectory, "*.xaml"))
+        foreach (string themesDirectory in GetThemeSearchDirectories(rootPath))
         {
-            ThemeOption option = LoadThemeOptionFromFile(themeFile);
-            if (themes.Any(theme => theme.Key.Equals(option.Key, StringComparison.OrdinalIgnoreCase)))
+            if (!Directory.Exists(themesDirectory))
                 continue;
 
-            themes.Add(option);
+            foreach (string themeFile in Directory.GetFiles(themesDirectory, "*.xaml"))
+            {
+                ThemeOption option = LoadThemeOptionFromFile(themeFile);
+                if (themes.Any(theme => theme.Key.Equals(option.Key, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                themes.Add(option);
+            }
         }
 
         return themes;
+    }
+
+    private static IEnumerable<string> GetThemeSearchDirectories(string rootPath)
+    {
+        string appDirectory = AppContext.BaseDirectory;
+        string currentDirectory = Directory.GetCurrentDirectory();
+
+        string[] candidates =
+        {
+            IOPath.Combine(rootPath, "AutoScope.WpfClient", "Styles", "Themes"),
+            IOPath.Combine(rootPath, "Styles", "Themes"),
+            IOPath.Combine(appDirectory, "Styles", "Themes"),
+            IOPath.Combine(appDirectory, "AutoScope.WpfClient", "Styles", "Themes"),
+            IOPath.Combine(currentDirectory, "Styles", "Themes"),
+            IOPath.Combine(currentDirectory, "AutoScope.WpfClient", "Styles", "Themes")
+        };
+
+        return candidates
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => IOPath.GetFullPath(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
     }
 
     private static ThemeOption LoadThemeOptionFromFile(string themeFile)
