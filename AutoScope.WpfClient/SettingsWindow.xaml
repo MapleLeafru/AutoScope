@@ -1,0 +1,77 @@
+<Window x:Class="AutoScope.WpfClient.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Настройки AutoScope" Height="360" Width="560"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        Background="{DynamicResource WindowBackgroundBrush}">
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0"
+                            ResizeBorderThickness="6"
+                            CornerRadius="0"
+                            GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+
+    <Grid Background="{DynamicResource WindowBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="38"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border x:Name="TitleBar"
+                Grid.Row="0"
+                Background="{DynamicResource TitleBarBackgroundBrush}"
+                BorderBrush="{DynamicResource TitleBarBorderBrush}"
+                BorderThickness="0,0,0,1"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <TextBlock Text="Настройки AutoScope"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           Margin="14,0,0,0"/>
+                <Button Content="✕"
+                        HorizontalAlignment="Right"
+                        Style="{StaticResource TitleBarCloseButton}"
+                        Click="Close_Click"
+                        Margin="0,2,6,2"/>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Style="{StaticResource HubCard}" Margin="18">
+            <StackPanel>
+                <TextBlock Text="Цветовая схема" Style="{StaticResource CardTitle}"/>
+                <TextBlock Text="Выбор темы применяется сразу после сохранения. Новые темы можно добавлять по аналогии с XAML-файлами в Styles/Themes." Style="{StaticResource SectionCaption}"/>
+
+                <TextBlock Text="Тема приложения" Style="{StaticResource SecondaryText}" Margin="0,8,0,6"/>
+                <ComboBox x:Name="ThemeComboBox"
+                          Style="{StaticResource SettingsComboBox}"
+                          DisplayMemberPath="DisplayName"
+                          SelectionChanged="ThemeComboBox_SelectionChanged"/>
+
+                <TextBlock x:Name="ThemeDescriptionText"
+                           Style="{StaticResource MutedText}"
+                           Margin="0,12,0,0"/>
+
+                <Border Background="{DynamicResource CardBackgroundAltBrush}"
+                        BorderBrush="{DynamicResource CardBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="12"
+                        Margin="0,18,0,0">
+                    <TextBlock Style="{StaticResource MutedText}">
+                        Чтобы добавить свою схему: скопируй файл из Styles/Themes, измени цвета, затем добавь её в ThemeService.AvailableThemes.
+                    </TextBlock>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="18,0,18,18">
+            <Button Content="Сохранить" Style="{StaticResource AccentButton}" Click="Save_Click"/>
+            <Button Content="Закрыть" Style="{StaticResource BaseButton}" Click="Close_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

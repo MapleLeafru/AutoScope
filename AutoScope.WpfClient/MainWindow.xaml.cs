@@ -1,10 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Input;
 using AutoScope.WpfClient.Models;
 using AutoScope.WpfClient.Services;
 
@@ -78,6 +79,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             MessageBox.Show(message, "AutoScope", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        SettingsWindow window = new SettingsWindow(_dataService.RootPath)
+        {
+            Owner = this
+        };
+
+        window.ShowDialog();
+    }
+
     private void Stub_Click(object sender, RoutedEventArgs e)
     {
         string message = "Этот экран будет добавлен следующим шагом.";
@@ -85,6 +96,49 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             message = tag;
 
         MessageBox.Show(message, "AutoScope UI", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            ToggleWindowState();
+            return;
+        }
+
+        if (e.LeftButton != MouseButtonState.Pressed)
+            return;
+
+        try
+        {
+            DragMove();
+        }
+        catch (InvalidOperationException)
+        {
+            // DragMove может упасть, если мышь уже отпущена. Для UI это не критично.
+        }
+    }
+
+    private void Minimize_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void MaximizeRestore_Click(object sender, RoutedEventArgs e)
+    {
+        ToggleWindowState();
+    }
+
+    private void Close_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void ToggleWindowState()
+    {
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
     }
 
     private void ReloadDashboard()

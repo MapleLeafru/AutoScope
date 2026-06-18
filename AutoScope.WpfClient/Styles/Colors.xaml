@@ -48,4 +48,11 @@
     <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="#344454"/>
     <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="#42566A"/>
     <SolidColorBrush x:Key="ScrollBarThumbPressedBrush" Color="#68A7F0"/>
+
+    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#0B1016"/>
+    <SolidColorBrush x:Key="TitleBarBorderBrush" Color="#223040"/>
+    <SolidColorBrush x:Key="TitleBarButtonHoverBrush" Color="#1B2633"/>
+    <SolidColorBrush x:Key="TitleBarButtonPressedBrush" Color="#263647"/>
+    <SolidColorBrush x:Key="TitleBarCloseHoverBrush" Color="#B64248"/>
+    <SolidColorBrush x:Key="TitleBarClosePressedBrush" Color="#8F3036"/>
 </ResourceDictionary>
