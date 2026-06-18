@@ -1,0 +1,47 @@
+{
+  "jobId": "07e679dd77974e379282d2f454f2d606",
+  "jobName": "green",
+  "enabled": true,
+  "pipelineType": "input",
+  "dbPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Databases\\NewParserTest_01.BaseDataBaseConfig.db",
+  "parserPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Parsers\\LightBaseDromParser.py",
+  "analyzerPath": "",
+  "parserSettings": {
+    "startUrl": "https://auto.drom.ru/toyota/",
+    "maxCars": 2,
+    "streamBatchSize": 2,
+    "requestDelaySeconds": 1.2,
+    "retryCount": 3,
+    "rateLimitDelaySeconds": 5,
+    "extraSettings": {
+      "listingPageDelaySeconds": 1.5,
+      "estimatedListingPageSize": 20
+    }
+  },
+  "apiSettings": {
+    "brandCountryEnrichment": true,
+    "transmissionNormalization": false,
+    "driveTypeNormalization": false,
+    "fuelTypeNormalization": false
+  },
+  "outputSettings": {
+    "latestOnly": true,
+    "onlyChanged": false,
+    "brand": "",
+    "model": "",
+    "saleRegion": "",
+    "yearFrom": null,
+    "yearTo": null
+  },
+  "runtimeSettings": {
+    "pythonPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Python\\python.exe",
+    "javaPath": "java"
+  },
+  "schedule": {
+    "type": "interval",
+    "everyHours": 2400
+  },
+  "createdAt": "2026-06-18T17:08:01",
+  "lastRunAt": "",
+  "nextRunAt": "2026-09-26T17:08:39"
+}

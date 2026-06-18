@@ -1,0 +1,65 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!--Базовая палитра главного окна. -->
+
+    <sys:String x:Key="ThemeKey">golden-harvest</sys:String>
+    <sys:String x:Key="ThemeDisplayName">Золотой урожай</sys:String>
+    <sys:String x:Key="ThemeDescription">Тёплая тёмная тема с охрой, золотом и мягкой урожайной атмосферой.</sys:String>
+    <Color x:Key="WindowBackgroundColor">#171006</Color>
+    <Color x:Key="PanelBackgroundColor">#241807</Color>
+    <Color x:Key="CardBackgroundColor">#32220A</Color>
+    <Color x:Key="CardBackgroundAltColor">#45300E</Color>
+    <Color x:Key="CardBorderColor">#76520E</Color>
+
+    <Color x:Key="TextPrimaryColor">#FFF7D6</Color>
+    <Color x:Key="TextSecondaryColor">#F8E6A5</Color>
+    <Color x:Key="TextMutedColor">#C5A45F</Color>
+
+    <Color x:Key="PrimaryAccentColor">#EDC531</Color>
+    <Color x:Key="AccentBlueColor">#FAD643</Color>
+    <Color x:Key="SuccessGreenColor">#80B918</Color>
+    <Color x:Key="ErrorRedColor">#E0636B</Color>
+    <Color x:Key="WarningYellowColor">#FFE169</Color>
+    <Color x:Key="NeutralWhiteColor">#FFF3BF</Color>
+
+    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="{StaticResource WindowBackgroundColor}"/>
+    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="{StaticResource PanelBackgroundColor}"/>
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource CardBackgroundColor}"/>
+    <SolidColorBrush x:Key="CardBackgroundAltBrush" Color="{StaticResource CardBackgroundAltColor}"/>
+    <SolidColorBrush x:Key="CardBorderBrush" Color="{StaticResource CardBorderColor}"/>
+
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}"/>
+    <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}"/>
+
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource PrimaryAccentColor}"/>
+    <SolidColorBrush x:Key="RunningBrush" Color="{StaticResource AccentBlueColor}"/>
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessGreenColor}"/>
+    <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorRedColor}"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningYellowColor}"/>
+    <SolidColorBrush x:Key="NeutralBrush" Color="{StaticResource NeutralWhiteColor}"/>
+
+    <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#3D2A0C"/>
+    <SolidColorBrush x:Key="ButtonHoverBrush" Color="#52380F"/>
+    <SolidColorBrush x:Key="ButtonPressedBrush" Color="#664511"/>
+
+    <SolidColorBrush x:Key="AccentButtonBackgroundBrush" Color="#63460D"/>
+    <SolidColorBrush x:Key="AccentButtonHoverBrush" Color="#805B10"/>
+    <SolidColorBrush x:Key="AccentButtonPressedBrush" Color="#A47E1B"/>
+
+    <SolidColorBrush x:Key="ScrollBarTrackBrush" Color="#241807"/>
+    <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="#76520E"/>
+    <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="#A47E1B"/>
+    <SolidColorBrush x:Key="ScrollBarThumbPressedBrush" Color="#EDC531"/>
+
+    <SolidColorBrush x:Key="WindowOutlineBrush" Color="#76520E"/>
+
+    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#1D1406"/>
+    <SolidColorBrush x:Key="TitleBarBorderBrush" Color="#65480F"/>
+    <SolidColorBrush x:Key="TitleBarButtonHoverBrush" Color="#3D2A0C"/>
+    <SolidColorBrush x:Key="TitleBarButtonPressedBrush" Color="#52380F"/>
+    <SolidColorBrush x:Key="TitleBarCloseHoverBrush" Color="#8C3037"/>
+    <SolidColorBrush x:Key="TitleBarClosePressedBrush" Color="#68252B"/>
+</ResourceDictionary>
