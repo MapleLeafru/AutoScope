@@ -189,6 +189,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void LaunchOutputPipeline_Click(object sender, RoutedEventArgs e)
+    {
+        OutputPipelineLaunchWindow window = new OutputPipelineLaunchWindow(_dataService.RootPath)
+        {
+            Owner = this
+        };
+
+        bool? result = window.ShowDialog();
+        if (result == true && window.RunStarted)
+        {
+            _historyVisibleCount = 0;
+            _showAllHistory = false;
+            ReloadDashboard();
+            StatusMessage = window.ResultMessage;
+        }
+    }
+
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         SettingsWindow window = new SettingsWindow(_dataService.RootPath)
