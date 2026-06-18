@@ -11,5 +11,7 @@ public partial class App : Application
 
         string rootPath = AutoScopeRootLocator.FindRoot();
         ThemeService.ApplySavedTheme(rootPath);
+        AppSettingsService.RegisterWindowScaleHandler(rootPath);
+        AppSettingsService.ApplyUiScaleToOpenWindows(rootPath);
     }
 }

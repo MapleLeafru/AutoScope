@@ -142,10 +142,10 @@ public class DashboardDataService
 
     public bool OpenDatabaseInDbBrowser(string databasePath, out string message)
     {
-        string? browserPath = FindDbBrowserExecutable();
+        string? browserPath = ResolveDbBrowserExecutable(out string sourceDescription);
         if (string.IsNullOrWhiteSpace(browserPath))
         {
-            message = "DB Browser for SQLite не найден в папке проекта. Позже путь можно будет вынести в настройки.";
+            message = "DB Browser for SQLite не найден. Укажите путь в настройках AutoScope или положите DB Browser в папку проекта.";
             return false;
         }
 
@@ -156,7 +156,7 @@ public class DashboardDataService
             UseShellExecute = true
         });
 
-        message = "База открыта в DB Browser.";
+        message = $"База открыта в DB Browser ({sourceDescription}).";
         return true;
     }
 
@@ -678,6 +678,26 @@ public class DashboardDataService
         {
             return null;
         }
+    }
+
+    private string? ResolveDbBrowserExecutable(out string sourceDescription)
+    {
+        UiSettings settings = AppSettingsService.Load(RootPath);
+        if (!string.IsNullOrWhiteSpace(settings.DbBrowserPath) && File.Exists(settings.DbBrowserPath))
+        {
+            sourceDescription = "путь из настроек";
+            return settings.DbBrowserPath;
+        }
+
+        string? detectedPath = FindDbBrowserExecutable();
+        if (!string.IsNullOrWhiteSpace(detectedPath))
+        {
+            sourceDescription = "автопоиск";
+            return detectedPath;
+        }
+
+        sourceDescription = "не найден";
+        return null;
     }
 
     private string? FindDbBrowserExecutable()

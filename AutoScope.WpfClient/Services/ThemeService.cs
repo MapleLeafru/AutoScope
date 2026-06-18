@@ -46,13 +46,8 @@ public static class ThemeService
     {
         try
         {
-            string settingsPath = GetSettingsPath(rootPath);
-            if (!File.Exists(settingsPath))
-                return DefaultThemeKey;
-
-            string json = File.ReadAllText(settingsPath);
-            UiSettings? settings = JsonSerializer.Deserialize<UiSettings>(json);
-            if (settings == null || string.IsNullOrWhiteSpace(settings.ThemeKey))
+            UiSettings settings = AppSettingsService.Load(rootPath);
+            if (string.IsNullOrWhiteSpace(settings.ThemeKey))
                 return DefaultThemeKey;
 
             bool exists = GetAvailableThemes(rootPath).Any(theme => theme.Key == settings.ThemeKey);
@@ -279,25 +274,7 @@ public static class ThemeService
 
     private static void SaveTheme(string themeKey, string rootPath)
     {
-        string settingsPath = GetSettingsPath(rootPath);
-        Directory.CreateDirectory(IOPath.GetDirectoryName(settingsPath)!);
-
-        UiSettings settings = new()
-        {
-            ThemeKey = themeKey
-        };
-
-        JsonSerializerOptions options = new()
-        {
-            WriteIndented = true
-        };
-
-        File.WriteAllText(settingsPath, JsonSerializer.Serialize(settings, options));
-    }
-
-    private static string GetSettingsPath(string rootPath)
-    {
-        return IOPath.Combine(rootPath, "Configs", "UiSettings.json");
+        AppSettingsService.Update(rootPath, settings => settings.ThemeKey = themeKey);
     }
 
     private static string NormalizeKey(string value)
@@ -322,8 +299,4 @@ public static class ThemeService
         return new string(result.ToArray());
     }
 
-    private sealed class UiSettings
-    {
-        public string ThemeKey { get; set; } = DefaultThemeKey;
-    }
 }

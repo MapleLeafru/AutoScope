@@ -1,9 +1,10 @@
-﻿using System;
+using System;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Media;
 using AutoScope.WpfClient.Services;
+using Microsoft.Win32;
 
 namespace AutoScope.WpfClient;
 
@@ -16,6 +17,12 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         _rootPath = rootPath;
 
+        LoadThemes();
+        LoadAppSettings();
+    }
+
+    private void LoadThemes()
+    {
         var themes = ThemeService.GetAvailableThemes(_rootPath);
         ThemeComboBox.ItemsSource = themes;
         string savedThemeKey = ThemeService.LoadSavedThemeKey(_rootPath);
@@ -23,6 +30,19 @@ public partial class SettingsWindow : Window
         UpdateThemeDescription();
     }
 
+    private void LoadAppSettings()
+    {
+        UiSettings settings = AppSettingsService.Load(_rootPath);
+        DbBrowserPathTextBox.Text = settings.DbBrowserPath ?? "";
+
+        var scaleOptions = AppSettingsService.GetUiScaleOptions();
+        UiScaleComboBox.ItemsSource = scaleOptions;
+        int savedScale = AppSettingsService.NormalizeUiScalePercent(settings.UiScalePercent);
+        UiScaleComboBox.SelectedItem = scaleOptions.FirstOrDefault(option => option.Percent == savedScale)
+            ?? scaleOptions.FirstOrDefault(option => option.Percent == 100);
+
+        UpdateDbBrowserHint();
+    }
 
     private void RootWindowBorder_SizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -34,12 +54,69 @@ public partial class SettingsWindow : Window
         UpdateThemeDescription();
     }
 
+    private void BrowseDbBrowser_Click(object sender, RoutedEventArgs e)
+    {
+        OpenFileDialog dialog = new()
+        {
+            Title = "Выберите DB Browser for SQLite",
+            Filter = "Исполняемые файлы (*.exe)|*.exe|Все файлы (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        string currentPath = DbBrowserPathTextBox.Text.Trim();
+        if (!string.IsNullOrWhiteSpace(currentPath) && File.Exists(currentPath))
+            dialog.InitialDirectory = Path.GetDirectoryName(currentPath);
+        else if (Directory.Exists(_rootPath))
+            dialog.InitialDirectory = _rootPath;
+
+        if (dialog.ShowDialog(this) == true)
+        {
+            DbBrowserPathTextBox.Text = dialog.FileName;
+            UpdateDbBrowserHint();
+        }
+    }
+
+    private void AutoDetectDbBrowser_Click(object sender, RoutedEventArgs e)
+    {
+        string? detectedPath = FindDbBrowserExecutable();
+        if (string.IsNullOrWhiteSpace(detectedPath))
+        {
+            DbBrowserHintText.Text = "DB Browser for SQLite не найден автоматически. Укажите путь вручную через кнопку «Выбрать».";
+            return;
+        }
+
+        DbBrowserPathTextBox.Text = detectedPath;
+        UpdateDbBrowserHint();
+    }
+
     private void Save_Click(object sender, RoutedEventArgs e)
     {
-        if (ThemeComboBox.SelectedItem is not ThemeOption selectedTheme)
+        string dbBrowserPath = DbBrowserPathTextBox.Text.Trim();
+        if (!string.IsNullOrWhiteSpace(dbBrowserPath) && !File.Exists(dbBrowserPath))
+        {
+            MessageBox.Show(
+                "Указанный путь к DB Browser не существует. Проверьте путь или очистите поле.",
+                "Настройки",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
+        }
 
-        ThemeService.ApplyTheme(selectedTheme.Key, save: true, rootPath: _rootPath);
+        if (ThemeComboBox.SelectedItem is ThemeOption selectedTheme)
+            ThemeService.ApplyTheme(selectedTheme.Key, save: true, rootPath: _rootPath);
+
+        AppSettingsService.Update(_rootPath, settings =>
+        {
+            if (ThemeComboBox.SelectedItem is ThemeOption selectedTheme)
+                settings.ThemeKey = selectedTheme.Key;
+
+            settings.DbBrowserPath = dbBrowserPath;
+            if (UiScaleComboBox.SelectedItem is UiScaleOption selectedScale)
+                settings.UiScalePercent = selectedScale.Percent;
+        });
+
+        AppSettingsService.ApplyUiScaleToOpenWindows(_rootPath);
+
         DialogResult = true;
         Close();
     }
@@ -73,5 +150,39 @@ public partial class SettingsWindow : Window
             ThemeDescriptionText.Text = selectedTheme.Description;
         else
             ThemeDescriptionText.Text = "";
+    }
+
+    private void UpdateDbBrowserHint()
+    {
+        string path = DbBrowserPathTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            DbBrowserHintText.Text = "Путь не задан. AutoScope будет искать DB Browser автоматически в папке проекта.";
+            return;
+        }
+
+        DbBrowserHintText.Text = File.Exists(path)
+            ? "Путь найден. Базы будут открываться через выбранный DB Browser."
+            : "Файл по указанному пути не найден.";
+    }
+
+    private string? FindDbBrowserExecutable()
+    {
+        string[] names = new[]
+        {
+            "DB Browser for SQLite.exe",
+            "DB Browser.exe",
+            "sqlitebrowser.exe"
+        };
+
+        try
+        {
+            return Directory.EnumerateFiles(_rootPath, "*.exe", SearchOption.AllDirectories)
+                .FirstOrDefault(path => names.Any(name => Path.GetFileName(path).Equals(name, StringComparison.OrdinalIgnoreCase)));
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
