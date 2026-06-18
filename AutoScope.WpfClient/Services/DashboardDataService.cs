@@ -38,21 +38,35 @@ public class DashboardDataService
     {
         List<DatabaseDashboardItem> result = new List<DatabaseDashboardItem>();
 
-        foreach (string dbPath in EnumerateDatabaseFiles().Take(60))
+        foreach (string dbPath in EnumerateDatabaseFiles())
         {
-            if (!IsSQLiteDatabaseFile(dbPath))
+            bool isSQLite = IsSQLiteDatabaseFile(dbPath);
+            bool looksLikeAutoScopeDatabase = LooksLikeAutoScopeDatabasePath(dbPath);
+
+            if (!isSQLite && !looksLikeAutoScopeDatabase)
                 continue;
 
             FileInfo file = new FileInfo(dbPath);
-            string? recordsText = TryCountAdsWithProjectPython(file.FullName);
+            string? recordsText = isSQLite ? TryCountAdsWithProjectPython(file.FullName) : null;
             if (string.IsNullOrWhiteSpace(recordsText))
-                continue;
+                recordsText = "Записей: не считалось";
+
+            (string displayName, string configName) = SplitDatabaseFileName(file.Name);
+            string configDetails = string.IsNullOrWhiteSpace(configName)
+                ? "Конфиг: не указан"
+                : $"Конфиг: {configName}";
+
+            string availabilityDetails = isSQLite
+                ? "структура проверена"
+                : "файл похож на базу AutoScope, но сейчас может быть занят другим приложением";
 
             result.Add(new DatabaseDashboardItem
             {
-                Name = file.Name,
+                Name = displayName,
+                FileName = file.Name,
+                ConfigName = configName,
                 Path = file.FullName,
-                Details = $"Размер: {FormatFileSize(file.Length)}",
+                Details = $"{configDetails} · Файл: {file.Name} · Размер: {FormatFileSize(file.Length)} · {availabilityDetails}",
                 RecordsText = recordsText,
                 StateKind = DashboardStateKind.Neutral
             });
@@ -110,6 +124,11 @@ public class DashboardDataService
     public string GetLogsFolderPath()
     {
         return Path.Combine(RootPath, "Logs");
+    }
+
+    public string GetDatabasesFolderPath()
+    {
+        return Path.Combine(RootPath, "Databases");
     }
 
     public string GetJobsFolderPath()
@@ -548,9 +567,60 @@ public class DashboardDataService
             $"{Path.DirectorySeparatorChar}sqlitebrowser{Path.DirectorySeparatorChar}"
         };
 
-        return Directory.EnumerateFiles(RootPath, "*.db", SearchOption.AllDirectories)
+        string[] allowedExtensions = { ".db", ".bd", ".sqlite", ".sqlite3" };
+
+        return Directory.EnumerateFiles(RootPath, "*.*", SearchOption.AllDirectories)
+            .Where(path => allowedExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
             .Where(path => !excludedFolders.Any(excluded => path.Contains(excluded, StringComparison.OrdinalIgnoreCase)))
-            .OrderByDescending(File.GetLastWriteTime);
+            .OrderBy(GetDatabaseSortPriority)
+            .ThenByDescending(File.GetLastWriteTime);
+    }
+
+    private int GetDatabaseSortPriority(string path)
+    {
+        string databasesPath = GetDatabasesFolderPath();
+        string fileName = Path.GetFileName(path);
+
+        if (path.StartsWith(databasesPath, StringComparison.OrdinalIgnoreCase)
+            && fileName.Contains("BaseDataBaseConfig", StringComparison.OrdinalIgnoreCase))
+            return 0;
+
+        if (path.StartsWith(databasesPath, StringComparison.OrdinalIgnoreCase))
+            return 1;
+
+        if (fileName.Contains("BaseDataBaseConfig", StringComparison.OrdinalIgnoreCase))
+            return 2;
+
+        return 3;
+    }
+
+    private bool LooksLikeAutoScopeDatabasePath(string path)
+    {
+        string databasesPath = GetDatabasesFolderPath();
+        string fileName = Path.GetFileName(path);
+
+        return path.StartsWith(databasesPath, StringComparison.OrdinalIgnoreCase)
+               || fileName.Contains("BaseDataBaseConfig", StringComparison.OrdinalIgnoreCase)
+               || fileName.Contains("AutoScope", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private (string DisplayName, string ConfigName) SplitDatabaseFileName(string fileName)
+    {
+        string nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+        if (string.IsNullOrWhiteSpace(nameWithoutExtension))
+            return (fileName, "");
+
+        string[] parts = nameWithoutExtension.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length < 2)
+            return (nameWithoutExtension, "");
+
+        string configName = parts[^1];
+        string displayName = string.Join('.', parts.Take(parts.Length - 1));
+
+        if (!configName.Contains("config", StringComparison.OrdinalIgnoreCase))
+            return (nameWithoutExtension, "");
+
+        return (string.IsNullOrWhiteSpace(displayName) ? nameWithoutExtension : displayName, configName);
     }
 
     private bool IsSQLiteDatabaseFile(string path)
@@ -558,7 +628,12 @@ public class DashboardDataService
         try
         {
             byte[] header = new byte[16];
-            using FileStream stream = File.OpenRead(path);
+            using FileStream stream = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+
             if (stream.Read(header, 0, header.Length) != header.Length)
                 return false;
 
@@ -583,7 +658,7 @@ public class DashboardDataService
             process.StartInfo = new ProcessStartInfo
             {
                 FileName = pythonPath,
-                Arguments = $"-c \"import sqlite3,sys; con=sqlite3.connect(sys.argv[1]); print(con.execute('select count(*) from ads').fetchone()[0])\" \"{databasePath}\"",
+                Arguments = $"-c \"import sqlite3,sys; con=sqlite3.connect(sys.argv[1], timeout=1.0); con.execute('pragma query_only=ON'); print(con.execute('select count(*) from ads').fetchone()[0])\" \"{databasePath}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -591,7 +666,7 @@ public class DashboardDataService
             };
 
             process.Start();
-            if (!process.WaitForExit(1200))
+            if (!process.WaitForExit(8000))
             {
                 try { process.Kill(); } catch { }
                 return null;

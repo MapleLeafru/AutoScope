@@ -100,6 +100,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _dataService.OpenFolder(_dataService.GetReportsFolderPath());
     }
 
+    private void OpenDatabasesFolder_Click(object sender, RoutedEventArgs e)
+    {
+        _dataService.OpenFolder(_dataService.GetDatabasesFolderPath());
+    }
+
     private void OpenLogsFolder_Click(object sender, RoutedEventArgs e)
     {
         _dataService.OpenFolder(_dataService.GetLogsFolderPath());
@@ -165,6 +170,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         string message = string.Join(Environment.NewLine, lines);
 
         MessageBox.Show(message, "Процесс AutoScope", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void LaunchInputPipeline_Click(object sender, RoutedEventArgs e)
+    {
+        InputPipelineLaunchWindow window = new InputPipelineLaunchWindow(_dataService.RootPath)
+        {
+            Owner = this
+        };
+
+        bool? result = window.ShowDialog();
+        if (result == true && window.RunStarted)
+        {
+            _historyVisibleCount = 0;
+            _showAllHistory = false;
+            ReloadDashboard();
+            StatusMessage = window.ResultMessage;
+        }
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)

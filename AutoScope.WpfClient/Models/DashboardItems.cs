@@ -22,10 +22,29 @@ public class ScenarioDashboardItem
 public class DatabaseDashboardItem
 {
     public string Name { get; set; } = "";
+    public string FileName { get; set; } = "";
+    public string ConfigName { get; set; } = "";
     public string Path { get; set; } = "";
     public string Details { get; set; } = "";
     public string RecordsText { get; set; } = "";
     public DashboardStateKind StateKind { get; set; } = DashboardStateKind.Neutral;
+
+    public string ConfigText => string.IsNullOrWhiteSpace(ConfigName)
+        ? "Конфиг: не указан"
+        : $"Конфиг: {ConfigName}";
+
+    public string FileText => string.IsNullOrWhiteSpace(FileName)
+        ? "Файл не определён"
+        : $"Файл: {FileName}";
+
+    public string LaunchDisplayName => string.IsNullOrWhiteSpace(ConfigName)
+        ? Name
+        : $"{Name} ({ConfigName})";
+
+    public override string ToString()
+    {
+        return LaunchDisplayName;
+    }
 }
 
 public class ProcessDashboardItem
