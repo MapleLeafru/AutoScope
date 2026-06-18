@@ -1,9 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using IOPath = System.IO.Path;
 using System.Linq;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
+using System.Windows.Shapes;
+using System.Windows.Threading;
 using System.Xml.Linq;
 
 namespace AutoScope.WpfClient.Services;
@@ -75,6 +81,7 @@ public static class ThemeService
     {
         ThemeOption theme = GetTheme(themeKey, rootPath);
         ReplaceThemeDictionary(theme.ResourcePath, theme.IsExternalFile);
+        RefreshOpenWindowsAfterThemeChange();
 
         if (save)
             SaveTheme(theme.Key, rootPath);
@@ -83,7 +90,7 @@ public static class ThemeService
     private static List<ThemeOption> LoadThemesFromFolder(string rootPath)
     {
         List<ThemeOption> themes = new();
-        string themesDirectory = Path.Combine(rootPath, "AutoScope.WpfClient", "Styles", "Themes");
+        string themesDirectory = IOPath.Combine(rootPath, "AutoScope.WpfClient", "Styles", "Themes");
 
         if (!Directory.Exists(themesDirectory))
             return themes;
@@ -102,7 +109,7 @@ public static class ThemeService
 
     private static ThemeOption LoadThemeOptionFromFile(string themeFile)
     {
-        string fileName = Path.GetFileNameWithoutExtension(themeFile);
+        string fileName = IOPath.GetFileNameWithoutExtension(themeFile);
         string fallbackKey = NormalizeKey(fileName);
 
         try
@@ -202,10 +209,78 @@ public static class ThemeService
             dictionaries.Insert(0, newDictionary);
     }
 
+    private static void RefreshOpenWindowsAfterThemeChange()
+    {
+        if (Application.Current == null)
+            return;
+
+        Application.Current.Dispatcher.BeginInvoke(() =>
+        {
+            foreach (Window window in Application.Current.Windows)
+            {
+                RefreshThemeBindings(window, new HashSet<DependencyObject>());
+                window.InvalidateVisual();
+                window.UpdateLayout();
+            }
+        }, DispatcherPriority.ApplicationIdle);
+    }
+
+    private static void RefreshThemeBindings(DependencyObject root, HashSet<DependencyObject> visited)
+    {
+        if (!visited.Add(root))
+            return;
+
+        UpdateBinding(root, Control.ForegroundProperty);
+        UpdateBinding(root, Control.BackgroundProperty);
+        UpdateBinding(root, Control.BorderBrushProperty);
+        UpdateBinding(root, TextBlock.ForegroundProperty);
+        UpdateBinding(root, Panel.BackgroundProperty);
+        UpdateBinding(root, Border.BackgroundProperty);
+        UpdateBinding(root, Border.BorderBrushProperty);
+        UpdateBinding(root, Shape.FillProperty);
+        UpdateBinding(root, Shape.StrokeProperty);
+        UpdateBinding(root, Window.BackgroundProperty);
+        UpdateBinding(root, Window.ForegroundProperty);
+
+        int visualChildrenCount = 0;
+        try
+        {
+            visualChildrenCount = VisualTreeHelper.GetChildrenCount(root);
+        }
+        catch
+        {
+            visualChildrenCount = 0;
+        }
+
+        for (int i = 0; i < visualChildrenCount; i++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, i);
+            RefreshThemeBindings(child, visited);
+        }
+
+        foreach (object logicalChild in LogicalTreeHelper.GetChildren(root))
+        {
+            if (logicalChild is DependencyObject dependencyChild)
+                RefreshThemeBindings(dependencyChild, visited);
+        }
+    }
+
+    private static void UpdateBinding(DependencyObject target, DependencyProperty property)
+    {
+        try
+        {
+            BindingOperations.GetBindingExpressionBase(target, property)?.UpdateTarget();
+        }
+        catch
+        {
+            // Некоторые свойства не применимы к конкретному элементу. Это не ошибка смены темы.
+        }
+    }
+
     private static void SaveTheme(string themeKey, string rootPath)
     {
         string settingsPath = GetSettingsPath(rootPath);
-        Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
+        Directory.CreateDirectory(IOPath.GetDirectoryName(settingsPath)!);
 
         UiSettings settings = new()
         {
@@ -222,7 +297,7 @@ public static class ThemeService
 
     private static string GetSettingsPath(string rootPath)
     {
-        return Path.Combine(rootPath, "Configs", "UiSettings.json");
+        return IOPath.Combine(rootPath, "Configs", "UiSettings.json");
     }
 
     private static string NormalizeKey(string value)
