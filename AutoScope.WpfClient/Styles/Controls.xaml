@@ -201,38 +201,47 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBox">
                     <Grid>
+                        <Border x:Name="ComboBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="9"
+                                Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <ContentPresenter x:Name="ContentSite"
+                                                  IsHitTestVisible="False"
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                                  VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="⌄"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="16"
+                                           Margin="12,-2,0,0"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
                         <ToggleButton x:Name="ToggleButton"
                                       Focusable="False"
                                       ClickMode="Press"
+                                      Cursor="Hand"
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Stretch"
                                       Background="Transparent"
                                       BorderThickness="0">
-                            <Border x:Name="ComboBorder"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="9"
-                                    Padding="{TemplateBinding Padding}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <ContentPresenter x:Name="ContentSite"
-                                                      IsHitTestVisible="False"
-                                                      Content="{TemplateBinding SelectionBoxItem}"
-                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                                      ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
-                                                      VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1"
-                                               Text="⌄"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               FontSize="16"
-                                               Margin="12,-2,0,0"
-                                               VerticalAlignment="Center"/>
-                                </Grid>
-                            </Border>
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border Background="Transparent"/>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
                         </ToggleButton>
 
                         <Popup x:Name="PART_Popup"

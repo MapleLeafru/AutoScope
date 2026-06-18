@@ -5,7 +5,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Runtime.InteropServices;
 using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
 using AutoScope.WpfClient.Models;
 using AutoScope.WpfClient.Services;
 
@@ -16,6 +19,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly DashboardDataService _dataService;
     private string _rootPathText = "";
     private string _statusMessage = "";
+    private Rect? _restoreBoundsBeforeCustomMaximize;
+    private bool _isCustomMaximized;
 
     public ObservableCollection<ScenarioDashboardItem> Scenarios { get; } = new();
     public ObservableCollection<DatabaseDashboardItem> Databases { get; } = new();
@@ -105,6 +110,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         MessageBox.Show(message, "AutoScope UI", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+
+    private void RootWindowBorder_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        RootWindowBorder.Clip = null;
+    }
+
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ClickCount == 2)
@@ -143,9 +154,94 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ToggleWindowState()
     {
-        WindowState = WindowState == WindowState.Maximized
-            ? WindowState.Normal
-            : WindowState.Maximized;
+        if (_isCustomMaximized)
+        {
+            RestoreFromCustomMaximize();
+            return;
+        }
+
+        MaximizeToCurrentMonitorWorkArea();
+    }
+
+    private void MaximizeToCurrentMonitorWorkArea()
+    {
+        if (WindowState != WindowState.Normal)
+            WindowState = WindowState.Normal;
+
+        _restoreBoundsBeforeCustomMaximize = new Rect(Left, Top, Width, Height);
+
+        Rect workArea = GetCurrentMonitorWorkArea();
+        Left = workArea.Left;
+        Top = workArea.Top;
+        Width = workArea.Width;
+        Height = workArea.Height;
+        _isCustomMaximized = true;
+    }
+
+    private void RestoreFromCustomMaximize()
+    {
+        if (_restoreBoundsBeforeCustomMaximize is Rect restoreBounds)
+        {
+            Left = restoreBounds.Left;
+            Top = restoreBounds.Top;
+            Width = restoreBounds.Width;
+            Height = restoreBounds.Height;
+        }
+
+        _isCustomMaximized = false;
+        _restoreBoundsBeforeCustomMaximize = null;
+    }
+
+    private Rect GetCurrentMonitorWorkArea()
+    {
+        IntPtr windowHandle = new WindowInteropHelper(this).Handle;
+        IntPtr monitorHandle = MonitorFromWindow(windowHandle, MonitorDefaultToNearest);
+
+        MonitorInfo monitorInfo = new();
+        monitorInfo.Size = Marshal.SizeOf<MonitorInfo>();
+
+        if (!GetMonitorInfo(monitorHandle, ref monitorInfo))
+            return SystemParameters.WorkArea;
+
+        Point topLeft = ToDeviceIndependentPoint(monitorInfo.WorkArea.Left, monitorInfo.WorkArea.Top);
+        Point bottomRight = ToDeviceIndependentPoint(monitorInfo.WorkArea.Right, monitorInfo.WorkArea.Bottom);
+
+        return new Rect(topLeft, bottomRight);
+    }
+
+    private Point ToDeviceIndependentPoint(int x, int y)
+    {
+        PresentationSource? source = PresentationSource.FromVisual(this);
+        if (source?.CompositionTarget == null)
+            return new Point(x, y);
+
+        return source.CompositionTarget.TransformFromDevice.Transform(new Point(x, y));
+    }
+
+    private const int MonitorDefaultToNearest = 2;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int flags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern bool GetMonitorInfo(IntPtr monitorHandle, ref MonitorInfo monitorInfo);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    private struct MonitorInfo
+    {
+        public int Size;
+        public NativeRect MonitorArea;
+        public NativeRect WorkArea;
+        public int Flags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
     }
 
     private void ReloadDashboard()

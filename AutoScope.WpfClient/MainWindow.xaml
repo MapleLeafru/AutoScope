@@ -7,12 +7,14 @@
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         ResizeMode="CanResize"
-        Background="{DynamicResource WindowOutlineBrush}">
+        Background="Transparent"
+        AllowsTransparency="True"
+        UseLayoutRounding="True">
 
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="0"
                             ResizeBorderThickness="6"
-                            CornerRadius="12"
+                            CornerRadius="0"
                             GlassFrameThickness="0"/>
     </shell:WindowChrome.WindowChrome>
 
@@ -20,12 +22,15 @@
         <conv:StatusToBrushConverter x:Key="StatusToBrushConverter"/>
     </Window.Resources>
 
-    <Border Background="{DynamicResource WindowBackgroundBrush}"
-            BorderBrush="{DynamicResource WindowOutlineBrush}"
-            BorderThickness="1"
+    <Border x:Name="RootWindowBorder"
+            Background="{DynamicResource WindowOutlineBrush}"
             CornerRadius="12"
             SnapsToDevicePixels="True">
-        <Grid Background="{DynamicResource WindowBackgroundBrush}">
+        <Border Background="{DynamicResource WindowBackgroundBrush}"
+                CornerRadius="11"
+                Margin="1"
+                SnapsToDevicePixels="True">
+            <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="38"/>
             <RowDefinition Height="*"/>
@@ -36,7 +41,8 @@
                 Background="{DynamicResource TitleBarBackgroundBrush}"
                 BorderBrush="{DynamicResource TitleBarBorderBrush}"
                 BorderThickness="0,0,0,1"
-                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+                CornerRadius="11,11,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -64,7 +70,7 @@
                                    FontWeight="SemiBold"
                                    FontSize="11"
                                    TextAlignment="Center"
-                                   Padding="0,1,0,0"/>
+                                   Padding="0,2,0,0"/>
                     </Grid>
                     <TextBlock Text="AutoScope" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
@@ -83,10 +89,13 @@
                         </Viewbox>
                     </Button>
                     <Button Style="{StaticResource TitleBarCloseButton}" Click="Close_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                        <Viewbox Width="13" Height="13" Stretch="Uniform">
+                        <Viewbox Width="19" Height="19" Stretch="Uniform">
                             <Canvas Width="18" Height="18">
-                                <Path Stroke="{DynamicResource TextPrimaryBrush}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 4 4 L 14 14"/>
-                                <Path Stroke="{DynamicResource TextPrimaryBrush}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 14 4 L 4 14"/>
+                                <Path Stroke="{DynamicResource TextPrimaryBrush}"
+                                      StrokeThickness="2.0"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      Data="M 4 4 L 14 14 M 14 4 L 4 14"/>
                             </Canvas>
                         </Viewbox>
                     </Button>
@@ -290,6 +299,7 @@
                 <TextBlock Grid.Column="1" Text="{Binding AppVersionText}" Style="{StaticResource MutedText}" HorizontalAlignment="Right"/>
             </Grid>
         </Grid>
-        </Grid>
+            </Grid>
+        </Border>
     </Border>
 </Window>

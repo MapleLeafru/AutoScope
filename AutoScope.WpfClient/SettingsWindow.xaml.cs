@@ -1,6 +1,8 @@
-using System;
+﻿using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using AutoScope.WpfClient.Services;
 
 namespace AutoScope.WpfClient;
@@ -14,10 +16,17 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         _rootPath = rootPath;
 
-        ThemeComboBox.ItemsSource = ThemeService.AvailableThemes;
+        var themes = ThemeService.GetAvailableThemes(_rootPath);
+        ThemeComboBox.ItemsSource = themes;
         string savedThemeKey = ThemeService.LoadSavedThemeKey(_rootPath);
-        ThemeComboBox.SelectedItem = ThemeService.GetTheme(savedThemeKey);
+        ThemeComboBox.SelectedItem = themes.FirstOrDefault(theme => theme.Key == savedThemeKey) ?? themes.FirstOrDefault();
         UpdateThemeDescription();
+    }
+
+
+    private void RootWindowBorder_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        RootWindowBorder.Clip = null;
     }
 
     private void ThemeComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)

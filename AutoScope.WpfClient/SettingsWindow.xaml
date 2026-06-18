@@ -6,21 +6,26 @@
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="CanResize"
-        Background="{DynamicResource WindowOutlineBrush}">
+        Background="Transparent"
+        AllowsTransparency="True"
+        UseLayoutRounding="True">
 
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="0"
                             ResizeBorderThickness="6"
-                            CornerRadius="12"
+                            CornerRadius="0"
                             GlassFrameThickness="0"/>
     </shell:WindowChrome.WindowChrome>
 
-    <Border Background="{DynamicResource WindowBackgroundBrush}"
-            BorderBrush="{DynamicResource WindowOutlineBrush}"
-            BorderThickness="1"
+    <Border x:Name="RootWindowBorder"
+            Background="{DynamicResource WindowOutlineBrush}"
             CornerRadius="12"
             SnapsToDevicePixels="True">
-        <Grid Background="{DynamicResource WindowBackgroundBrush}">
+        <Border Background="{DynamicResource WindowBackgroundBrush}"
+                CornerRadius="11"
+                Margin="1"
+                SnapsToDevicePixels="True">
+            <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="38"/>
             <RowDefinition Height="*"/>
@@ -32,7 +37,8 @@
                 Background="{DynamicResource TitleBarBackgroundBrush}"
                 BorderBrush="{DynamicResource TitleBarBorderBrush}"
                 BorderThickness="0,0,0,1"
-                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+                CornerRadius="11,11,0,0">
             <Grid>
                 <TextBlock Text="Настройки AutoScope"
                            FontWeight="SemiBold"
@@ -43,12 +49,15 @@
                         Click="Close_Click"
                         Margin="0,2,6,2"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                    <Viewbox Width="13" Height="13" Stretch="Uniform">
-                        <Canvas Width="18" Height="18">
-                            <Path Stroke="{DynamicResource TextPrimaryBrush}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 4 4 L 14 14"/>
-                            <Path Stroke="{DynamicResource TextPrimaryBrush}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 14 4 L 4 14"/>
-                        </Canvas>
-                    </Viewbox>
+                    <Viewbox Width="19" Height="19" Stretch="Uniform">
+                            <Canvas Width="18" Height="18">
+                                <Path Stroke="{DynamicResource TextPrimaryBrush}"
+                                      StrokeThickness="2.0"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      Data="M 4 4 L 14 14 M 14 4 L 4 14"/>
+                            </Canvas>
+                        </Viewbox>
                 </Button>
             </Grid>
         </Border>
@@ -56,13 +65,14 @@
         <Border Grid.Row="1" Style="{StaticResource HubCard}" Margin="18">
             <StackPanel>
                 <TextBlock Text="Цветовая схема" Style="{StaticResource CardTitle}"/>
-                <TextBlock Text="Выбор темы применяется сразу после сохранения. Новые темы можно добавлять по аналогии с XAML-файлами в Styles/Themes." Style="{StaticResource SectionCaption}"/>
+                <TextBlock Text="Выбор темы применяется сразу после сохранения. Новые темы автоматически подхватываются из папки Styles/Themes." Style="{StaticResource SectionCaption}"/>
 
                 <TextBlock Text="Тема приложения" Style="{StaticResource SecondaryText}" Margin="0,8,0,6"/>
                 <ComboBox x:Name="ThemeComboBox"
                           Style="{StaticResource SettingsComboBox}"
                           DisplayMemberPath="DisplayName"
-                          SelectionChanged="ThemeComboBox_SelectionChanged"/>
+                          SelectionChanged="ThemeComboBox_SelectionChanged">
+                </ComboBox>
 
                 <TextBlock x:Name="ThemeDescriptionText"
                            Style="{StaticResource MutedText}"
@@ -75,7 +85,7 @@
                         Padding="12"
                         Margin="0,18,0,0">
                     <TextBlock Style="{StaticResource MutedText}">
-                        Чтобы добавить свою схему: скопируй файл из Styles/Themes, измени цвета, затем добавь её в ThemeService.AvailableThemes.
+                        Чтобы добавить свою схему: скопируй XAML-файл в Styles/Themes, измени цвета и укажи ThemeKey, ThemeDisplayName, ThemeDescription внутри файла темы.
                     </TextBlock>
                 </Border>
             </StackPanel>
@@ -85,6 +95,7 @@
             <Button Content="Сохранить" Style="{StaticResource AccentButton}" Click="Save_Click"/>
             <Button Content="Закрыть" Style="{StaticResource BaseButton}" Click="Close_Click"/>
         </StackPanel>
-        </Grid>
+            </Grid>
+        </Border>
     </Border>
 </Window>

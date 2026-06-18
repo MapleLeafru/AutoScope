@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Windows;
+using System.Xml.Linq;
 
 namespace AutoScope.WpfClient.Services;
 
@@ -13,6 +14,7 @@ public sealed class ThemeOption
     public required string DisplayName { get; init; }
     public required string ResourcePath { get; init; }
     public required string Description { get; init; }
+    public bool IsExternalFile { get; init; }
 
     public override string ToString() => DisplayName;
 }
@@ -21,23 +23,18 @@ public static class ThemeService
 {
     private const string DefaultThemeKey = "graphite-blue";
 
-    public static IReadOnlyList<ThemeOption> AvailableThemes { get; } = new List<ThemeOption>
+    public static IReadOnlyList<ThemeOption> GetAvailableThemes(string rootPath)
     {
-        new()
-        {
-            Key = "graphite-blue",
-            DisplayName = "Графитовая синяя",
-            ResourcePath = "Styles/Colors.xaml",
-            Description = "Текущая основная тёмная схема AutoScope с синим акцентом."
-        },
-        new()
-        {
-            Key = "deep-emerald",
-            DisplayName = "Тёмная зелёная",
-            ResourcePath = "Styles/Themes/DeepEmerald.xaml",
-            Description = "Альтернативная зелёная схема для экспериментов с палитрой."
-        }
-    };
+        List<ThemeOption> themes = LoadThemesFromFolder(rootPath);
+
+        if (themes.Count == 0)
+            themes.AddRange(GetFallbackThemes());
+
+        return themes
+            .OrderBy(theme => theme.Key == DefaultThemeKey ? 0 : 1)
+            .ThenBy(theme => theme.DisplayName)
+            .ToList();
+    }
 
     public static string LoadSavedThemeKey(string rootPath)
     {
@@ -52,7 +49,7 @@ public static class ThemeService
             if (settings == null || string.IsNullOrWhiteSpace(settings.ThemeKey))
                 return DefaultThemeKey;
 
-            bool exists = AvailableThemes.Any(theme => theme.Key == settings.ThemeKey);
+            bool exists = GetAvailableThemes(rootPath).Any(theme => theme.Key == settings.ThemeKey);
             return exists ? settings.ThemeKey : DefaultThemeKey;
         }
         catch
@@ -61,10 +58,12 @@ public static class ThemeService
         }
     }
 
-    public static ThemeOption GetTheme(string themeKey)
+    public static ThemeOption GetTheme(string themeKey, string rootPath)
     {
-        return AvailableThemes.FirstOrDefault(theme => theme.Key == themeKey)
-            ?? AvailableThemes.First(theme => theme.Key == DefaultThemeKey);
+        IReadOnlyList<ThemeOption> themes = GetAvailableThemes(rootPath);
+        return themes.FirstOrDefault(theme => theme.Key == themeKey)
+            ?? themes.FirstOrDefault(theme => theme.Key == DefaultThemeKey)
+            ?? themes.First();
     }
 
     public static void ApplySavedTheme(string rootPath)
@@ -74,30 +73,123 @@ public static class ThemeService
 
     public static void ApplyTheme(string themeKey, bool save, string rootPath)
     {
-        ThemeOption theme = GetTheme(themeKey);
-        ReplaceThemeDictionary(theme.ResourcePath);
+        ThemeOption theme = GetTheme(themeKey, rootPath);
+        ReplaceThemeDictionary(theme.ResourcePath, theme.IsExternalFile);
 
         if (save)
             SaveTheme(theme.Key, rootPath);
     }
 
-    private static void ReplaceThemeDictionary(string resourcePath)
+    private static List<ThemeOption> LoadThemesFromFolder(string rootPath)
+    {
+        List<ThemeOption> themes = new();
+        string themesDirectory = Path.Combine(rootPath, "AutoScope.WpfClient", "Styles", "Themes");
+
+        if (!Directory.Exists(themesDirectory))
+            return themes;
+
+        foreach (string themeFile in Directory.GetFiles(themesDirectory, "*.xaml"))
+        {
+            ThemeOption option = LoadThemeOptionFromFile(themeFile);
+            if (themes.Any(theme => theme.Key.Equals(option.Key, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            themes.Add(option);
+        }
+
+        return themes;
+    }
+
+    private static ThemeOption LoadThemeOptionFromFile(string themeFile)
+    {
+        string fileName = Path.GetFileNameWithoutExtension(themeFile);
+        string fallbackKey = NormalizeKey(fileName);
+
+        try
+        {
+            XDocument document = XDocument.Load(themeFile);
+            string key = ReadThemeString(document, "ThemeKey") ?? fallbackKey;
+            string displayName = ReadThemeString(document, "ThemeDisplayName") ?? SplitPascalCase(fileName);
+            string description = ReadThemeString(document, "ThemeDescription") ?? "Пользовательская цветовая схема из папки Styles/Themes.";
+
+            return new ThemeOption
+            {
+                Key = key,
+                DisplayName = displayName,
+                Description = description,
+                ResourcePath = themeFile,
+                IsExternalFile = true
+            };
+        }
+        catch
+        {
+            return new ThemeOption
+            {
+                Key = fallbackKey,
+                DisplayName = SplitPascalCase(fileName),
+                Description = "Тема найдена в папке Styles/Themes, но её описание не удалось прочитать.",
+                ResourcePath = themeFile,
+                IsExternalFile = true
+            };
+        }
+    }
+
+    private static string? ReadThemeString(XDocument document, string key)
+    {
+        XNamespace xNamespace = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+        return document
+            .Descendants()
+            .FirstOrDefault(element =>
+                string.Equals((string?)element.Attribute(xNamespace + "Key"), key, StringComparison.OrdinalIgnoreCase))
+            ?.Value
+            .Trim();
+    }
+
+    private static IReadOnlyList<ThemeOption> GetFallbackThemes()
+    {
+        return new List<ThemeOption>
+        {
+            new()
+            {
+                Key = "graphite-blue",
+                DisplayName = "Графитовая синяя",
+                ResourcePath = "Styles/Themes/GraphiteBlue.xaml",
+                Description = "Основная тёмная графитовая схема AutoScope с мягким синим акцентом.",
+                IsExternalFile = false
+            },
+            new()
+            {
+                Key = "deep-emerald",
+                DisplayName = "Тёмная зелёная",
+                ResourcePath = "Styles/Themes/DeepEmerald.xaml",
+                Description = "Альтернативная тёмная схема с зелёным акцентом для экспериментов с палитрой.",
+                IsExternalFile = false
+            }
+        };
+    }
+
+    private static void ReplaceThemeDictionary(string resourcePath, bool isExternalFile)
     {
         var dictionaries = Application.Current.Resources.MergedDictionaries;
+        Uri source = isExternalFile
+            ? new Uri(resourcePath, UriKind.Absolute)
+            : new Uri(resourcePath, UriKind.Relative);
+
         ResourceDictionary newDictionary = new()
         {
-            Source = new Uri(resourcePath, UriKind.Relative)
+            Source = source
         };
 
         int themeIndex = -1;
         for (int i = 0; i < dictionaries.Count; i++)
         {
-            string? source = dictionaries[i].Source?.OriginalString.Replace('\\', '/');
-            if (string.IsNullOrWhiteSpace(source))
+            string? dictionarySource = dictionaries[i].Source?.OriginalString.Replace('\\', '/');
+            if (string.IsNullOrWhiteSpace(dictionarySource))
                 continue;
 
-            if (source.EndsWith("Styles/Colors.xaml", StringComparison.OrdinalIgnoreCase) ||
-                source.Contains("Styles/Themes/", StringComparison.OrdinalIgnoreCase))
+            if (dictionarySource.EndsWith("Styles/Colors.xaml", StringComparison.OrdinalIgnoreCase) ||
+                dictionarySource.Contains("Styles/Themes/", StringComparison.OrdinalIgnoreCase))
             {
                 themeIndex = i;
                 break;
@@ -131,6 +223,28 @@ public static class ThemeService
     private static string GetSettingsPath(string rootPath)
     {
         return Path.Combine(rootPath, "Configs", "UiSettings.json");
+    }
+
+    private static string NormalizeKey(string value)
+    {
+        return value.Trim().Replace('_', '-').Replace(' ', '-').ToLowerInvariant();
+    }
+
+    private static string SplitPascalCase(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "Без названия";
+
+        List<char> result = new();
+        for (int i = 0; i < value.Length; i++)
+        {
+            char current = value[i];
+            if (i > 0 && char.IsUpper(current) && !char.IsWhiteSpace(value[i - 1]))
+                result.Add(' ');
+            result.Add(current);
+        }
+
+        return new string(result.ToArray());
     }
 
     private sealed class UiSettings

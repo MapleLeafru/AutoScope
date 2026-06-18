@@ -1,7 +1,12 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!--Альтернативная зелёная палитра главного окна. -->
+
+    <sys:String x:Key="ThemeKey">deep-emerald</sys:String>
+    <sys:String x:Key="ThemeDisplayName">Тёмная зелёная</sys:String>
+    <sys:String x:Key="ThemeDescription">Альтернативная тёмная схема с зелёным акцентом для экспериментов с палитрой.</sys:String>
     <Color x:Key="WindowBackgroundColor">#04100D</Color>
     <Color x:Key="PanelBackgroundColor">#0A1A16</Color>
     <Color x:Key="CardBackgroundColor">#10231E</Color>
