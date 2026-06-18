@@ -221,6 +221,63 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         MessageBox.Show(message, "Процесс AutoScope", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    private void PauseProcess_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || element.Tag is not ProcessDashboardItem process)
+            return;
+
+        if (!process.CanPause)
+            return;
+
+        bool paused = WpfRunManagerService.Instance.PauseProcess(process.Id, out string message);
+        StatusMessage = message;
+        ReloadProcesses();
+
+        if (!paused)
+            MessageBox.Show(message, "AutoScope", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void ResumeProcess_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || element.Tag is not ProcessDashboardItem process)
+            return;
+
+        if (!process.CanResume)
+            return;
+
+        bool resumed = WpfRunManagerService.Instance.ResumeProcess(process.Id, out string message);
+        StatusMessage = message;
+        ReloadProcesses();
+
+        if (!resumed)
+            MessageBox.Show(message, "AutoScope", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void StopProcess_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || element.Tag is not ProcessDashboardItem process)
+            return;
+
+        if (!process.CanStop)
+            return;
+
+        MessageBoxResult confirmation = MessageBox.Show(
+            $"Остановить процесс \"{process.Name}\"?\n\nЕсли модуль сейчас записывает данные, он будет завершён принудительно.",
+            "Остановка процесса",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirmation != MessageBoxResult.Yes)
+            return;
+
+        bool stopped = WpfRunManagerService.Instance.StopProcess(process.Id, out string message);
+        StatusMessage = message;
+        ReloadProcesses();
+
+        if (!stopped)
+            MessageBox.Show(message, "AutoScope", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
     private void LaunchInputPipeline_Click(object sender, RoutedEventArgs e)
     {
         InputPipelineLaunchWindow window = new InputPipelineLaunchWindow(_dataService.RootPath)

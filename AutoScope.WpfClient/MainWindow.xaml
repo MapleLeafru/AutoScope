@@ -315,6 +315,9 @@
                                                     </StackPanel>
 
                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                                                        <Button x:Name="PauseProcessButton" Content="Пауза" Style="{StaticResource SmallButton}" Click="PauseProcess_Click" Tag="{Binding}" IsEnabled="{Binding CanPause}" Visibility="Collapsed"/>
+                                                        <Button x:Name="ResumeProcessButton" Content="Продолжить" Style="{StaticResource AccentSmallButton}" Click="ResumeProcess_Click" Tag="{Binding}" IsEnabled="{Binding CanResume}" Visibility="Collapsed"/>
+                                                        <Button x:Name="StopProcessButton" Content="Стоп" Style="{StaticResource DangerSmallButton}" Click="StopProcess_Click" Tag="{Binding}" IsEnabled="{Binding CanStop}" Visibility="Collapsed"/>
                                                         <Button Content="Лог" Style="{StaticResource SmallButton}" Click="OpenProcessLog_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenLog}"/>
                                                         <Button Content="Открыть" Style="{StaticResource SmallButton}" Click="ShowProcessInfo_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenDetails}"/>
                                                     </StackPanel>
@@ -345,6 +348,15 @@
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding IsSecondaryActionVisible}" Value="True">
                                                 <Setter TargetName="LoadAllHistoryButton" Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding CanPause}" Value="True">
+                                                <Setter TargetName="PauseProcessButton" Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding CanResume}" Value="True">
+                                                <Setter TargetName="ResumeProcessButton" Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding CanStop}" Value="True">
+                                                <Setter TargetName="StopProcessButton" Property="Visibility" Value="Visible"/>
                                             </DataTrigger>
                                         </DataTemplate.Triggers>
                                     </DataTemplate>

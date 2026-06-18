@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -47,7 +48,8 @@ public sealed class WpfRunManagerService
             StatusText = "выполняется",
             Details = "Процесс создан, ожидается первый вывод.",
             StateKind = DashboardStateKind.Running,
-            ExitCode = null
+            ExitCode = null,
+            Process = process
         };
 
         lock (_sync)
@@ -70,10 +72,192 @@ public sealed class WpfRunManagerService
         }
 
         return snapshot
-            .OrderByDescending(record => record.StateKind == DashboardStateKind.Running)
+            .OrderByDescending(record => record.StateKind == DashboardStateKind.Running || record.IsPaused)
             .ThenByDescending(record => record.StartedAt)
             .Select(ToDashboardItem)
             .ToList();
+    }
+
+    public bool StopProcess(string recordId, out string message)
+    {
+        Process? processToStop;
+
+        lock (_sync)
+        {
+            WpfRunRecord? record = _records.FirstOrDefault(item => item.Id == recordId);
+            if (record == null)
+            {
+                message = "Процесс не найден.";
+                return false;
+            }
+
+            if (record.FinishedAt != null)
+            {
+                message = "Этот процесс уже завершён.";
+                return false;
+            }
+
+            if (record.StopRequested)
+            {
+                message = "Остановка этого процесса уже выполняется.";
+                return false;
+            }
+
+            record.StopRequested = true;
+            record.IsPaused = false;
+            record.StatusText = "останавливается";
+            record.Details = "Пользователь запросил остановку процесса.";
+            record.LastUpdatedAt = DateTime.Now;
+            processToStop = record.Process;
+        }
+
+        try
+        {
+            if (processToStop == null || processToStop.HasExited)
+            {
+                message = "Процесс уже завершён.";
+                return false;
+            }
+
+            processToStop.Kill(entireProcessTree: true);
+            message = "Отправлена команда остановки процесса.";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            lock (_sync)
+            {
+                WpfRunRecord? record = _records.FirstOrDefault(item => item.Id == recordId);
+                if (record != null)
+                {
+                    record.StopRequested = false;
+                    record.StatusText = "выполняется";
+                    record.Details = "Остановить процесс не удалось: " + ex.Message;
+                    record.LastUpdatedAt = DateTime.Now;
+                }
+            }
+
+            message = "Остановить процесс не удалось: " + ex.Message;
+            return false;
+        }
+    }
+
+    public bool PauseProcess(string recordId, out string message)
+    {
+        int processId;
+
+        lock (_sync)
+        {
+            WpfRunRecord? record = _records.FirstOrDefault(item => item.Id == recordId);
+            if (record == null)
+            {
+                message = "Процесс не найден.";
+                return false;
+            }
+
+            if (record.FinishedAt != null || record.StopRequested)
+            {
+                message = "Этот процесс уже завершён или останавливается.";
+                return false;
+            }
+
+            if (record.IsPaused)
+            {
+                message = "Процесс уже находится на паузе.";
+                return false;
+            }
+
+            processId = record.ProcessId;
+        }
+
+        try
+        {
+            if (!WindowsProcessPauseHelper.SuspendProcessTree(processId))
+            {
+                message = "Не удалось найти активные потоки процесса для паузы.";
+                return false;
+            }
+
+            lock (_sync)
+            {
+                WpfRunRecord? record = _records.FirstOrDefault(item => item.Id == recordId);
+                if (record != null)
+                {
+                    record.IsPaused = true;
+                    record.StateKind = DashboardStateKind.Warning;
+                    record.StatusText = "на паузе";
+                    record.Details = "Процесс приостановлен пользователем.";
+                    record.LastUpdatedAt = DateTime.Now;
+                }
+            }
+
+            message = "Процесс поставлен на паузу.";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            message = "Поставить процесс на паузу не удалось: " + ex.Message;
+            return false;
+        }
+    }
+
+    public bool ResumeProcess(string recordId, out string message)
+    {
+        int processId;
+
+        lock (_sync)
+        {
+            WpfRunRecord? record = _records.FirstOrDefault(item => item.Id == recordId);
+            if (record == null)
+            {
+                message = "Процесс не найден.";
+                return false;
+            }
+
+            if (record.FinishedAt != null || record.StopRequested)
+            {
+                message = "Этот процесс уже завершён или останавливается.";
+                return false;
+            }
+
+            if (!record.IsPaused)
+            {
+                message = "Процесс не находится на паузе.";
+                return false;
+            }
+
+            processId = record.ProcessId;
+        }
+
+        try
+        {
+            if (!WindowsProcessPauseHelper.ResumeProcessTree(processId))
+            {
+                message = "Не удалось найти активные потоки процесса для продолжения.";
+                return false;
+            }
+
+            lock (_sync)
+            {
+                WpfRunRecord? record = _records.FirstOrDefault(item => item.Id == recordId);
+                if (record != null)
+                {
+                    record.IsPaused = false;
+                    record.StateKind = DashboardStateKind.Running;
+                    record.StatusText = "выполняется";
+                    record.Details = "Процесс продолжен пользователем.";
+                    record.LastUpdatedAt = DateTime.Now;
+                }
+            }
+
+            message = "Процесс продолжен.";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            message = "Продолжить процесс не удалось: " + ex.Message;
+            return false;
+        }
     }
 
     private async Task RunProcessAsync(WpfRunRecord record, Process process, string inputJson, Action<WpfRunCompletionInfo>? completed)
@@ -192,6 +376,9 @@ public sealed class WpfRunManagerService
             int percent = ReadInt(root, "percent") ?? 0;
             string message = ReadString(root, "message") ?? "";
 
+            if (!record.IsPaused)
+                record.StateKind = DashboardStateKind.Running;
+
             record.ProgressPercent = Math.Clamp(percent, 0, 100);
             record.ProgressText = record.ProgressPercent + "%";
             record.StageText = FormatStageText(stage, record.TypeText, DashboardStateKind.Running);
@@ -216,8 +403,17 @@ public sealed class WpfRunManagerService
                 return;
 
             record.ExitCode = exitCode;
+            record.IsPaused = false;
             record.FinishedAt = DateTime.Now;
             record.LastUpdatedAt = DateTime.Now;
+
+            if (record.StopRequested)
+            {
+                record.StateKind = DashboardStateKind.Warning;
+                record.StatusText = "остановлен";
+                record.Details = "Процесс остановлен пользователем.";
+                return;
+            }
 
             bool explicitErrorStatus = ContainsErrorStatus(record.StandardOutput.ToString()) || LooksLikeError(record.StandardError.ToString());
             bool successStatus = ContainsSuccessStatus(record.StandardOutput.ToString());
@@ -313,9 +509,12 @@ public sealed class WpfRunManagerService
             ProgressPercent = record.ProgressPercent,
             IsProgressVisible = record.IsProgressVisible,
             IsSessionItem = true,
-            IsRunningLike = record.StateKind == DashboardStateKind.Running,
+            IsRunningLike = record.FinishedAt == null,
+            CanStop = record.FinishedAt == null && !record.StopRequested,
+            CanPause = record.FinishedAt == null && !record.StopRequested && !record.IsPaused,
+            CanResume = record.FinishedAt == null && !record.StopRequested && record.IsPaused,
             LastUpdatedAt = record.LastUpdatedAt,
-            StateKind = record.StateKind
+            StateKind = record.IsPaused ? DashboardStateKind.Warning : record.StateKind
         };
     }
 
@@ -499,6 +698,9 @@ public sealed class WpfRunManagerService
         public DateTime? FinishedAt { get; set; }
         public DateTime LastUpdatedAt { get; set; }
         public int? ExitCode { get; set; }
+        public bool StopRequested { get; set; }
+        public bool IsPaused { get; set; }
+        public Process? Process { get; set; }
         public DashboardStateKind StateKind { get; set; } = DashboardStateKind.Running;
         public StringBuilder StandardOutput { get; set; } = new();
         public StringBuilder StandardError { get; set; } = new();
@@ -527,11 +729,199 @@ public sealed class WpfRunManagerService
                 FinishedAt = FinishedAt,
                 LastUpdatedAt = LastUpdatedAt,
                 ExitCode = ExitCode,
+                StopRequested = StopRequested,
+                IsPaused = IsPaused,
                 StateKind = StateKind,
                 StandardOutput = new StringBuilder(StandardOutput.ToString()),
                 StandardError = new StringBuilder(StandardError.ToString())
             };
         }
+    }
+
+    private static class WindowsProcessPauseHelper
+    {
+        private const uint TH32CS_SNAPPROCESS = 0x00000002;
+        private const uint TH32CS_SNAPTHREAD = 0x00000004;
+        private const int THREAD_SUSPEND_RESUME = 0x0002;
+        private static readonly IntPtr InvalidHandleValue = new(-1);
+
+        public static bool SuspendProcessTree(int rootProcessId)
+        {
+            return ApplyToProcessTreeThreads(rootProcessId, suspend: true);
+        }
+
+        public static bool ResumeProcessTree(int rootProcessId)
+        {
+            return ApplyToProcessTreeThreads(rootProcessId, suspend: false);
+        }
+
+        private static bool ApplyToProcessTreeThreads(int rootProcessId, bool suspend)
+        {
+            if (rootProcessId <= 0)
+                return false;
+
+            List<int> processIds = GetProcessTreeIds(rootProcessId);
+            if (processIds.Count == 0)
+                return false;
+
+            int affectedThreads = 0;
+            foreach (int processId in processIds)
+                affectedThreads += ApplyToProcessThreads(processId, suspend);
+
+            return affectedThreads > 0;
+        }
+
+        private static List<int> GetProcessTreeIds(int rootProcessId)
+        {
+            List<ProcessInfo> processes = EnumerateProcesses();
+            HashSet<int> result = new() { rootProcessId };
+            Queue<int> queue = new();
+            queue.Enqueue(rootProcessId);
+
+            while (queue.Count > 0)
+            {
+                int parentId = queue.Dequeue();
+                foreach (ProcessInfo child in processes.Where(item => item.ParentProcessId == parentId))
+                {
+                    if (result.Add(child.ProcessId))
+                        queue.Enqueue(child.ProcessId);
+                }
+            }
+
+            return result.ToList();
+        }
+
+        private static List<ProcessInfo> EnumerateProcesses()
+        {
+            List<ProcessInfo> result = new();
+            IntPtr snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+            if (snapshot == InvalidHandleValue)
+                return result;
+
+            try
+            {
+                PROCESSENTRY32 entry = new();
+                entry.dwSize = (uint)Marshal.SizeOf<PROCESSENTRY32>();
+
+                if (!Process32First(snapshot, ref entry))
+                    return result;
+
+                do
+                {
+                    result.Add(new ProcessInfo((int)entry.th32ProcessID, (int)entry.th32ParentProcessID));
+                }
+                while (Process32Next(snapshot, ref entry));
+            }
+            finally
+            {
+                CloseHandle(snapshot);
+            }
+
+            return result;
+        }
+
+        private static int ApplyToProcessThreads(int processId, bool suspend)
+        {
+            int affectedThreads = 0;
+            IntPtr snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+            if (snapshot == InvalidHandleValue)
+                return affectedThreads;
+
+            try
+            {
+                THREADENTRY32 entry = new();
+                entry.dwSize = (uint)Marshal.SizeOf<THREADENTRY32>();
+
+                if (!Thread32First(snapshot, ref entry))
+                    return affectedThreads;
+
+                do
+                {
+                    if (entry.th32OwnerProcessID != (uint)processId)
+                        continue;
+
+                    IntPtr threadHandle = OpenThread(THREAD_SUSPEND_RESUME, false, entry.th32ThreadID);
+                    if (threadHandle == IntPtr.Zero)
+                        continue;
+
+                    try
+                    {
+                        uint result = suspend ? SuspendThread(threadHandle) : ResumeThread(threadHandle);
+                        if (result != uint.MaxValue)
+                            affectedThreads++;
+                    }
+                    finally
+                    {
+                        CloseHandle(threadHandle);
+                    }
+                }
+                while (Thread32Next(snapshot, ref entry));
+            }
+            finally
+            {
+                CloseHandle(snapshot);
+            }
+
+            return affectedThreads;
+        }
+
+        private readonly record struct ProcessInfo(int ProcessId, int ParentProcessId);
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        private struct PROCESSENTRY32
+        {
+            public uint dwSize;
+            public uint cntUsage;
+            public uint th32ProcessID;
+            public IntPtr th32DefaultHeapID;
+            public uint th32ModuleID;
+            public uint cntThreads;
+            public uint th32ParentProcessID;
+            public int pcPriClassBase;
+            public uint dwFlags;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+            public string szExeFile;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct THREADENTRY32
+        {
+            public uint dwSize;
+            public uint cntUsage;
+            public uint th32ThreadID;
+            public uint th32OwnerProcessID;
+            public int tpBasePri;
+            public int tpDeltaPri;
+            public uint dwFlags;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern bool Process32First(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern bool Process32Next(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool Thread32First(IntPtr hSnapshot, ref THREADENTRY32 lpte);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool Thread32Next(IntPtr hSnapshot, ref THREADENTRY32 lpte);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr OpenThread(int dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint SuspendThread(IntPtr hThread);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint ResumeThread(IntPtr hThread);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr hObject);
     }
 }
 
