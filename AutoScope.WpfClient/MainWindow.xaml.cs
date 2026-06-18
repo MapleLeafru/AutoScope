@@ -164,6 +164,47 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         StatusMessage = $"Сценарии обновлены после управления: {DateTime.Now:HH:mm:ss}.";
     }
 
+    private void StartScenarioFromHub_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || element.Tag is not ScenarioDashboardItem scenario)
+            return;
+
+        if (!scenario.CanRun)
+        {
+            MessageBox.Show(
+                "Этот сценарий нельзя запустить: проверь файл сценария, базу данных и выбранный модуль.",
+                "Запуск сценария",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!scenario.Enabled)
+        {
+            MessageBoxResult confirmation = MessageBox.Show(
+                $"Сценарий «{scenario.Name}» сейчас выключен. Запустить его вручную всё равно?",
+                "Запуск выключенного сценария",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (confirmation != MessageBoxResult.Yes)
+                return;
+        }
+
+        ScenarioManagementService service = new ScenarioManagementService(_dataService.RootPath);
+        ScenarioOperationResult result = service.StartScenarioNow(scenario);
+
+        StatusMessage = result.Message;
+
+        if (!result.Success)
+        {
+            MessageBox.Show(result.Message, "Запуск сценария", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        ReloadProcesses();
+    }
+
     private void OpenDbBrowser_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement element || element.Tag is not DatabaseDashboardItem database)

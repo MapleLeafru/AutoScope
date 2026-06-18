@@ -185,6 +185,7 @@
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="10"/>
                                                     <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <Border Width="6" CornerRadius="3" Background="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}"/>
                                                 <StackPanel Grid.Column="1" Margin="10,0,0,0">
@@ -192,6 +193,23 @@
                                                     <TextBlock Text="{Binding StatusText}" Foreground="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}" FontSize="12" Margin="0,2,0,0"/>
                                                     <TextBlock Text="{Binding Details}" Style="{StaticResource MutedText}" Margin="0,3,0,0"/>
                                                 </StackPanel>
+                                                <Button Grid.Column="2"
+                                                        Content="Запуск"
+                                                        Tag="{Binding}"
+                                                        Click="StartScenarioFromHub_Click"
+                                                        VerticalAlignment="Center"
+                                                        Margin="10,0,0,0">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button" BasedOn="{StaticResource AccentSmallButton}">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding CanRun}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
