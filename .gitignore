@@ -386,3 +386,10 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd/Python.zip
+
+# Release build output
+/dist/
+/AutoScope-*.zip
+
+# Temporary local archives
+/Python.zip
