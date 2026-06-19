@@ -105,32 +105,11 @@
 
         <Grid Grid.Row="1" Margin="22" Background="{DynamicResource WindowBackgroundBrush}">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" Background="{DynamicResource PanelBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="18" Padding="22" Margin="0,0,0,7">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel>
-                        <TextBlock Text="AutoScope" FontSize="30" FontWeight="SemiBold"/>
-                        <TextBlock Text="Центр наблюдения и управления автомобильными данными" Style="{StaticResource SecondaryText}" Margin="0,4,0,0"/>
-                        <TextBlock Text="{Binding RootPathText}" Style="{StaticResource MutedText}" Margin="0,12,0,0"/>
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                        <Button Content="Обновить" Style="{StaticResource AccentButton}" Click="Refresh_Click"/>
-                        <Button Content="Открыть папку проекта" Style="{StaticResource BaseButton}" Click="OpenRootFolder_Click"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <Grid Grid.Row="1">
+            <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
@@ -143,15 +122,48 @@
                 <!-- Быстрые действия -->
                 <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource HubCard}">
                     <DockPanel LastChildFill="True">
-                        <StackPanel DockPanel.Dock="Top">
+                        <Grid DockPanel.Dock="Top" Margin="0,0,0,14">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Text="AutoScope"
+                                       FontSize="30"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"/>
+
+                            <TextBlock Grid.Row="1"
+                                       Grid.ColumnSpan="2"
+                                       Text="Центр наблюдения и управления данными"
+                                       Style="{StaticResource SecondaryText}"
+                                       Margin="0,4,0,0"
+                                       TextWrapping="Wrap"/>
+
+                            <TextBlock Grid.Row="2"
+                                       Grid.ColumnSpan="2"
+                                       Text="{Binding RootPathText}"
+                                       Style="{StaticResource MutedText}"
+                                       Margin="0,5,0,0"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </Grid>
+
+                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                             <TextBlock Text="Быстрые действия" Style="{StaticResource CardTitle}"/>
                             <TextBlock Text="Главные команды без захода в подробные разделы." Style="{StaticResource SectionCaption}"/>
                         </StackPanel>
 
                         <WrapPanel>
+                            <Button Content="Обновить" Style="{StaticResource AccentButton}" Click="Refresh_Click"/>
                             <Button Content="Запустить парсинг" Style="{StaticResource AccentButton}" Click="LaunchInputPipeline_Click"/>
                             <Button Content="Сформировать отчёт" Style="{StaticResource AccentButton}" Click="LaunchOutputPipeline_Click"/>
                             <Button Content="Отчёты" Style="{StaticResource BaseButton}" Click="OpenReportsManager_Click"/>
+                            <Button Content="Открыть папку проекта" Style="{StaticResource BaseButton}" Click="OpenRootFolder_Click"/>
                             <Button Content="Открыть папку логов" Style="{StaticResource BaseButton}" Click="OpenLogsFolder_Click"/>
                             <Button Content="Настройки" Style="{StaticResource BaseButton}" Click="Settings_Click"/>
                         </WrapPanel>
@@ -385,7 +397,7 @@
                 </Border>
             </Grid>
 
-            <Grid Grid.Row="2" Margin="4,10,4,0">
+            <Grid Grid.Row="1" Margin="4,10,4,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
