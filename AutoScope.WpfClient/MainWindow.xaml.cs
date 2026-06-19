@@ -14,6 +14,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using AutoScope.WpfClient.Models;
 using AutoScope.WpfClient.Services;
+using Forms = System.Windows.Forms;
 
 namespace AutoScope.WpfClient;
 
@@ -29,6 +30,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly HashSet<string> _sessionProcessIds = new(StringComparer.OrdinalIgnoreCase);
     private bool _isScenarioAutoCheckEnabled;
     private bool _isScenarioAutoCheckRunning;
+    private int _scenarioAutoCheckIntervalMinutes = 1;
     private string _scenarioAutoCheckStatus = "Автопроверка: выключена";
     private int _historyVisibleCount;
     private bool _showAllHistory;
@@ -57,9 +59,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         set { _scenarioAutoCheckStatus = value; OnPropertyChanged(); }
     }
 
-    public string ScenarioAutoCheckButtonText => _isScenarioAutoCheckEnabled
-        ? "Выключить автопроверку"
-        : "Включить автопроверку";
+    public bool IsScenarioAutoCheckEnabled
+    {
+        get => _isScenarioAutoCheckEnabled;
+        private set
+        {
+            if (_isScenarioAutoCheckEnabled == value)
+                return;
+
+            _isScenarioAutoCheckEnabled = value;
+            OnPropertyChanged();
+        }
+    }
 
     public MainWindow()
     {
@@ -70,20 +81,44 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _dataService = new DashboardDataService(rootPath);
         RootPathText = $"Корень проекта: {rootPath}";
 
+        _scenarioAutoCheckTimer.Tick += ScenarioAutoCheckTimer_Tick;
+        LoadScenarioAutoCheckSettingsFromFile(startIfEnabled: true);
         ReloadDashboard();
 
         _processRefreshTimer.Interval = TimeSpan.FromSeconds(1.5);
         _processRefreshTimer.Tick += ProcessRefreshTimer_Tick;
         _processRefreshTimer.Start();
 
-        _scenarioAutoCheckTimer.Interval = TimeSpan.FromMinutes(1);
-        _scenarioAutoCheckTimer.Tick += ScenarioAutoCheckTimer_Tick;
-
+        Closing += MainWindow_Closing;
         Closed += (_, _) =>
         {
             _processRefreshTimer.Stop();
             _scenarioAutoCheckTimer.Stop();
         };
+    }
+
+    public void ShowFromTray()
+    {
+        if (!IsVisible)
+            Show();
+
+        if (WindowState == WindowState.Minimized)
+            WindowState = WindowState.Normal;
+
+        Activate();
+        Focus();
+    }
+
+    public void OpenProcessManagerFromTray()
+    {
+        ShowFromTray();
+        OpenProcessManagerDialog();
+    }
+
+    public void OpenSettingsFromTray()
+    {
+        ShowFromTray();
+        OpenSettingsDialog();
     }
 
     private void ProcessRefreshTimer_Tick(object? sender, EventArgs e)
@@ -103,16 +138,37 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ReloadDashboard();
     }
 
-    private void ToggleScenarioAutoCheck_Click(object sender, RoutedEventArgs e)
+    private void EnableScenarioAutoCheck_Click(object sender, RoutedEventArgs e)
     {
-        _isScenarioAutoCheckEnabled = !_isScenarioAutoCheckEnabled;
-        OnPropertyChanged(nameof(ScenarioAutoCheckButtonText));
+        SetScenarioAutoCheckEnabled(true, save: true, runImmediately: true);
+    }
 
-        if (_isScenarioAutoCheckEnabled)
+    private void DisableScenarioAutoCheck_Click(object sender, RoutedEventArgs e)
+    {
+        SetScenarioAutoCheckEnabled(false, save: true, runImmediately: false);
+    }
+
+    private void SetScenarioAutoCheckEnabled(bool enabled, bool save, bool runImmediately)
+    {
+        IsScenarioAutoCheckEnabled = enabled;
+
+        if (save)
         {
+            AppSettingsService.Update(_dataService.RootPath, settings =>
+            {
+                settings.ScenarioAutoCheckEnabled = enabled;
+                settings.ScenarioAutoCheckIntervalMinutes = _scenarioAutoCheckIntervalMinutes;
+            });
+        }
+
+        if (enabled)
+        {
+            ConfigureScenarioAutoCheckTimer();
             _scenarioAutoCheckTimer.Start();
-            ScenarioAutoCheckStatus = "Автопроверка: включена · каждые 60 сек.";
-            RunScenarioAutoCheck(showNoDueMessage: true);
+            ScenarioAutoCheckStatus = $"Автопроверка: включена · каждые {_scenarioAutoCheckIntervalMinutes} мин.";
+
+            if (runImmediately)
+                RunScenarioAutoCheck(showNoDueMessage: true);
         }
         else
         {
@@ -154,6 +210,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         StatusMessage = "Отображается вся найденная история процессов.";
     }
 
+    private void LoadScenarioAutoCheckSettingsFromFile(bool startIfEnabled)
+    {
+        UiSettings settings = AppSettingsService.Load(_dataService.RootPath);
+        _scenarioAutoCheckIntervalMinutes = AppSettingsService.NormalizeScenarioAutoCheckIntervalMinutes(settings.ScenarioAutoCheckIntervalMinutes);
+        ConfigureScenarioAutoCheckTimer();
+
+        IsScenarioAutoCheckEnabled = settings.ScenarioAutoCheckEnabled;
+
+        if (IsScenarioAutoCheckEnabled)
+        {
+            ScenarioAutoCheckStatus = $"Автопроверка: включена · каждые {_scenarioAutoCheckIntervalMinutes} мин.";
+
+            if (startIfEnabled)
+                _scenarioAutoCheckTimer.Start();
+        }
+        else
+        {
+            _scenarioAutoCheckTimer.Stop();
+            ScenarioAutoCheckStatus = "Автопроверка: выключена";
+        }
+    }
+
+    private void ConfigureScenarioAutoCheckTimer()
+    {
+        _scenarioAutoCheckTimer.Interval = TimeSpan.FromMinutes(_scenarioAutoCheckIntervalMinutes);
+    }
+
     private void RunScenarioAutoCheck(bool showNoDueMessage)
     {
         if (_isScenarioAutoCheckRunning)
@@ -174,8 +257,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (!string.IsNullOrWhiteSpace(message))
                 StatusMessage = message;
 
-            string stateText = _isScenarioAutoCheckEnabled
-                ? "включена · каждые 60 сек."
+            string stateText = IsScenarioAutoCheckEnabled
+                ? $"включена · каждые {_scenarioAutoCheckIntervalMinutes} мин."
                 : "ручная проверка";
 
             ScenarioAutoCheckStatus = $"Автопроверка: {stateText} · последняя: {DateTime.Now:HH:mm:ss}";
@@ -184,6 +267,24 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 ReloadScenarioCards();
                 ReloadProcesses();
+            }
+
+            UiSettings settings = AppSettingsService.Load(_dataService.RootPath);
+
+            if (!showNoDueMessage && result.StartedCount > 0 && settings.ShowScenarioNotifications)
+            {
+                ((App)Application.Current).ShowTrayNotification(
+                    "AutoScope запустил сценарий",
+                    string.Join(Environment.NewLine, result.StartedNames.Take(3)),
+                    Forms.ToolTipIcon.Info);
+            }
+
+            if (!showNoDueMessage && result.FailedCount > 0 && settings.ShowScenarioErrorNotifications)
+            {
+                ((App)Application.Current).ShowTrayNotification(
+                    "Ошибка автозапуска сценария",
+                    string.Join(Environment.NewLine, result.FailedMessages.Take(2)),
+                    Forms.ToolTipIcon.Warning);
             }
 
             if (result.FailedCount > 0 && showNoDueMessage)
@@ -239,6 +340,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
 
     private void OpenProcessManager_Click(object sender, RoutedEventArgs e)
+    {
+        OpenProcessManagerDialog();
+    }
+
+    private void OpenProcessManagerDialog()
     {
         ProcessManagementWindow window = new ProcessManagementWindow(_dataService.RootPath)
         {
@@ -465,12 +571,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
+        OpenSettingsDialog();
+    }
+
+    private void OpenSettingsDialog()
+    {
         SettingsWindow window = new SettingsWindow(_dataService.RootPath)
         {
             Owner = this
         };
 
-        window.ShowDialog();
+        bool? result = window.ShowDialog();
+        if (result == true)
+        {
+            LoadScenarioAutoCheckSettingsFromFile(startIfEnabled: IsScenarioAutoCheckEnabled);
+            StatusMessage = "Настройки применены.";
+        }
     }
 
     private void Stub_Click(object sender, RoutedEventArgs e)
@@ -480,6 +596,31 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             message = tag;
 
         MessageBox.Show(message, "AutoScope UI", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+
+    private void MainWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        if (Application.Current is not App app || app.IsExplicitExitRequested)
+            return;
+
+        UiSettings settings = AppSettingsService.Load(_dataService.RootPath);
+        if (!settings.RunInBackground || !settings.MinimizeToTrayOnClose)
+        {
+            app.RequestExplicitExit();
+            return;
+        }
+
+        e.Cancel = true;
+        Hide();
+
+        if (settings.ShowBackgroundHintOnClose)
+        {
+            app.ShowTrayNotification(
+                "AutoScope продолжает работать",
+                "Приложение свернуто в трей. Для полного выхода используйте пункт «Выход» в меню трея.",
+                Forms.ToolTipIcon.Info);
+        }
     }
 
 

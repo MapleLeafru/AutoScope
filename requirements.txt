@@ -1,5 +1,17 @@
-requests
-beautifulsoup4
-lxml
-pandas
-matplotlib
+﻿# requirements.txt
+# Прямые Python-зависимости AutoScope.
+
+# Парсеры на requests + BeautifulSoup
+requests==2.33.1
+beautifulsoup4==4.15.0
+lxml==6.1.1
+
+# Парсеры на Selenium
+selenium==4.43.0
+webdriver-manager==4.0.2
+
+# Анализаторы и HTML-отчёты
+pandas==3.0.3
+
+matplotlib==3.10.8
+numpy==2.4.1

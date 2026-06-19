@@ -216,6 +216,8 @@ public class DashboardDataService
             ? "Процесс остановлен пользователем."
             : ExtractLastProcessState(lines, progress, state);
 
+        string resultPath = FindReportPathForLogProcess(typeText, ExtractModuleName(lines), file.Name, file.LastWriteTime);
+
         ProcessDashboardItem item = new ProcessDashboardItem
         {
             Id = file.FullName,
@@ -227,7 +229,9 @@ public class DashboardDataService
                 ? "Лог найден, но краткое состояние определить не удалось."
                 : lastState,
             LogPath = file.FullName,
+            ResultPath = resultPath,
             CanOpenLog = true,
+            CanOpenResult = !string.IsNullOrWhiteSpace(resultPath) && File.Exists(resultPath),
             CanOpenDetails = true,
             LastUpdatedAt = file.LastWriteTime,
             StateKind = state,
@@ -237,6 +241,86 @@ public class DashboardDataService
 
         ApplyProgress(item, progress, typeText, state);
         return item;
+    }
+
+    private string FindReportPathForLogProcess(string typeText, string moduleName, string logFileName, DateTime logUpdatedAt)
+    {
+        if (typeText != "анализ" || string.IsNullOrWhiteSpace(moduleName))
+            return "";
+
+        string analyzerName = Path.GetFileNameWithoutExtension(moduleName.Trim());
+        if (string.IsNullOrWhiteSpace(analyzerName))
+            return "";
+
+        DateTime targetTime = TryParsePipelineLogTimestamp(logFileName) ?? logUpdatedAt;
+
+        try
+        {
+            List<string> reportFolders = new()
+            {
+                Path.Combine(RootPath, "Reports"),
+                Path.Combine(RootPath, "reports")
+            };
+
+            return reportFolders
+                .Where(Directory.Exists)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .SelectMany(folder => Directory.EnumerateFiles(folder, "*.html", SearchOption.AllDirectories))
+                .Select(path => new FileInfo(path))
+                .Where(file => file.Name.StartsWith(analyzerName + "_", StringComparison.OrdinalIgnoreCase))
+                .Select(file => new
+                {
+                    Path = file.FullName,
+                    ReportTime = TryParseReportTimestamp(file.Name, analyzerName) ?? file.LastWriteTime
+                })
+                .Select(item => new
+                {
+                    item.Path,
+                    item.ReportTime,
+                    Diff = Math.Abs((item.ReportTime - targetTime).TotalMinutes)
+                })
+                .Where(item => item.Diff <= 15)
+                .OrderBy(item => item.Diff)
+                .ThenByDescending(item => item.ReportTime)
+                .Select(item => item.Path)
+                .FirstOrDefault() ?? "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    private DateTime? TryParsePipelineLogTimestamp(string fileName)
+    {
+        string rawName = Path.GetFileNameWithoutExtension(fileName);
+        string[] prefixes = { "input_pipeline_", "output_pipeline_" };
+
+        foreach (string prefix in prefixes)
+        {
+            if (!rawName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            string value = rawName[prefix.Length..];
+            if (DateTime.TryParseExact(value, "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime result))
+                return result;
+        }
+
+        return null;
+    }
+
+    private DateTime? TryParseReportTimestamp(string fileName, string analyzerName)
+    {
+        string rawName = Path.GetFileNameWithoutExtension(fileName);
+        string prefix = analyzerName + "_";
+
+        if (!rawName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        string value = rawName[prefix.Length..];
+        return DateTime.TryParseExact(value, "yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime result)
+            ? result
+            : null;
     }
 
     private List<string> ReadLastLines(string path, int maxLines)

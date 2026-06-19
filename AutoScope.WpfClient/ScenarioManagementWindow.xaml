@@ -160,7 +160,30 @@
                                                         <Button Content="Запустить" Style="{StaticResource AccentSmallButton}" Click="RunScenario_Click" Tag="{Binding}" IsEnabled="{Binding CanRun}"/>
                                                         <Button Content="Редактировать" Style="{StaticResource SmallButton}" Click="EditScenario_Click" Tag="{Binding}" IsEnabled="{Binding CanEdit}"/>
                                                         <Button Content="Подробнее" Style="{StaticResource SmallButton}" Click="Details_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenFile}"/>
-                                                        <Button Content="{Binding ToggleActionText}" Style="{StaticResource SmallButton}" Click="ToggleScenario_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenFile}"/>
+                                                        <Button Content="Включить" Click="ToggleScenario_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenFile}">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button" BasedOn="{StaticResource SuccessFilterSmallButton}">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Enabled}" Value="False">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
+                                                        <Button Content="Выключить" Click="ToggleScenario_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenFile}">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button" BasedOn="{StaticResource ErrorFilterSmallButton}">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Enabled}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
                                                         <Button Content="История" Style="{StaticResource SmallButton}" Click="History_Click" Tag="{Binding}" IsEnabled="{Binding CanShowHistory}"/>
                                                         <Button Content="Файл" Style="{StaticResource SmallButton}" Click="OpenScenarioFile_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenFile}"/>
                                                         <Button Content="Удалить" Style="{StaticResource DangerSmallButton}" Click="DeleteScenario_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenFile}"/>

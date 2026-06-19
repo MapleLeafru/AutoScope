@@ -77,7 +77,7 @@
 
                         <StackPanel>
                             <TextBlock Text="Процессы" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Расширенная карточная лента процессов текущей WPF-сессии и истории по pipeline-логам." Style="{StaticResource SectionCaption}"/>
+                            <TextBlock Text="Здесь отображаются запущенные процессы, последние завершённые операции и история по логам AutoScope." Style="{StaticResource SectionCaption}"/>
                             <TextBlock Text="{Binding SummaryText}" Style="{StaticResource MutedText}"/>
                         </StackPanel>
 
@@ -98,13 +98,13 @@
                             </Grid.RowDefinitions>
 
                             <WrapPanel>
-                                <Button Content="Все" Style="{StaticResource AccentSmallButton}" Click="SetFilter_Click" Tag="all"/>
-                                <Button Content="Активные" Style="{StaticResource RunningFilterSmallButton}" Click="SetFilter_Click" Tag="active"/>
-                                <Button Content="Завершённые" Style="{StaticResource NeutralFilterSmallButton}" Click="SetFilter_Click" Tag="finished"/>
-                                <Button Content="Успешные" Style="{StaticResource SuccessFilterSmallButton}" Click="SetFilter_Click" Tag="success"/>
-                                <Button Content="Ошибки" Style="{StaticResource ErrorFilterSmallButton}" Click="SetFilter_Click" Tag="errors"/>
-                                <Button Content="Остановленные" Style="{StaticResource WarningFilterSmallButton}" Click="SetFilter_Click" Tag="stopped"/>
-                                <Button Content="История" Style="{StaticResource NeutralFilterSmallButton}" Click="SetFilter_Click" Tag="history"/>
+                                <Button x:Name="AllFilterButton" Content="Все" Style="{StaticResource NeutralFilterSmallButton}" Click="SetFilter_Click" Tag="all"/>
+                                <Button x:Name="ActiveFilterButton" Content="Активные" Style="{StaticResource RunningFilterSmallButton}" Click="SetFilter_Click" Tag="active"/>
+                                <Button x:Name="FinishedFilterButton" Content="Завершённые" Style="{StaticResource NeutralFilterSmallButton}" Click="SetFilter_Click" Tag="finished"/>
+                                <Button x:Name="SuccessFilterButton" Content="Успешные" Style="{StaticResource SuccessFilterSmallButton}" Click="SetFilter_Click" Tag="success"/>
+                                <Button x:Name="ErrorsFilterButton" Content="Ошибки" Style="{StaticResource ErrorFilterSmallButton}" Click="SetFilter_Click" Tag="errors"/>
+                                <Button x:Name="StoppedFilterButton" Content="Остановленные" Style="{StaticResource WarningFilterSmallButton}" Click="SetFilter_Click" Tag="stopped"/>
+                                <Button x:Name="HistoryFilterButton" Content="История" Style="{StaticResource NeutralFilterSmallButton}" Click="SetFilter_Click" Tag="history"/>
                             </WrapPanel>
 
                             <TextBlock Grid.Row="1" Text="{Binding FilterText}" Style="{StaticResource MutedText}" Margin="0,2,0,0"/>
@@ -161,8 +161,10 @@
                                                         <Button x:Name="PauseProcessButton" Content="Пауза" Style="{StaticResource SmallButton}" Click="PauseProcess_Click" Tag="{Binding}" IsEnabled="{Binding CanPause}" Visibility="Collapsed"/>
                                                         <Button x:Name="ResumeProcessButton" Content="Продолжить" Style="{StaticResource AccentSmallButton}" Click="ResumeProcess_Click" Tag="{Binding}" IsEnabled="{Binding CanResume}" Visibility="Collapsed"/>
                                                         <Button x:Name="StopProcessButton" Content="Стоп" Style="{StaticResource DangerSmallButton}" Click="StopProcess_Click" Tag="{Binding}" IsEnabled="{Binding CanStop}" Visibility="Collapsed"/>
+                                                        <Button x:Name="OpenResultButton" Content="Результат" Style="{StaticResource AccentSmallButton}" Click="OpenProcessResult_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenResult}" Visibility="Collapsed"/>
                                                         <Button Content="Лог" Style="{StaticResource SmallButton}" Click="OpenProcessLog_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenLog}"/>
                                                         <Button Content="Подробнее" Style="{StaticResource SmallButton}" Click="ShowProcessInfo_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenDetails}"/>
+                                                        <Button Content="Диагностика" Style="{StaticResource SmallButton}" Click="CopyProcessDiagnostics_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenDetails}"/>
                                                     </WrapPanel>
                                                 </Grid>
                                             </Border>
@@ -179,6 +181,9 @@
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding CanStop}" Value="True">
                                                     <Setter TargetName="StopProcessButton" Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding CanOpenResult}" Value="True">
+                                                    <Setter TargetName="OpenResultButton" Property="Visibility" Value="Visible"/>
                                                 </DataTrigger>
                                             </DataTemplate.Triggers>
                                         </DataTemplate>

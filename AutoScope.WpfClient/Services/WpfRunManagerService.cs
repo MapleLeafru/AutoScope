@@ -543,6 +543,10 @@ public sealed class WpfRunManagerService
             ? $"идёт {durationText}"
             : $"{record.StartedAt:dd.MM HH:mm} · {durationText}";
 
+        string resultPath = record.TypeText == "анализ"
+            ? TryExtractResultPath(record.StandardOutput.ToString(), record.RootPath)
+            : "";
+
         string details = record.Details;
         if (!string.IsNullOrWhiteSpace(record.DatabaseName) || !string.IsNullOrWhiteSpace(record.ModuleName))
         {
@@ -565,7 +569,9 @@ public sealed class WpfRunManagerService
             TimeText = timeText,
             Details = details,
             LogPath = record.LogPath,
+            ResultPath = resultPath,
             CanOpenLog = !string.IsNullOrWhiteSpace(record.LogPath) && File.Exists(record.LogPath),
+            CanOpenResult = !string.IsNullOrWhiteSpace(resultPath) && File.Exists(resultPath),
             CanOpenDetails = true,
             StageText = record.StageText,
             CountText = record.CountText,
@@ -581,6 +587,102 @@ public sealed class WpfRunManagerService
             LastUpdatedAt = record.LastUpdatedAt,
             StateKind = record.IsPaused ? DashboardStateKind.Warning : record.StateKind
         };
+    }
+
+    private string TryExtractResultPath(string outputText, string rootPath)
+    {
+        if (string.IsNullOrWhiteSpace(outputText))
+            return "";
+
+        foreach (string line in outputText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Reverse())
+        {
+            string value = line.Trim();
+            if (!value.StartsWith("{", StringComparison.Ordinal) || !value.EndsWith("}", StringComparison.Ordinal))
+                continue;
+
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(value);
+                string? rawPath = FindResultPathInJson(document.RootElement);
+                string resolvedPath = ResolveExistingPath(rawPath ?? "", rootPath);
+                if (!string.IsNullOrWhiteSpace(resolvedPath))
+                    return resolvedPath;
+            }
+            catch
+            {
+                // В stdout могли попасть строки не из финального JSON. Просто переходим к предыдущей строке.
+            }
+        }
+
+        return "";
+    }
+
+    private string? FindResultPathInJson(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (property.Value.ValueKind == JsonValueKind.String
+                    && IsResultPathProperty(property.Name))
+                {
+                    string? value = property.Value.GetString();
+                    if (!string.IsNullOrWhiteSpace(value))
+                        return value;
+                }
+
+                string? nested = FindResultPathInJson(property.Value);
+                if (!string.IsNullOrWhiteSpace(nested))
+                    return nested;
+            }
+        }
+
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement item in element.EnumerateArray())
+            {
+                string? nested = FindResultPathInJson(item);
+                if (!string.IsNullOrWhiteSpace(nested))
+                    return nested;
+            }
+        }
+
+        return null;
+    }
+
+    private bool IsResultPathProperty(string propertyName)
+    {
+        return propertyName.Equals("file", StringComparison.OrdinalIgnoreCase)
+               || propertyName.Equals("report", StringComparison.OrdinalIgnoreCase)
+               || propertyName.Equals("reportPath", StringComparison.OrdinalIgnoreCase)
+               || propertyName.Equals("resultPath", StringComparison.OrdinalIgnoreCase)
+               || propertyName.Equals("outputPath", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string ResolveExistingPath(string path, string rootPath)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return "";
+
+        try
+        {
+            string trimmed = path.Trim().Trim('"');
+            if (File.Exists(trimmed))
+                return Path.GetFullPath(trimmed);
+
+            if (!Path.IsPathRooted(trimmed) && !string.IsNullOrWhiteSpace(rootPath))
+            {
+                string combined = Path.Combine(rootPath, trimmed);
+                if (File.Exists(combined))
+                    return Path.GetFullPath(combined);
+            }
+        }
+        catch
+        {
+            return "";
+        }
+
+        return "";
     }
 
     private string TryFindLogPath(WpfRunRecord record)

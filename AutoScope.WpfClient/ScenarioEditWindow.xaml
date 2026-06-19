@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="Редактирование сценария" Height="820" Width="820"
+        Title="Редактирование сценария" Height="760" Width="780"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="CanResize"
@@ -80,7 +80,7 @@
 
                                 <StackPanel>
                                     <TextBlock Text="Название сценария" Style="{StaticResource SectionCaption}"/>
-                                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                    <TextBox Text="{Binding ScenarioName, UpdateSourceTrigger=PropertyChanged}"
                                              Style="{StaticResource SettingsTextBox}"
                                              Margin="0,4,0,0"/>
                                 </StackPanel>
@@ -169,93 +169,19 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel>
-                                            <TextBlock Text="MAX_CARS" Style="{StaticResource SectionCaption}"/>
+                                            <TextBlock Text="Максимум объявлений" Style="{StaticResource SectionCaption}"/>
                                             <TextBox Text="{Binding MaxCarsText, UpdateSourceTrigger=PropertyChanged}"
                                                      Style="{StaticResource SettingsTextBox}"
                                                      Margin="0,4,0,0"/>
-                                            <TextBlock Text="0 — все объявления, пусто — из конфига." Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="2">
-                                            <TextBlock Text="STREAM_BATCH_SIZE" Style="{StaticResource SectionCaption}"/>
+                                            <TextBlock Text="Размер пакета" Style="{StaticResource SectionCaption}"/>
                                             <TextBox Text="{Binding StreamBatchSizeText, UpdateSourceTrigger=PropertyChanged}"
                                                      Style="{StaticResource SettingsTextBox}"
                                                      Margin="0,4,0,0"/>
-                                            <TextBlock Text="Пусто — значение из конфига." Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
                                         </StackPanel>
                                     </Grid>
-
-                                    <Grid Margin="0,14,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="12"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="12"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <StackPanel>
-                                            <TextBlock Text="Задержка HTTP, сек." Style="{StaticResource SectionCaption}"/>
-                                            <TextBox Text="{Binding RequestDelaySecondsText, UpdateSourceTrigger=PropertyChanged}"
-                                                     Style="{StaticResource SettingsTextBox}"
-                                                     Margin="0,4,0,0"/>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Column="2">
-                                            <TextBlock Text="Повторы" Style="{StaticResource SectionCaption}"/>
-                                            <TextBox Text="{Binding RetryCountText, UpdateSourceTrigger=PropertyChanged}"
-                                                     Style="{StaticResource SettingsTextBox}"
-                                                     Margin="0,4,0,0"/>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Column="4">
-                                            <TextBlock Text="Пауза HTTP 429, сек." Style="{StaticResource SectionCaption}"/>
-                                            <TextBox Text="{Binding RateLimitDelaySecondsText, UpdateSourceTrigger=PropertyChanged}"
-                                                     Style="{StaticResource SettingsTextBox}"
-                                                     Margin="0,4,0,0"/>
-                                        </StackPanel>
-                                    </Grid>
-                                    <TextBlock Text="Пустые поля HTTP-настроек используют значения из конфига выбранного парсера." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,5,0,12"/>
-
-                                    <Border Style="{StaticResource ListRow}" Margin="0,0,0,0">
-                                        <StackPanel>
-                                            <TextBlock Text="Настройки InputApi" FontWeight="SemiBold"/>
-                                            <TextBlock Text="По умолчанию — значение из конфига. Явный выбор сохранится в сценарии." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,10"/>
-
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="12"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="12"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-
-                                                <StackPanel>
-                                                    <TextBlock Text="Страна бренда" Style="{StaticResource SectionCaption}"/>
-                                                    <ComboBox ItemsSource="{Binding BrandCountryOptions}" SelectedItem="{Binding SelectedBrandCountryEnrichment}" DisplayMemberPath="DisplayName" Style="{StaticResource SettingsComboBox}" Margin="0,4,0,0"/>
-                                                </StackPanel>
-
-                                                <StackPanel Grid.Column="2">
-                                                    <TextBlock Text="Коробка передач" Style="{StaticResource SectionCaption}"/>
-                                                    <ComboBox ItemsSource="{Binding TransmissionOptions}" SelectedItem="{Binding SelectedTransmissionNormalization}" DisplayMemberPath="DisplayName" Style="{StaticResource SettingsComboBox}" Margin="0,4,0,0"/>
-                                                </StackPanel>
-
-                                                <StackPanel Grid.Row="2">
-                                                    <TextBlock Text="Тип привода" Style="{StaticResource SectionCaption}"/>
-                                                    <ComboBox ItemsSource="{Binding DriveTypeOptions}" SelectedItem="{Binding SelectedDriveTypeNormalization}" DisplayMemberPath="DisplayName" Style="{StaticResource SettingsComboBox}" Margin="0,4,0,0"/>
-                                                </StackPanel>
-
-                                                <StackPanel Grid.Row="2" Grid.Column="2">
-                                                    <TextBlock Text="Тип топлива" Style="{StaticResource SectionCaption}"/>
-                                                    <ComboBox ItemsSource="{Binding FuelTypeOptions}" SelectedItem="{Binding SelectedFuelTypeNormalization}" DisplayMemberPath="DisplayName" Style="{StaticResource SettingsComboBox}" Margin="0,4,0,0"/>
-                                                </StackPanel>
-                                            </Grid>
-                                        </StackPanel>
-                                    </Border>
                                 </StackPanel>
                             </Border>
 

@@ -174,20 +174,63 @@
                 <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource HubCard}">
                     <DockPanel LastChildFill="True">
                         <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel>
+
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,0">
                                 <TextBlock Text="Сценарии" Style="{StaticResource CardTitle}"/>
-                                <TextBlock Text="Активные, ручные и выключенные сценарии." Style="{StaticResource SectionCaption}"/>
-                                <TextBlock Text="{Binding ScenarioAutoCheckStatus}" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
+                                <TextBlock Text="Активные, ручные и выключенные сценарии." Style="{StaticResource SectionCaption}" Margin="0,0,0,0"/>
                             </StackPanel>
-                            <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                                <Button Content="Проверить сейчас" Style="{StaticResource SmallButton}" Click="CheckScenariosNow_Click"/>
-                                <Button Content="{Binding ScenarioAutoCheckButtonText}" Style="{StaticResource SmallButton}" Click="ToggleScenarioAutoCheck_Click"/>
+
+                            <WrapPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Top">
                                 <Button Content="Папка" Style="{StaticResource SmallButton}" Click="OpenJobsFolder_Click"/>
                                 <Button Content="Управление" Style="{StaticResource SmallButton}" Click="OpenScenarioManager_Click"/>
+                            </WrapPanel>
+
+                            <TextBlock Grid.Row="1"
+                                       Grid.ColumnSpan="2"
+                                       Text="{Binding ScenarioAutoCheckStatus}"
+                                       Style="{StaticResource MutedText}"
+                                       Margin="0,7,0,0"
+                                       TextWrapping="Wrap"/>
+
+                            <WrapPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0">
+                                <Button Content="Проверить сейчас" Style="{StaticResource AccentSmallButton}" Click="CheckScenariosNow_Click"/>
+                                <Button Content="Включить автопроверку"
+                                        Click="EnableScenarioAutoCheck_Click">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource SuccessFilterSmallButton}">
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsScenarioAutoCheckEnabled}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="Выключить автопроверку"
+                                        Click="DisableScenarioAutoCheck_Click">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource ErrorFilterSmallButton}">
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsScenarioAutoCheckEnabled}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </WrapPanel>
                         </Grid>
 

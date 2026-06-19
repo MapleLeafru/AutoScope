@@ -77,6 +77,7 @@ public class ProcessDashboardItem
     public string TimeText { get; set; } = "";
     public string Details { get; set; } = "";
     public string LogPath { get; set; } = "";
+    public string ResultPath { get; set; } = "";
     public string StageText { get; set; } = "";
     public string CountText { get; set; } = "";
     public string ProgressText { get; set; } = "";
@@ -84,6 +85,7 @@ public class ProcessDashboardItem
     public string SecondaryActionText { get; set; } = "";
     public string ActionHint { get; set; } = "";
     public bool CanOpenLog { get; set; }
+    public bool CanOpenResult { get; set; }
     public bool CanOpenDetails { get; set; } = true;
     public bool IsProgressVisible { get; set; }
     public bool IsActionRow { get; set; }

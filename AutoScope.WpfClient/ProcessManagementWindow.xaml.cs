@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using AutoScope.WpfClient.Models;
@@ -144,6 +145,40 @@ public partial class ProcessManagementWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void OpenProcessResult_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || element.Tag is not ProcessDashboardItem process)
+            return;
+
+        try
+        {
+            _dataService.OpenFile(process.ResultPath);
+            StatusMessage = $"Открыт результат процесса: {process.Name}.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Результат процесса открыть не удалось.";
+            MessageBox.Show(ex.Message, "AutoScope", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void CopyProcessDiagnostics_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || element.Tag is not ProcessDashboardItem process)
+            return;
+
+        try
+        {
+            Clipboard.SetText(BuildProcessDiagnostics(process));
+            StatusMessage = $"Диагностика процесса скопирована: {process.Name}.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Диагностику процесса скопировать не удалось.";
+            MessageBox.Show(ex.Message, "AutoScope", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     private void ShowProcessInfo_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement element || element.Tag is not ProcessDashboardItem process)
@@ -234,8 +269,61 @@ public partial class ProcessManagementWindow : Window, INotifyPropertyChanged
             ? $"История: отображаются все найденные процессы ({historyCount})."
             : $"История: показано до {_historyVisibleCount} последних завершённых процессов. Можно подгрузить больше или открыть всю историю.";
 
+        UpdateFilterButtons();
+
         if (!keepStatus)
-            StatusMessage = $"Отображено процессов: {Math.Max(0, Processes.Count)}.";
+            StatusMessage = $"Отображено процессов: {filtered.Count}.";
+    }
+
+    private void UpdateFilterButtons()
+    {
+        foreach (Button button in GetFilterButtons())
+        {
+            string tag = button.Tag as string ?? "";
+            bool isActive = string.Equals(tag, _activeFilter, StringComparison.OrdinalIgnoreCase);
+
+            ResetFilterButtonStyle(button, tag);
+
+            button.FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal;
+            button.BorderThickness = isActive ? new Thickness(2) : new Thickness(1);
+            button.Opacity = isActive ? 1.0 : 0.84;
+
+            if (isActive)
+            {
+                button.SetResourceReference(Button.BackgroundProperty, "ButtonHoverBrush");
+                button.SetResourceReference(Button.BorderBrushProperty, "AccentBrush");
+                button.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
+            }
+        }
+    }
+
+    private IEnumerable<Button> GetFilterButtons()
+    {
+        yield return AllFilterButton;
+        yield return ActiveFilterButton;
+        yield return FinishedFilterButton;
+        yield return SuccessFilterButton;
+        yield return ErrorsFilterButton;
+        yield return StoppedFilterButton;
+        yield return HistoryFilterButton;
+    }
+
+    private void ResetFilterButtonStyle(Button button, string tag)
+    {
+        button.ClearValue(Button.BackgroundProperty);
+        button.ClearValue(Button.BorderBrushProperty);
+        button.ClearValue(Button.ForegroundProperty);
+
+        string styleKey = tag switch
+        {
+            "active" => "RunningFilterSmallButton",
+            "success" => "SuccessFilterSmallButton",
+            "errors" => "ErrorFilterSmallButton",
+            "stopped" => "WarningFilterSmallButton",
+            _ => "NeutralFilterSmallButton"
+        };
+
+        button.Style = (Style)FindResource(styleKey);
     }
 
     private List<ProcessDashboardItem> LoadAllProcessItems()
@@ -350,8 +438,63 @@ public partial class ProcessManagementWindow : Window, INotifyPropertyChanged
 
         lines.Add($"Состояние: {process.Details}");
         lines.Add(string.IsNullOrWhiteSpace(process.LogPath) ? "Лог: не задан" : $"Лог: {process.LogPath}");
+        lines.Add(string.IsNullOrWhiteSpace(process.ResultPath) ? "Результат: не найден" : $"Результат: {process.ResultPath}");
 
         return string.Join(Environment.NewLine, lines);
+    }
+
+    private string BuildProcessDiagnostics(ProcessDashboardItem process)
+    {
+        List<string> lines = new()
+        {
+            "AutoScope · диагностика процесса",
+            $"Сформировано: {DateTime.Now:dd.MM.yyyy HH:mm:ss}",
+            "",
+            $"Название: {process.Name}",
+            $"Тип: {process.TypeText}",
+            $"Статус: {process.StatusText}",
+            $"Время: {process.TimeText}",
+            $"Состояние: {process.Details}",
+            $"Лог: {(string.IsNullOrWhiteSpace(process.LogPath) ? "не задан" : process.LogPath)}",
+            $"Результат: {(string.IsNullOrWhiteSpace(process.ResultPath) ? "не найден" : process.ResultPath)}"
+        };
+
+        if (process.IsProgressVisible)
+        {
+            lines.Add("");
+            lines.Add("Прогресс:");
+            lines.Add($"Этап: {process.StageText}");
+            lines.Add($"Процент: {process.ProgressText}");
+            lines.Add($"Количество: {process.CountText}");
+        }
+
+        List<string> logTail = ReadLogTail(process.LogPath, 12);
+        if (logTail.Count > 0)
+        {
+            lines.Add("");
+            lines.Add("Последние строки лога:");
+            lines.AddRange(logTail);
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private List<string> ReadLogTail(string logPath, int maxLines)
+    {
+        if (string.IsNullOrWhiteSpace(logPath) || !File.Exists(logPath))
+            return new List<string>();
+
+        try
+        {
+            return File.ReadLines(logPath)
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .TakeLast(maxLines)
+                .ToList();
+        }
+        catch
+        {
+            return new List<string>();
+        }
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)

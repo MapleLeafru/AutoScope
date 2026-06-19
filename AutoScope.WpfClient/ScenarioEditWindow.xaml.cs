@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -17,7 +16,7 @@ public partial class ScenarioEditWindow : Window, INotifyPropertyChanged
     private readonly ScenarioManagementService _scenarioService;
     private readonly ScenarioEditDraft _sourceDraft;
     private bool _isLoading;
-    private string _name = "";
+    private string _scenarioName = "";
     private bool _enabled = true;
     private bool _isManualOnly;
     private string _everyHoursText = "24";
@@ -27,14 +26,7 @@ public partial class ScenarioEditWindow : Window, INotifyPropertyChanged
     private AnalyzerLaunchItem? _selectedAnalyzer;
     private string _startUrl = "";
     private string _maxCarsText = "20";
-    private string _streamBatchSizeText = "";
-    private string _requestDelaySecondsText = "";
-    private string _retryCountText = "";
-    private string _rateLimitDelaySecondsText = "";
-    private BooleanChoiceOption? _selectedBrandCountryEnrichment;
-    private BooleanChoiceOption? _selectedTransmissionNormalization;
-    private BooleanChoiceOption? _selectedDriveTypeNormalization;
-    private BooleanChoiceOption? _selectedFuelTypeNormalization;
+    private string _streamBatchSizeText = "5";
     private bool _latestOnly = true;
     private bool _onlyChanged;
     private string _brand = "";
@@ -48,17 +40,13 @@ public partial class ScenarioEditWindow : Window, INotifyPropertyChanged
     public ObservableCollection<DatabaseDashboardItem> Databases { get; } = new();
     public ObservableCollection<ParserLaunchItem> Parsers { get; } = new();
     public ObservableCollection<AnalyzerLaunchItem> Analyzers { get; } = new();
-    public ObservableCollection<BooleanChoiceOption> BrandCountryOptions { get; } = new();
-    public ObservableCollection<BooleanChoiceOption> TransmissionOptions { get; } = new();
-    public ObservableCollection<BooleanChoiceOption> DriveTypeOptions { get; } = new();
-    public ObservableCollection<BooleanChoiceOption> FuelTypeOptions { get; } = new();
 
     public string ResultMessage { get; private set; } = "";
 
-    public string Name
+    public string ScenarioName
     {
-        get => _name;
-        set { _name = value; OnPropertyChanged(); NotifySummaryChanged(); }
+        get => _scenarioName;
+        set { _scenarioName = value; OnPropertyChanged(); NotifySummaryChanged(); }
     }
 
     public bool Enabled
@@ -149,48 +137,6 @@ public partial class ScenarioEditWindow : Window, INotifyPropertyChanged
         set { _streamBatchSizeText = value; OnPropertyChanged(); NotifySummaryChanged(); }
     }
 
-    public string RequestDelaySecondsText
-    {
-        get => _requestDelaySecondsText;
-        set { _requestDelaySecondsText = value; OnPropertyChanged(); NotifySummaryChanged(); }
-    }
-
-    public string RetryCountText
-    {
-        get => _retryCountText;
-        set { _retryCountText = value; OnPropertyChanged(); NotifySummaryChanged(); }
-    }
-
-    public string RateLimitDelaySecondsText
-    {
-        get => _rateLimitDelaySecondsText;
-        set { _rateLimitDelaySecondsText = value; OnPropertyChanged(); NotifySummaryChanged(); }
-    }
-
-    public BooleanChoiceOption? SelectedBrandCountryEnrichment
-    {
-        get => _selectedBrandCountryEnrichment;
-        set { _selectedBrandCountryEnrichment = value; OnPropertyChanged(); NotifySummaryChanged(); }
-    }
-
-    public BooleanChoiceOption? SelectedTransmissionNormalization
-    {
-        get => _selectedTransmissionNormalization;
-        set { _selectedTransmissionNormalization = value; OnPropertyChanged(); NotifySummaryChanged(); }
-    }
-
-    public BooleanChoiceOption? SelectedDriveTypeNormalization
-    {
-        get => _selectedDriveTypeNormalization;
-        set { _selectedDriveTypeNormalization = value; OnPropertyChanged(); NotifySummaryChanged(); }
-    }
-
-    public BooleanChoiceOption? SelectedFuelTypeNormalization
-    {
-        get => _selectedFuelTypeNormalization;
-        set { _selectedFuelTypeNormalization = value; OnPropertyChanged(); NotifySummaryChanged(); }
-    }
-
     public bool LatestOnly
     {
         get => _latestOnly;
@@ -265,10 +211,10 @@ public partial class ScenarioEditWindow : Window, INotifyPropertyChanged
             string state = Enabled ? "включён" : "выключен";
 
             if (IsInputSelected)
-                return $"{Name} · {type} · {module} · {database} · {schedule} · {state} · максимум {ValueOrConfig(MaxCarsText)}, пакет {ValueOrConfig(StreamBatchSizeText)}, HTTP {ValueOrConfig(RequestDelaySecondsText)} сек., повторы {ValueOrConfig(RetryCountText)}, 429 {ValueOrConfig(RateLimitDelaySecondsText)} сек.";
+                return $"{ScenarioName} · {type} · {module} · {database} · {schedule} · {state} · максимум {MaxCarsText}, пакет {StreamBatchSizeText}";
 
             string filters = BuildOutputFiltersSummary();
-            return $"{Name} · {type} · {module} · {database} · {schedule} · {state}{filters}";
+            return $"{ScenarioName} · {type} · {module} · {database} · {schedule} · {state}{filters}";
         }
     }
 
@@ -302,7 +248,7 @@ public partial class ScenarioEditWindow : Window, INotifyPropertyChanged
         foreach (AnalyzerLaunchItem item in _scenarioService.LoadAnalyzersForCreation())
             Analyzers.Add(item);
 
-        Name = _sourceDraft.Name;
+        ScenarioName = _sourceDraft.Name;
         Enabled = _sourceDraft.Enabled;
         IsManualOnly = _sourceDraft.IsManualOnly;
         EveryHoursText = Math.Max(1, _sourceDraft.EveryHours).ToString();
@@ -312,19 +258,8 @@ public partial class ScenarioEditWindow : Window, INotifyPropertyChanged
         SelectedAnalyzer = FindAnalyzer(_sourceDraft.AnalyzerPath) ?? Analyzers.FirstOrDefault();
 
         StartUrl = _sourceDraft.StartUrl;
-        MaxCarsText = _sourceDraft.MaxCars.ToString(CultureInfo.InvariantCulture);
-        StreamBatchSizeText = Math.Max(1, _sourceDraft.StreamBatchSize).ToString(CultureInfo.InvariantCulture);
-        RequestDelaySecondsText = _sourceDraft.RequestDelaySeconds.ToString("0.###", CultureInfo.InvariantCulture);
-        RetryCountText = _sourceDraft.RetryCount.ToString(CultureInfo.InvariantCulture);
-        RateLimitDelaySecondsText = _sourceDraft.RateLimitDelaySeconds.ToString("0.###", CultureInfo.InvariantCulture);
-        ResetApiChoices(new InputApiLaunchSettings
-        {
-            BrandCountryEnrichment = _sourceDraft.BrandCountryEnrichment,
-            TransmissionNormalization = _sourceDraft.TransmissionNormalization,
-            DriveTypeNormalization = _sourceDraft.DriveTypeNormalization,
-            FuelTypeNormalization = _sourceDraft.FuelTypeNormalization
-        });
-        SelectExplicitApiChoices(_sourceDraft);
+        MaxCarsText = Math.Max(1, _sourceDraft.MaxCars).ToString();
+        StreamBatchSizeText = Math.Max(1, _sourceDraft.StreamBatchSize).ToString();
         LatestOnly = _sourceDraft.LatestOnly;
         OnlyChanged = _sourceDraft.OnlyChanged;
         Brand = _sourceDraft.Brand;
@@ -384,12 +319,8 @@ public partial class ScenarioEditWindow : Window, INotifyPropertyChanged
         if (string.IsNullOrWhiteSpace(StartUrl))
             StartUrl = parser.Settings.StartUrl;
 
-        MaxCarsText = parser.Settings.MaxCars.ToString(CultureInfo.InvariantCulture);
-        StreamBatchSizeText = Math.Max(1, parser.Settings.StreamBatchSize).ToString(CultureInfo.InvariantCulture);
-        RequestDelaySecondsText = parser.Settings.RequestDelaySeconds.ToString("0.###", CultureInfo.InvariantCulture);
-        RetryCountText = parser.Settings.RetryCount.ToString(CultureInfo.InvariantCulture);
-        RateLimitDelaySecondsText = parser.Settings.RateLimitDelaySeconds.ToString("0.###", CultureInfo.InvariantCulture);
-        ResetApiChoices(parser.Settings.ApiSettings);
+        MaxCarsText = Math.Max(1, parser.Settings.MaxCars).ToString();
+        StreamBatchSizeText = Math.Max(1, parser.Settings.StreamBatchSize).ToString();
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
@@ -422,38 +353,15 @@ public partial class ScenarioEditWindow : Window, INotifyPropertyChanged
             return false;
         }
 
-        int maxCars = ParseIntWithDefault(MaxCarsText, SelectedParser?.Settings.MaxCars ?? 200);
-        if (maxCars < 0)
+        if (!int.TryParse((MaxCarsText ?? "").Trim(), out int maxCars))
         {
-            StatusMessage = "MAX_CARS должен быть целым числом 0 или больше.";
+            StatusMessage = "Максимум объявлений должен быть целым числом.";
             return false;
         }
 
-        int streamBatchSize = ParseIntWithDefault(StreamBatchSizeText, SelectedParser?.Settings.StreamBatchSize ?? 100);
-        if (streamBatchSize <= 0)
+        if (!int.TryParse((StreamBatchSizeText ?? "").Trim(), out int streamBatchSize))
         {
-            StatusMessage = "STREAM_BATCH_SIZE должен быть целым числом больше 0.";
-            return false;
-        }
-
-        double requestDelaySeconds = ParseDoubleWithDefault(RequestDelaySecondsText, SelectedParser?.Settings.RequestDelaySeconds ?? 1.2);
-        if (requestDelaySeconds < 0)
-        {
-            StatusMessage = "Задержка HTTP должна быть числом 0 или больше.";
-            return false;
-        }
-
-        int retryCount = ParseIntWithDefault(RetryCountText, SelectedParser?.Settings.RetryCount ?? 3);
-        if (retryCount < 0)
-        {
-            StatusMessage = "Количество повторов должно быть целым числом 0 или больше.";
-            return false;
-        }
-
-        double rateLimitDelaySeconds = ParseDoubleWithDefault(RateLimitDelaySecondsText, SelectedParser?.Settings.RateLimitDelaySeconds ?? 5);
-        if (rateLimitDelaySeconds < 0)
-        {
-            StatusMessage = "Пауза HTTP 429 должна быть числом 0 или больше.";
+            StatusMessage = "Размер пакета должен быть целым числом.";
             return false;
         }
 
@@ -473,7 +381,7 @@ public partial class ScenarioEditWindow : Window, INotifyPropertyChanged
         {
             FilePath = _sourceDraft.FilePath,
             FileName = _sourceDraft.FileName,
-            Name = Name,
+            Name = ScenarioName,
             Enabled = Enabled,
             IsManualOnly = IsManualOnly,
             EveryHours = everyHours,
@@ -484,13 +392,6 @@ public partial class ScenarioEditWindow : Window, INotifyPropertyChanged
             StartUrl = StartUrl,
             MaxCars = maxCars,
             StreamBatchSize = streamBatchSize,
-            RequestDelaySeconds = requestDelaySeconds,
-            RetryCount = retryCount,
-            RateLimitDelaySeconds = rateLimitDelaySeconds,
-            BrandCountryEnrichment = SelectedBrandCountryEnrichment?.Value ?? SelectedParser?.Settings.ApiSettings.BrandCountryEnrichment ?? true,
-            TransmissionNormalization = SelectedTransmissionNormalization?.Value ?? SelectedParser?.Settings.ApiSettings.TransmissionNormalization ?? false,
-            DriveTypeNormalization = SelectedDriveTypeNormalization?.Value ?? SelectedParser?.Settings.ApiSettings.DriveTypeNormalization ?? false,
-            FuelTypeNormalization = SelectedFuelTypeNormalization?.Value ?? SelectedParser?.Settings.ApiSettings.FuelTypeNormalization ?? false,
             LatestOnly = LatestOnly,
             OnlyChanged = OnlyChanged,
             Brand = Brand,
@@ -501,63 +402,6 @@ public partial class ScenarioEditWindow : Window, INotifyPropertyChanged
         };
 
         return true;
-    }
-
-    private int ParseIntWithDefault(string value, int fallback)
-    {
-        value = (value ?? "").Trim();
-        if (string.IsNullOrWhiteSpace(value))
-            return fallback;
-
-        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) ? parsed : -1;
-    }
-
-    private double ParseDoubleWithDefault(string value, double fallback)
-    {
-        value = (value ?? "").Trim().Replace(",", ".");
-        if (string.IsNullOrWhiteSpace(value))
-            return fallback;
-
-        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed) ? parsed : -1;
-    }
-
-    private void ResetApiChoices(InputApiLaunchSettings settings)
-    {
-        FillChoiceOptions(BrandCountryOptions, settings.BrandCountryEnrichment);
-        FillChoiceOptions(TransmissionOptions, settings.TransmissionNormalization);
-        FillChoiceOptions(DriveTypeOptions, settings.DriveTypeNormalization);
-        FillChoiceOptions(FuelTypeOptions, settings.FuelTypeNormalization);
-
-        SelectedBrandCountryEnrichment = BrandCountryOptions.FirstOrDefault();
-        SelectedTransmissionNormalization = TransmissionOptions.FirstOrDefault();
-        SelectedDriveTypeNormalization = DriveTypeOptions.FirstOrDefault();
-        SelectedFuelTypeNormalization = FuelTypeOptions.FirstOrDefault();
-    }
-
-    private void SelectExplicitApiChoices(ScenarioEditDraft draft)
-    {
-        SelectedBrandCountryEnrichment = BrandCountryOptions.FirstOrDefault(item => item.Value == draft.BrandCountryEnrichment) ?? BrandCountryOptions.FirstOrDefault();
-        SelectedTransmissionNormalization = TransmissionOptions.FirstOrDefault(item => item.Value == draft.TransmissionNormalization) ?? TransmissionOptions.FirstOrDefault();
-        SelectedDriveTypeNormalization = DriveTypeOptions.FirstOrDefault(item => item.Value == draft.DriveTypeNormalization) ?? DriveTypeOptions.FirstOrDefault();
-        SelectedFuelTypeNormalization = FuelTypeOptions.FirstOrDefault(item => item.Value == draft.FuelTypeNormalization) ?? FuelTypeOptions.FirstOrDefault();
-    }
-
-    private void FillChoiceOptions(ObservableCollection<BooleanChoiceOption> target, bool defaultValue)
-    {
-        target.Clear();
-        target.Add(new BooleanChoiceOption("default", $"По умолчанию ({FormatBool(defaultValue)})", null));
-        target.Add(new BooleanChoiceOption("yes", "Включено", true));
-        target.Add(new BooleanChoiceOption("no", "Выключено", false));
-    }
-
-    private string FormatBool(bool value)
-    {
-        return value ? "включено" : "выключено";
-    }
-
-    private string ValueOrConfig(string value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? "из конфига" : value.Trim();
     }
 
     private bool TryParseNullableInt(string value, out int? result)
