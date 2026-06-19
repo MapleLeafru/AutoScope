@@ -26,6 +26,7 @@ public class ScenarioDashboardItem
     public string ScheduleText { get; set; } = "";
     public string LastRunText { get; set; } = "";
     public string NextRunText { get; set; } = "";
+    public string NextRunAtRaw { get; set; } = "";
     public string CreatedText { get; set; } = "";
     public string ToggleActionText { get; set; } = "";
     public bool Enabled { get; set; }

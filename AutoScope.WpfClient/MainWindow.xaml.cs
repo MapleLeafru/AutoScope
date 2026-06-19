@@ -25,7 +25,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private Rect? _restoreBoundsBeforeCustomMaximize;
     private bool _isCustomMaximized;
     private readonly DispatcherTimer _processRefreshTimer = new();
+    private readonly DispatcherTimer _scenarioAutoCheckTimer = new();
     private readonly HashSet<string> _sessionProcessIds = new(StringComparer.OrdinalIgnoreCase);
+    private bool _isScenarioAutoCheckEnabled;
+    private bool _isScenarioAutoCheckRunning;
+    private string _scenarioAutoCheckStatus = "Автопроверка: выключена";
     private int _historyVisibleCount;
     private bool _showAllHistory;
 
@@ -47,6 +51,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         set { _statusMessage = value; OnPropertyChanged(); }
     }
 
+    public string ScenarioAutoCheckStatus
+    {
+        get => _scenarioAutoCheckStatus;
+        set { _scenarioAutoCheckStatus = value; OnPropertyChanged(); }
+    }
+
+    public string ScenarioAutoCheckButtonText => _isScenarioAutoCheckEnabled
+        ? "Выключить автопроверку"
+        : "Включить автопроверку";
+
     public MainWindow()
     {
         InitializeComponent();
@@ -61,7 +75,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _processRefreshTimer.Interval = TimeSpan.FromSeconds(1.5);
         _processRefreshTimer.Tick += ProcessRefreshTimer_Tick;
         _processRefreshTimer.Start();
-        Closed += (_, _) => _processRefreshTimer.Stop();
+
+        _scenarioAutoCheckTimer.Interval = TimeSpan.FromMinutes(1);
+        _scenarioAutoCheckTimer.Tick += ScenarioAutoCheckTimer_Tick;
+
+        Closed += (_, _) =>
+        {
+            _processRefreshTimer.Stop();
+            _scenarioAutoCheckTimer.Stop();
+        };
     }
 
     private void ProcessRefreshTimer_Tick(object? sender, EventArgs e)
@@ -69,11 +91,40 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ReloadProcesses();
     }
 
+    private void ScenarioAutoCheckTimer_Tick(object? sender, EventArgs e)
+    {
+        RunScenarioAutoCheck(showNoDueMessage: false);
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void Refresh_Click(object sender, RoutedEventArgs e)
     {
         ReloadDashboard();
+    }
+
+    private void ToggleScenarioAutoCheck_Click(object sender, RoutedEventArgs e)
+    {
+        _isScenarioAutoCheckEnabled = !_isScenarioAutoCheckEnabled;
+        OnPropertyChanged(nameof(ScenarioAutoCheckButtonText));
+
+        if (_isScenarioAutoCheckEnabled)
+        {
+            _scenarioAutoCheckTimer.Start();
+            ScenarioAutoCheckStatus = "Автопроверка: включена · каждые 60 сек.";
+            RunScenarioAutoCheck(showNoDueMessage: true);
+        }
+        else
+        {
+            _scenarioAutoCheckTimer.Stop();
+            ScenarioAutoCheckStatus = "Автопроверка: выключена";
+            StatusMessage = "Автопроверка сценариев выключена.";
+        }
+    }
+
+    private void CheckScenariosNow_Click(object sender, RoutedEventArgs e)
+    {
+        RunScenarioAutoCheck(showNoDueMessage: true);
     }
 
     private void RefreshProcesses_Click(object sender, RoutedEventArgs e)
@@ -101,6 +152,53 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _showAllHistory = true;
         ReloadProcesses();
         StatusMessage = "Отображается вся найденная история процессов.";
+    }
+
+    private void RunScenarioAutoCheck(bool showNoDueMessage)
+    {
+        if (_isScenarioAutoCheckRunning)
+        {
+            if (showNoDueMessage)
+                StatusMessage = "Автопроверка уже выполняется.";
+            return;
+        }
+
+        _isScenarioAutoCheckRunning = true;
+
+        try
+        {
+            ScenarioManagementService service = new ScenarioManagementService(_dataService.RootPath);
+            ScenarioAutoCheckResult result = service.RunDueScenariosFromWpf(DateTime.Now);
+            string message = result.BuildStatusMessage(showNoDueMessage);
+
+            if (!string.IsNullOrWhiteSpace(message))
+                StatusMessage = message;
+
+            string stateText = _isScenarioAutoCheckEnabled
+                ? "включена · каждые 60 сек."
+                : "ручная проверка";
+
+            ScenarioAutoCheckStatus = $"Автопроверка: {stateText} · последняя: {DateTime.Now:HH:mm:ss}";
+
+            if (result.StartedCount > 0 || result.SkippedActiveCount > 0 || result.FailedCount > 0 || showNoDueMessage)
+            {
+                ReloadScenarioCards();
+                ReloadProcesses();
+            }
+
+            if (result.FailedCount > 0 && showNoDueMessage)
+            {
+                MessageBox.Show(
+                    string.Join(Environment.NewLine, result.FailedMessages),
+                    "Автопроверка сценариев",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            _isScenarioAutoCheckRunning = false;
+        }
     }
 
     private void OpenRootFolder_Click(object sender, RoutedEventArgs e)
@@ -633,17 +731,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
 
-    private void ReloadDashboard()
+    private void ReloadScenarioCards()
     {
         Scenarios.Clear();
         foreach (ScenarioDashboardItem item in _dataService.LoadScenarios())
             Scenarios.Add(item);
-
-        Databases.Clear();
-        foreach (DatabaseDashboardItem item in _dataService.LoadDatabases())
-            Databases.Add(item);
-
-        ReloadProcesses();
 
         if (Scenarios.Count == 0)
         {
@@ -655,6 +747,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 StateKind = DashboardStateKind.Neutral
             });
         }
+    }
+
+    private void ReloadDashboard()
+    {
+        ReloadScenarioCards();
+
+        Databases.Clear();
+        foreach (DatabaseDashboardItem item in _dataService.LoadDatabases())
+            Databases.Add(item);
+
+        ReloadProcesses();
 
         if (Databases.Count == 0)
         {

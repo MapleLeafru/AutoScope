@@ -31,7 +31,8 @@ public sealed class WpfRunManagerService
         string moduleName,
         string databaseName,
         string logFilePrefix,
-        Action<WpfRunCompletionInfo>? completed = null)
+        Action<WpfRunCompletionInfo>? completed = null,
+        string sourceScenarioPath = "")
     {
         WpfRunRecord record = new WpfRunRecord
         {
@@ -43,6 +44,7 @@ public sealed class WpfRunManagerService
             ModuleName = moduleName,
             DatabaseName = databaseName,
             LogFilePrefix = logFilePrefix,
+            SourceScenarioPath = NormalizePath(sourceScenarioPath),
             StartedAt = DateTime.Now,
             LastUpdatedAt = DateTime.Now,
             StatusText = "выполняется",
@@ -76,6 +78,38 @@ public sealed class WpfRunManagerService
             .ThenByDescending(record => record.StartedAt)
             .Select(ToDashboardItem)
             .ToList();
+    }
+
+    public bool HasActiveScenario(string scenarioPath)
+    {
+        string normalizedPath = NormalizePath(scenarioPath);
+        if (string.IsNullOrWhiteSpace(normalizedPath))
+            return false;
+
+        lock (_sync)
+        {
+            return _records.Any(record =>
+                record.FinishedAt == null
+                && !record.StopRequested
+                && !string.IsNullOrWhiteSpace(record.SourceScenarioPath)
+                && string.Equals(record.SourceScenarioPath, normalizedPath, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    public bool HasActiveScenarioName(string scenarioName)
+    {
+        if (string.IsNullOrWhiteSpace(scenarioName))
+            return false;
+
+        string expectedName = "Сценарий: " + scenarioName.Trim();
+
+        lock (_sync)
+        {
+            return _records.Any(record =>
+                record.FinishedAt == null
+                && !record.StopRequested
+                && string.Equals(record.Name, expectedName, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     public bool StopProcess(string recordId, out string message)
@@ -707,6 +741,21 @@ public sealed class WpfRunManagerService
         }
     }
 
+    private static string NormalizePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return "";
+
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch
+        {
+            return path.Trim();
+        }
+    }
+
     private class WpfRunRecord
     {
         public string Id { get; set; } = "";
@@ -717,6 +766,7 @@ public sealed class WpfRunManagerService
         public string ModuleName { get; set; } = "";
         public string DatabaseName { get; set; } = "";
         public string LogFilePrefix { get; set; } = "";
+        public string SourceScenarioPath { get; set; } = "";
         public string LogPath { get; set; } = "";
         public string StatusText { get; set; } = "";
         public string Details { get; set; } = "";
@@ -748,6 +798,7 @@ public sealed class WpfRunManagerService
                 ModuleName = ModuleName,
                 DatabaseName = DatabaseName,
                 LogFilePrefix = LogFilePrefix,
+                SourceScenarioPath = SourceScenarioPath,
                 LogPath = LogPath,
                 StatusText = StatusText,
                 Details = Details,

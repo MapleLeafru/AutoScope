@@ -47,6 +47,54 @@ public class ScenarioManagementService
     }
 
 
+    public ScenarioAutoCheckResult RunDueScenariosFromWpf(DateTime now)
+    {
+        ScenarioAutoCheckResult result = new ScenarioAutoCheckResult
+        {
+            CheckedAt = now
+        };
+
+        List<ScenarioDashboardItem> scenarios = LoadScenarios();
+        result.CheckedCount = scenarios.Count;
+
+        foreach (ScenarioDashboardItem scenario in scenarios)
+        {
+            if (!scenario.Enabled || scenario.IsManualOnly || !scenario.CanRun)
+                continue;
+
+            DateTime? nextRunAt = ResolveScenarioNextRunAt(scenario.Path);
+            if (nextRunAt == null || nextRunAt.Value > now)
+                continue;
+
+            result.DueCount++;
+
+            bool isAlreadyRunning = WpfRunManagerService.Instance.HasActiveScenario(scenario.Path)
+                || WpfRunManagerService.Instance.HasActiveScenarioName(scenario.Name);
+
+            if (isAlreadyRunning)
+            {
+                result.SkippedActiveCount++;
+                result.SkippedActiveNames.Add(scenario.Name);
+                continue;
+            }
+
+            ScenarioOperationResult startResult = StartScenarioNow(scenario);
+            if (startResult.Success)
+            {
+                result.StartedCount++;
+                result.StartedNames.Add(scenario.Name);
+            }
+            else
+            {
+                result.FailedCount++;
+                result.FailedMessages.Add($"{scenario.Name}: {startResult.Message}");
+            }
+        }
+
+        return result;
+    }
+
+
     public List<DatabaseDashboardItem> LoadDatabasesForCreation()
     {
         return new DashboardDataService(_rootPath).LoadDatabases();
@@ -223,7 +271,8 @@ public class ScenarioManagementService
                 Path.GetFileName(modulePath),
                 Path.GetFileName(databasePath),
                 logPrefix,
-                result => SaveScenarioRunResult(scenario.Path, result.StartedAt, result.FinishedAt, result.ExitCode, result.StandardOutput, result.StandardError));
+                result => SaveScenarioRunResult(scenario.Path, result.StartedAt, result.FinishedAt, result.ExitCode, result.StandardOutput, result.StandardError),
+                sourceScenarioPath: scenario.Path);
 
             return ScenarioOperationResult.Ok($"Сценарий «{jobName}» запущен вручную. Карточка процесса появится в хабе автоматически, а после завершения запись появится в истории сценария.");
         }
@@ -545,6 +594,46 @@ public class ScenarioManagementService
         }
     }
 
+    private DateTime? ResolveScenarioNextRunAt(string scenarioPath)
+    {
+        if (string.IsNullOrWhiteSpace(scenarioPath) || !File.Exists(scenarioPath))
+            return null;
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(scenarioPath));
+            JsonElement root = document.RootElement;
+
+            bool enabled = ReadBool(root, "enabled") ?? true;
+            if (!enabled)
+                return null;
+
+            string scheduleType = ReadNestedString(root, "schedule", "type") ?? "";
+            int everyHours = ReadNestedInt(root, "schedule", "everyHours") ?? 0;
+
+            if (string.Equals(scheduleType, "manual", StringComparison.OrdinalIgnoreCase) || everyHours <= 0)
+                return null;
+
+            string nextRunAt = ReadString(root, "nextRunAt") ?? "";
+            if (TryParseJobDateTime(nextRunAt, out DateTime parsedNextRunAt))
+                return parsedNextRunAt;
+
+            string lastRunAt = ReadString(root, "lastRunAt") ?? "";
+            if (TryParseJobDateTime(lastRunAt, out DateTime parsedLastRunAt))
+                return parsedLastRunAt.AddHours(everyHours);
+
+            string createdAt = ReadString(root, "createdAt") ?? "";
+            if (TryParseJobDateTime(createdAt, out DateTime parsedCreatedAt))
+                return parsedCreatedAt.AddHours(everyHours);
+
+            return DateTime.Now;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private ScenarioDashboardItem? ReadScenario(string path)
     {
         try
@@ -588,6 +677,7 @@ public class ScenarioManagementService
                 ScheduleText = scheduleText,
                 LastRunText = string.IsNullOrWhiteSpace(lastRunAt) ? "ещё не запускался" : FormatDateTime(lastRunAt),
                 NextRunText = FormatNextRun(enabled, scheduleType, everyHours, nextRunAt),
+                NextRunAtRaw = nextRunAt,
                 CreatedText = FormatDateTime(createdAt),
                 ToggleActionText = enabled ? "Выключить" : "Включить",
                 CanOpenFile = true,
@@ -1249,6 +1339,18 @@ public class ScenarioManagementService
         return value.ToString("yyyy-MM-ddTHH:mm:ss");
     }
 
+    private bool TryParseJobDateTime(string value, out DateTime result)
+    {
+        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out result))
+            return true;
+
+        if (DateTime.TryParse(value, out result))
+            return true;
+
+        result = DateTime.MinValue;
+        return false;
+    }
+
     private string FormatDateTime(string value)
     {
         if (DateTime.TryParse(value, out DateTime result))
@@ -1371,6 +1473,42 @@ public class ScenarioManagementService
             FileName = path,
             UseShellExecute = true
         });
+    }
+}
+
+public class ScenarioAutoCheckResult
+{
+    public DateTime CheckedAt { get; set; }
+    public int CheckedCount { get; set; }
+    public int DueCount { get; set; }
+    public int StartedCount { get; set; }
+    public int SkippedActiveCount { get; set; }
+    public int FailedCount { get; set; }
+    public List<string> StartedNames { get; } = new();
+    public List<string> SkippedActiveNames { get; } = new();
+    public List<string> FailedMessages { get; } = new();
+
+    public string BuildStatusMessage(bool includeNoDueMessage)
+    {
+        if (StartedCount > 0)
+            return StartedCount == 1
+                ? $"Автопроверка запустила сценарий: {StartedNames.FirstOrDefault()}"
+                : $"Автопроверка запустила сценариев: {StartedCount}.";
+
+        if (FailedCount > 0)
+            return FailedCount == 1
+                ? $"Автопроверка нашла сценарий, но запуск не удался: {FailedMessages.FirstOrDefault()}"
+                : $"Автопроверка: не удалось запустить сценариев: {FailedCount}.";
+
+        if (SkippedActiveCount > 0)
+            return SkippedActiveCount == 1
+                ? $"Автопроверка пропустила активный сценарий: {SkippedActiveNames.FirstOrDefault()}"
+                : $"Автопроверка пропустила уже активных сценариев: {SkippedActiveCount}.";
+
+        if (includeNoDueMessage)
+            return $"Автопроверка выполнена: подходящих сценариев нет. Проверено: {CheckedCount}.";
+
+        return "";
     }
 }
 

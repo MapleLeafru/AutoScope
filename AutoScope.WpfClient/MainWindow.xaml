@@ -181,8 +181,11 @@
                             <StackPanel>
                                 <TextBlock Text="Сценарии" Style="{StaticResource CardTitle}"/>
                                 <TextBlock Text="Активные, ручные и выключенные сценарии." Style="{StaticResource SectionCaption}"/>
+                                <TextBlock Text="{Binding ScenarioAutoCheckStatus}" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
                             </StackPanel>
                             <WrapPanel Grid.Column="1" VerticalAlignment="Top">
+                                <Button Content="Проверить сейчас" Style="{StaticResource SmallButton}" Click="CheckScenariosNow_Click"/>
+                                <Button Content="{Binding ScenarioAutoCheckButtonText}" Style="{StaticResource SmallButton}" Click="ToggleScenarioAutoCheck_Click"/>
                                 <Button Content="Папка" Style="{StaticResource SmallButton}" Click="OpenJobsFolder_Click"/>
                                 <Button Content="Управление" Style="{StaticResource SmallButton}" Click="OpenScenarioManager_Click"/>
                             </WrapPanel>
