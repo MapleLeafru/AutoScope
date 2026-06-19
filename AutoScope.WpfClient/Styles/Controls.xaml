@@ -237,6 +237,67 @@
         <Setter Property="MinHeight" Value="0"/>
     </Style>
 
+
+    <Style x:Key="OutlineStatusSmallButtonBase" TargetType="Button" BasedOn="{StaticResource SmallButton}">
+        <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="9"
+                            Padding="{TemplateBinding Padding}">
+                        <TextBlock Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Foreground="{TemplateBinding Foreground}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontSize="{TemplateBinding FontSize}"
+                                   FontWeight="{TemplateBinding FontWeight}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource ButtonHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource ButtonPressedBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="RunningFilterSmallButton" TargetType="Button" BasedOn="{StaticResource OutlineStatusSmallButtonBase}">
+        <Setter Property="Foreground" Value="{DynamicResource RunningBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource RunningBrush}"/>
+    </Style>
+
+    <Style x:Key="NeutralFilterSmallButton" TargetType="Button" BasedOn="{StaticResource OutlineStatusSmallButtonBase}">
+        <Setter Property="Foreground" Value="{DynamicResource NeutralBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource NeutralBrush}"/>
+    </Style>
+
+    <Style x:Key="SuccessFilterSmallButton" TargetType="Button" BasedOn="{StaticResource OutlineStatusSmallButtonBase}">
+        <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}"/>
+    </Style>
+
+    <Style x:Key="ErrorFilterSmallButton" TargetType="Button" BasedOn="{StaticResource OutlineStatusSmallButtonBase}">
+        <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}"/>
+    </Style>
+
+    <Style x:Key="WarningFilterSmallButton" TargetType="Button" BasedOn="{StaticResource OutlineStatusSmallButtonBase}">
+        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}"/>
+    </Style>
+
     <Style x:Key="DangerSmallButton" TargetType="Button" BasedOn="{StaticResource SmallButton}">
         <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}"/>

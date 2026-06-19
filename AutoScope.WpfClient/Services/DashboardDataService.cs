@@ -205,11 +205,16 @@ public class DashboardDataService
         FileInfo file = new FileInfo(path);
         List<string> lines = ReadLastLines(path, 220);
         ProgressInfo? progress = ExtractLastProgress(lines);
-        DashboardStateKind state = DetectLogState(lines, file.LastWriteTime, progress);
+        bool stoppedByUser = DetectStoppedByUser(lines);
+        DashboardStateKind state = stoppedByUser
+            ? DashboardStateKind.Warning
+            : DetectLogState(lines, file.LastWriteTime, progress);
         bool runningLike = state == DashboardStateKind.Running;
-        string statusText = FormatProcessStatus(state);
+        string statusText = stoppedByUser ? "остановлен" : FormatProcessStatus(state);
         string typeText = GetLogTypeText(file.Name);
-        string lastState = ExtractLastProcessState(lines, progress, state);
+        string lastState = stoppedByUser
+            ? "Процесс остановлен пользователем."
+            : ExtractLastProcessState(lines, progress, state);
 
         ProcessDashboardItem item = new ProcessDashboardItem
         {
@@ -226,7 +231,8 @@ public class DashboardDataService
             CanOpenDetails = true,
             LastUpdatedAt = file.LastWriteTime,
             StateKind = state,
-            IsRunningLike = runningLike
+            IsRunningLike = runningLike,
+            IsStopped = stoppedByUser
         };
 
         ApplyProgress(item, progress, typeText, state);
@@ -246,6 +252,18 @@ public class DashboardDataService
         {
             return new List<string>();
         }
+    }
+
+    private bool DetectStoppedByUser(List<string> lines)
+    {
+        string text = string.Join("\n", lines);
+        return ContainsAny(text,
+            "AutoScope WPF: процесс остановлен пользователем",
+            "Процесс остановлен пользователем",
+            "статус: остановлен",
+            "status: stopped",
+            "\"status\": \"stopped\"",
+            "\"status\":\"stopped\"");
     }
 
     private DashboardStateKind DetectLogState(List<string> lines, DateTime lastWriteTime, ProgressInfo? progress)
@@ -517,19 +535,44 @@ public class DashboardDataService
                 status = "активен";
             }
 
+            string pipelineText = FormatPipelineType(pipelineType);
+            string databaseName = string.IsNullOrWhiteSpace(dbPath) ? "база не задана" : Path.GetFileName(dbPath);
+            string scheduleText = everyHours <= 0 ? "только ручной запуск" : $"каждые {everyHours} ч.";
+            string nextRunText = string.IsNullOrWhiteSpace(nextRunAt) ? "next: не задан" : $"next: {nextRunAt}";
+
             string details = string.Join(" · ", new[]
             {
-                FormatPipelineType(pipelineType),
+                pipelineText,
                 string.IsNullOrWhiteSpace(moduleName) ? "модуль не задан" : moduleName,
-                string.IsNullOrWhiteSpace(dbPath) ? "база не задана" : Path.GetFileName(dbPath),
-                string.IsNullOrWhiteSpace(nextRunAt) ? "next: не задан" : $"next: {nextRunAt}"
+                databaseName,
+                nextRunText
             }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+            bool canRun = !string.IsNullOrWhiteSpace(dbPath)
+                          && (!string.IsNullOrWhiteSpace(parserPath) || !string.IsNullOrWhiteSpace(analyzerPath));
 
             return new ScenarioDashboardItem
             {
+                Id = path,
                 Name = name,
+                FileName = Path.GetFileName(path),
+                Path = path,
                 StatusText = status,
                 Details = details,
+                PipelineType = pipelineType,
+                PipelineText = pipelineText,
+                ModuleName = moduleName,
+                DatabaseName = databaseName,
+                ScheduleText = scheduleText,
+                NextRunText = nextRunText,
+                ToggleActionText = enabled ? "Выключить" : "Включить",
+                Enabled = enabled,
+                CanOpenFile = true,
+                CanShowHistory = true,
+                CanRun = canRun,
+                CanEdit = true,
+                ScheduleEveryHours = everyHours,
+                IsManualOnly = everyHours <= 0,
                 StateKind = kind
             };
         }
@@ -537,9 +580,15 @@ public class DashboardDataService
         {
             return new ScenarioDashboardItem
             {
+                Id = path,
                 Name = Path.GetFileNameWithoutExtension(path),
+                FileName = Path.GetFileName(path),
+                Path = path,
                 StatusText = "ошибка чтения",
                 Details = "Файл сценария не удалось разобрать как JSON.",
+                CanOpenFile = true,
+                CanEdit = false,
+                CanRun = false,
                 StateKind = DashboardStateKind.Error
             };
         }

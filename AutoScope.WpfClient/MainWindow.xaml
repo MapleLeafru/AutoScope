@@ -293,7 +293,7 @@
                                 <TextBlock Text="Активные процессы сверху, история подгружается отдельно." Style="{StaticResource SectionCaption}"/>
                             </StackPanel>
                             <WrapPanel Grid.Column="1" VerticalAlignment="Top">
-                                <Button Content="Управление" Style="{StaticResource SmallButton}" Click="Stub_Click" Tag="Подробный менеджер процессов будет выполнен в карточном стиле: расширенный список процессов, фильтры, логи и действия."/>
+                                <Button Content="Управление" Style="{StaticResource SmallButton}" Click="OpenProcessManager_Click"/>
                             </WrapPanel>
                         </Grid>
 
@@ -349,7 +349,7 @@
                                                         <Button x:Name="ResumeProcessButton" Content="Продолжить" Style="{StaticResource AccentSmallButton}" Click="ResumeProcess_Click" Tag="{Binding}" IsEnabled="{Binding CanResume}" Visibility="Collapsed"/>
                                                         <Button x:Name="StopProcessButton" Content="Стоп" Style="{StaticResource DangerSmallButton}" Click="StopProcess_Click" Tag="{Binding}" IsEnabled="{Binding CanStop}" Visibility="Collapsed"/>
                                                         <Button Content="Лог" Style="{StaticResource SmallButton}" Click="OpenProcessLog_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenLog}"/>
-                                                        <Button Content="Открыть" Style="{StaticResource SmallButton}" Click="ShowProcessInfo_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenDetails}"/>
+                                                        <Button Content="Подробнее" Style="{StaticResource SmallButton}" Click="ShowProcessInfo_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenDetails}"/>
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>

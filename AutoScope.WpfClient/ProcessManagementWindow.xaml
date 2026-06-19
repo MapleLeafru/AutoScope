@@ -1,0 +1,218 @@
+﻿<Window x:Class="AutoScope.WpfClient.ProcessManagementWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:conv="clr-namespace:AutoScope.WpfClient.Converters"
+        Title="Управление процессами AutoScope" Height="720" Width="960"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        Background="Transparent"
+        AllowsTransparency="True"
+        UseLayoutRounding="True">
+
+    <Window.Resources>
+        <conv:StatusToBrushConverter x:Key="StatusToBrushConverter"/>
+    </Window.Resources>
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0"
+                            ResizeBorderThickness="6"
+                            CornerRadius="0"
+                            GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+
+    <Border x:Name="RootWindowBorder"
+            Background="{DynamicResource WindowOutlineBrush}"
+            CornerRadius="12"
+            SnapsToDevicePixels="True">
+        <Border Background="{DynamicResource WindowBackgroundBrush}"
+                CornerRadius="11"
+                Margin="1"
+                SnapsToDevicePixels="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="38"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border x:Name="TitleBar"
+                        Grid.Row="0"
+                        Background="{DynamicResource TitleBarBackgroundBrush}"
+                        BorderBrush="{DynamicResource TitleBarBorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+                        CornerRadius="11,11,0,0">
+                    <Grid>
+                        <TextBlock Text="Управление процессами AutoScope"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   Margin="14,0,0,0"/>
+                        <Button HorizontalAlignment="Right"
+                                Style="{StaticResource TitleBarCloseButton}"
+                                Click="Close_Click"
+                                Margin="0,2,6,2"
+                                shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                            <Viewbox Width="19" Height="19" Stretch="Uniform">
+                                <Canvas Width="18" Height="18">
+                                    <Path Stroke="{DynamicResource TextPrimaryBrush}"
+                                          StrokeThickness="2.0"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          Data="M 4 4 L 14 14 M 14 4 L 4 14"/>
+                                </Canvas>
+                            </Viewbox>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Style="{StaticResource HubCard}" Margin="18,18,18,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="Процессы" Style="{StaticResource CardTitle}"/>
+                            <TextBlock Text="Расширенная карточная лента процессов текущей WPF-сессии и истории по pipeline-логам." Style="{StaticResource SectionCaption}"/>
+                            <TextBlock Text="{Binding SummaryText}" Style="{StaticResource MutedText}"/>
+                        </StackPanel>
+
+                        <WrapPanel Grid.Column="1" VerticalAlignment="Top">
+                            <Button Content="Обновить" Style="{StaticResource SmallButton}" Click="Refresh_Click"/>
+                            <Button Content="Очистить завершённые" Style="{StaticResource SmallButton}" Click="ClearCompleted_Click"/>
+                            <Button Content="Папка логов" Style="{StaticResource SmallButton}" Click="OpenLogsFolder_Click"/>
+                        </WrapPanel>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="2" Style="{StaticResource HubCard}" Margin="18,0,18,10">
+                    <DockPanel LastChildFill="True">
+                        <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <WrapPanel>
+                                <Button Content="Все" Style="{StaticResource AccentSmallButton}" Click="SetFilter_Click" Tag="all"/>
+                                <Button Content="Активные" Style="{StaticResource RunningFilterSmallButton}" Click="SetFilter_Click" Tag="active"/>
+                                <Button Content="Завершённые" Style="{StaticResource NeutralFilterSmallButton}" Click="SetFilter_Click" Tag="finished"/>
+                                <Button Content="Успешные" Style="{StaticResource SuccessFilterSmallButton}" Click="SetFilter_Click" Tag="success"/>
+                                <Button Content="Ошибки" Style="{StaticResource ErrorFilterSmallButton}" Click="SetFilter_Click" Tag="errors"/>
+                                <Button Content="Остановленные" Style="{StaticResource WarningFilterSmallButton}" Click="SetFilter_Click" Tag="stopped"/>
+                                <Button Content="История" Style="{StaticResource NeutralFilterSmallButton}" Click="SetFilter_Click" Tag="history"/>
+                            </WrapPanel>
+
+                            <TextBlock Grid.Row="1" Text="{Binding FilterText}" Style="{StaticResource MutedText}" Margin="0,2,0,0"/>
+                        </Grid>
+
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <ItemsControl ItemsSource="{Binding Processes}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource ProcessCard}">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="10"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Border Width="6" CornerRadius="3" Background="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}"/>
+
+                                                    <StackPanel Grid.Column="1" Margin="10,0,12,0">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding TimeText}" Style="{StaticResource MutedText}" Margin="12,1,0,0"/>
+                                                        </Grid>
+
+                                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                            <TextBlock Text="{Binding StatusText}" Foreground="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}" FontSize="12" FontWeight="SemiBold"/>
+                                                            <TextBlock Text=" · " Style="{StaticResource MutedText}"/>
+                                                            <TextBlock Text="{Binding TypeText}" Style="{StaticResource MutedText}"/>
+                                                        </StackPanel>
+
+                                                        <StackPanel x:Name="ProgressArea" Margin="0,8,0,0">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Text="{Binding StageText}" Style="{StaticResource MutedText}"/>
+                                                                <TextBlock Grid.Column="1" Text="{Binding ProgressText}" Foreground="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}" FontSize="12" FontWeight="SemiBold"/>
+                                                            </Grid>
+                                                            <ProgressBar Style="{StaticResource ProcessProgressBar}" Value="{Binding ProgressPercent}" Foreground="{Binding StateKind, Converter={StaticResource StatusToBrushConverter}}" Margin="0,5,0,0"/>
+                                                            <TextBlock Text="{Binding CountText}" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
+                                                        </StackPanel>
+
+                                                        <TextBlock Text="{Binding Details}" Style="{StaticResource MutedText}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+
+                                                    <WrapPanel Grid.Column="2" VerticalAlignment="Top" HorizontalAlignment="Right" MaxWidth="310">
+                                                        <Button x:Name="PauseProcessButton" Content="Пауза" Style="{StaticResource SmallButton}" Click="PauseProcess_Click" Tag="{Binding}" IsEnabled="{Binding CanPause}" Visibility="Collapsed"/>
+                                                        <Button x:Name="ResumeProcessButton" Content="Продолжить" Style="{StaticResource AccentSmallButton}" Click="ResumeProcess_Click" Tag="{Binding}" IsEnabled="{Binding CanResume}" Visibility="Collapsed"/>
+                                                        <Button x:Name="StopProcessButton" Content="Стоп" Style="{StaticResource DangerSmallButton}" Click="StopProcess_Click" Tag="{Binding}" IsEnabled="{Binding CanStop}" Visibility="Collapsed"/>
+                                                        <Button Content="Лог" Style="{StaticResource SmallButton}" Click="OpenProcessLog_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenLog}"/>
+                                                        <Button Content="Подробнее" Style="{StaticResource SmallButton}" Click="ShowProcessInfo_Click" Tag="{Binding}" IsEnabled="{Binding CanOpenDetails}"/>
+                                                    </WrapPanel>
+                                                </Grid>
+                                            </Border>
+
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsProgressVisible}" Value="False">
+                                                    <Setter TargetName="ProgressArea" Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding CanPause}" Value="True">
+                                                    <Setter TargetName="PauseProcessButton" Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding CanResume}" Value="True">
+                                                    <Setter TargetName="ResumeProcessButton" Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding CanStop}" Value="True">
+                                                    <Setter TargetName="StopProcessButton" Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Border Style="{StaticResource ProcessHistoryActionCard}" Margin="0,6,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding HistoryText}" Style="{StaticResource MutedText}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                        <WrapPanel Grid.Column="1" Margin="12,0,0,0">
+                                            <Button Content="Ещё 30" Style="{StaticResource SmallButton}" Click="LoadMoreHistory_Click"/>
+                                            <Button Content="Вся история" Style="{StaticResource SmallButton}" Click="LoadAllHistory_Click"/>
+                                        </WrapPanel>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
+                <Grid Grid.Row="3" Margin="18,0,18,18">
+                    <TextBlock Text="{Binding StatusMessage}"
+                               Style="{StaticResource MutedText}"
+                               VerticalAlignment="Center"/>
+                    <Button Content="Закрыть"
+                            Style="{StaticResource BaseButton}"
+                            HorizontalAlignment="Right"
+                            Click="Close_Click"/>
+                </Grid>
+            </Grid>
+        </Border>
+    </Border>
+</Window>

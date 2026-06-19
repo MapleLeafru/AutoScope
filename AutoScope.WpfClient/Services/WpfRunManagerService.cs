@@ -260,6 +260,16 @@ public sealed class WpfRunManagerService
         }
     }
 
+
+    public int ClearCompletedRecords()
+    {
+        lock (_sync)
+        {
+            int removed = _records.RemoveAll(record => record.FinishedAt != null);
+            return removed;
+        }
+    }
+
     private async Task RunProcessAsync(WpfRunRecord record, Process process, string inputJson, Action<WpfRunCompletionInfo>? completed)
     {
         try
@@ -412,6 +422,7 @@ public sealed class WpfRunManagerService
                 record.StateKind = DashboardStateKind.Warning;
                 record.StatusText = "остановлен";
                 record.Details = "Процесс остановлен пользователем.";
+                TryAppendUserStoppedMarker(record);
                 return;
             }
 
@@ -441,6 +452,25 @@ public sealed class WpfRunManagerService
                     ? $"Процесс завершился с кодом {exitCode}."
                     : lastError;
             }
+        }
+    }
+
+    private void TryAppendUserStoppedMarker(WpfRunRecord record)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(record.LogPath))
+                record.LogPath = TryFindLogPath(record);
+
+            if (string.IsNullOrWhiteSpace(record.LogPath) || !File.Exists(record.LogPath))
+                return;
+
+            string markerText = $"{Environment.NewLine}{DateTime.Now:yyyy-MM-dd HH:mm:ss} | INFO | WPF | AutoScope WPF: процесс остановлен пользователем{Environment.NewLine}";
+            File.AppendAllText(record.LogPath, markerText, Encoding.UTF8);
+        }
+        catch
+        {
+            // Маркер нужен только для отображения истории. Ошибка записи не должна ломать остановку процесса.
         }
     }
 
@@ -513,6 +543,7 @@ public sealed class WpfRunManagerService
             CanStop = record.FinishedAt == null && !record.StopRequested,
             CanPause = record.FinishedAt == null && !record.StopRequested && !record.IsPaused,
             CanResume = record.FinishedAt == null && !record.StopRequested && record.IsPaused,
+            IsStopped = record.StopRequested && record.FinishedAt != null,
             LastUpdatedAt = record.LastUpdatedAt,
             StateKind = record.IsPaused ? DashboardStateKind.Warning : record.StateKind
         };

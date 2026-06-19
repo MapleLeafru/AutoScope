@@ -94,6 +94,7 @@ public class ProcessDashboardItem
     public bool CanStop { get; set; }
     public bool CanPause { get; set; }
     public bool CanResume { get; set; }
+    public bool IsStopped { get; set; }
     public int ProgressPercent { get; set; }
     public DateTime LastUpdatedAt { get; set; } = DateTime.MinValue;
     public DashboardStateKind StateKind { get; set; } = DashboardStateKind.Neutral;

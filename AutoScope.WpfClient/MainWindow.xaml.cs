@@ -140,6 +140,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
 
+    private void OpenProcessManager_Click(object sender, RoutedEventArgs e)
+    {
+        ProcessManagementWindow window = new ProcessManagementWindow(_dataService.RootPath)
+        {
+            Owner = this
+        };
+
+        window.ShowDialog();
+        ReloadProcesses();
+        StatusMessage = $"Процессы обновлены после управления: {DateTime.Now:HH:mm:ss}.";
+    }
+
     private void OpenDatabaseManager_Click(object sender, RoutedEventArgs e)
     {
         DatabaseManagementWindow window = new DatabaseManagementWindow(_dataService.RootPath)
