@@ -1,0 +1,37 @@
+{
+  "jobId": "\u041D\u043E\u0432\u044B\u0439_\u0441\u0446\u0435\u043D\u0430\u0440\u0438\u0439_20260619_182228",
+  "jobName": "\u041A\u0430\u043C\u0440\u0438",
+  "enabled": false,
+  "pipelineType": "input",
+  "dbPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Databases\\NewParserTest_01.BaseDataBaseConfig.db",
+  "createdAt": "2026-06-19T18:22:28",
+  "lastRunAt": "2026-06-19T18:23:44",
+  "nextRunAt": "2026-06-20T18:23:44",
+  "schedule": {
+    "type": "interval",
+    "everyHours": 24
+  },
+  "runtimeSettings": {
+    "pythonPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Python\\python.exe",
+    "javaPath": "java"
+  },
+  "parserPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Parsers\\BaseDromParser.py",
+  "parserSettings": {
+    "startUrl": "https://auto.drom.ru/toyota/camry/",
+    "maxCars": 20,
+    "streamBatchSize": 20,
+    "batchSize": 20,
+    "requestDelaySeconds": 1.2,
+    "retryCount": 3,
+    "rateLimitDelaySeconds": 5,
+    "pythonPath": "",
+    "javaPath": "java",
+    "dictionariesPath": "Dictionaries"
+  },
+  "apiSettings": {
+    "brandCountryEnrichment": true,
+    "transmissionNormalization": false,
+    "driveTypeNormalization": false,
+    "fuelTypeNormalization": false
+  }
+}

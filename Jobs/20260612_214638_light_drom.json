@@ -1,0 +1,47 @@
+{
+  "jobId": "466fa293ee4a4981a4c0aab4fc51f10a",
+  "jobName": "light_drom",
+  "enabled": true,
+  "pipelineType": "input",
+  "dbPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Databases\\skyline_01.BaseDataBaseConfig.db",
+  "parserPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Parsers\\LightBaseDromParser.py",
+  "analyzerPath": "",
+  "parserSettings": {
+    "startUrl": "https://auto.drom.ru/nissan/skyline/",
+    "maxCars": 200,
+    "streamBatchSize": 100,
+    "requestDelaySeconds": 1.2,
+    "retryCount": 3,
+    "rateLimitDelaySeconds": 5,
+    "extraSettings": {
+      "listingPageDelaySeconds": 1.5,
+      "estimatedListingPageSize": 20
+    }
+  },
+  "apiSettings": {
+    "brandCountryEnrichment": true,
+    "transmissionNormalization": false,
+    "driveTypeNormalization": false,
+    "fuelTypeNormalization": false
+  },
+  "outputSettings": {
+    "latestOnly": true,
+    "onlyChanged": false,
+    "brand": "",
+    "model": "",
+    "saleRegion": "",
+    "yearFrom": null,
+    "yearTo": null
+  },
+  "runtimeSettings": {
+    "pythonPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Python\\python.exe",
+    "javaPath": "java"
+  },
+  "schedule": {
+    "type": "manual",
+    "everyHours": 0
+  },
+  "createdAt": "2026-06-12T21:45:32",
+  "lastRunAt": "2026-06-19T01:28:37",
+  "nextRunAt": ""
+}

@@ -1,0 +1,63 @@
+﻿{
+  "metadata": {
+    "displayName": "Качество данных",
+    "description": "Проверяет полноту полей, наличие пропусков, дубликаты URL и пригодность выборки для анализа.",
+    "moduleType": "analyzer",
+    "category": "quality",
+    "recommended": true
+  },
+  "settings": {},
+  "settingsSchema": {
+    "outputSettings.latestOnly": {
+      "displayName": "Только последние снимки",
+      "description": "Использовать только последнюю сохранённую версию каждого объявления.",
+      "type": "bool",
+      "group": "Выборка данных",
+      "required": false
+    },
+    "outputSettings.onlyChanged": {
+      "displayName": "Только изменённые записи",
+      "description": "Включать в анализ только проверки, где были обнаружены изменения.",
+      "type": "bool",
+      "group": "Выборка данных",
+      "required": false
+    },
+    "outputSettings.brand": {
+      "displayName": "Бренд",
+      "description": "Фильтр по бренду автомобиля. Пустое значение отключает фильтр.",
+      "type": "string",
+      "group": "Фильтры",
+      "required": false
+    },
+    "outputSettings.model": {
+      "displayName": "Модель",
+      "description": "Фильтр по модели автомобиля. Пустое значение отключает фильтр.",
+      "type": "string",
+      "group": "Фильтры",
+      "required": false
+    },
+    "outputSettings.saleRegion": {
+      "displayName": "Регион продажи",
+      "description": "Фильтр по региону продажи. Пустое значение отключает фильтр.",
+      "type": "string",
+      "group": "Фильтры",
+      "required": false
+    },
+    "outputSettings.yearFrom": {
+      "displayName": "Год от",
+      "description": "Минимальный год выпуска для анализа.",
+      "type": "int",
+      "group": "Фильтры",
+      "required": false,
+      "min": 1900
+    },
+    "outputSettings.yearTo": {
+      "displayName": "Год до",
+      "description": "Максимальный год выпуска для анализа.",
+      "type": "int",
+      "group": "Фильтры",
+      "required": false,
+      "min": 1900
+    }
+  }
+}

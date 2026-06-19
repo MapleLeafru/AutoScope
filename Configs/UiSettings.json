@@ -1,0 +1,21 @@
+{
+  "ThemeKey": "graphite-blue",
+  "DbBrowserPath": "",
+  "UiScalePercent": 100,
+  "ScenarioAutoCheckEnabled": true,
+  "ScenarioAutoCheckIntervalMinutes": 1,
+  "ShowScenarioNotifications": true,
+  "ShowScenarioErrorNotifications": true,
+  "RunInBackground": true,
+  "MinimizeToTrayOnClose": true,
+  "StartWithWindows": false,
+  "StartupMethod": "Shortcut",
+  "StartMinimizedToTray": true,
+  "ShowBackgroundHintOnClose": true,
+  "RememberWindowPlacement": true,
+  "ShowEmptyStateHints": true,
+  "OpenReportAfterAnalysis": true,
+  "OpenLogOnError": false,
+  "LogLevel": "Normal",
+  "KeepLogsDays": 30
+}

@@ -1,0 +1,370 @@
+﻿Контракт внешних модулей AutoScope
+==================================
+
+Назначение
+----------
+
+AutoScope поддерживает внешние модули, чтобы приложение не было привязано к одному парсеру или одному анализатору.
+Внешний модуль — это отдельный исполняемый компонент, который AutoScope запускает как процесс и общается с ним через JSON.
+
+Сейчас внешний модуль может быть:
+
+.py   — Python-скрипт.
+.jar  — Java-приложение, заранее собранное в JAR.
+.exe  — обычный исполняемый файл Windows.
+
+AutoScope не компилирует пользовательские модули. Если модуль написан на Java, разработчик модуля сам собирает .jar. Если модуль написан на другом языке, он должен быть собран в .exe или другой поддержанный исполняемый формат.
+
+Главное правило обмена
+----------------------
+
+stdin  — входной JSON от AutoScope к модулю.
+stdout — только машинно-читаемый JSON-результат модуля.
+stderr — логи, прогресс, диагностические сообщения и отладочный текст.
+
+Нельзя писать обычный пользовательский текст в stdout. Если модуль пишет в stdout не JSON, PipelineManager может не распознать результат.
+
+Кодировка
+---------
+
+Все данные передаются в UTF-8.
+Python-пайплайны AutoScope запускают модули с переменной окружения:
+
+PYTHONIOENCODING=utf-8
+
+Для Python-модулей желательно явно включать UTF-8 для stdout/stderr, если используется старый стиль вывода:
+
+import sys
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
+
+Поддерживаемые runtime
+----------------------
+
+Python:
+    По умолчанию используется встроенный Python проекта:
+    Python\python.exe
+
+Java:
+    По умолчанию используется команда java из PATH.
+    Если нужна конкретная Java, путь можно указать в настройках runtime.
+
+Exe:
+    Запускается сам файл модуля.
+
+ModuleRunner определяет runtime либо по явному полю runtime, либо по расширению файла:
+
+.py  -> python
+.jar -> java
+.exe -> exe
+
+Общие поля module_config
+------------------------
+
+modulePath
+    Универсальный путь к модулю.
+
+parserPath
+    Путь к парсеру. Используется для parser-конфига.
+
+analyzerPath
+    Путь к анализатору. Используется для analyzer-конфига.
+
+runtime
+    Явный runtime: python, java или exe.
+    Если не указан, определяется по расширению файла.
+
+python или pythonPath
+    Путь к Python runtime для .py-модуля.
+
+java или javaPath
+    Путь к Java runtime для .jar-модуля.
+
+workingDirectory
+    Рабочая папка процесса модуля.
+    Если не указана, используется папка самого модуля.
+
+runtimeSettings
+---------------
+
+В request может передаваться runtimeSettings.
+Это общий блок настроек runtime, например:
+
+{
+  "runtimeSettings": {
+    "pythonPath": "C:\\Projects\\AutoScope\\Python\\python.exe",
+    "javaPath": "java"
+  }
+}
+
+ModuleRunner использует runtimeSettings как fallback, если путь runtime не задан в module_config.
+
+Контракт парсера
+----------------
+
+Парсер запускается из InputPipelineManager.
+Цепочка обработки:
+
+Parser -> InputApi -> Core -> SQLite
+
+Парсер получает на stdin один JSON-объект request.
+Минимально важные поля request:
+
+{
+  "parser": {
+    "parserPath": "C:\\Projects\\AutoScope\\Parsers\\StableBaseDromParser.py",
+    "runtime": "python",
+    "pythonPath": "C:\\Projects\\AutoScope\\Python\\python.exe"
+  },
+  "parserSettings": {
+    "startUrl": "https://...",
+    "maxCars": 10,
+    "streamBatchSize": 5,
+    "requestDelaySeconds": 1.0,
+    "listingPageDelaySeconds": 1.0,
+    "cardDelaySeconds": 1.0,
+    "browserPageLoadTimeoutSeconds": 30,
+    "manualAccessWaitSeconds": 30,
+    "headless": false
+  },
+  "apiSettings": {
+    "brandCountryEnrichment": true,
+    "transmissionNormalization": true,
+    "driveTypeNormalization": true,
+    "fuelTypeNormalization": true
+  },
+  "dbPath": "C:\\Projects\\AutoScope\\Databases\\cars.db",
+  "configPath": "C:\\Projects\\AutoScope\\Configs",
+  "runtimeSettings": {
+    "pythonPath": "C:\\Projects\\AutoScope\\Python\\python.exe"
+  }
+}
+
+Обязательные parserSettings для базовых парсеров:
+
+startUrl
+    Стартовая ссылка.
+
+maxCars
+    Максимальное количество объявлений. 0 может использоваться как режим без фиксированного лимита, если конкретный парсер это поддерживает.
+
+streamBatchSize
+    Размер пачки объявлений, которую парсер отдаёт в stdout одной JSON-строкой.
+
+Выход парсера
+-------------
+
+Парсер должен писать в stdout JSON Lines.
+Одна строка stdout = один JSON-объект или один JSON-массив объявлений.
+
+Рекомендуемый вариант для streaming-парсера:
+
+[{"source":"drom","url":"https://example.com/1","brand":"Toyota","model":"Camry","price":2000000,"year":2020}]
+[{"source":"drom","url":"https://example.com/2","brand":"Honda","model":"Fit","price":900000,"year":2016}]
+
+Каждая строка должна быть полноценным JSON.
+Нельзя печатать в stdout прогресс вроде "loaded 10 cars".
+
+Минимальное обязательное поле объявления:
+
+url
+
+Если url отсутствует, InputApi пропустит запись.
+
+Разрешённые поля объявления
+---------------------------
+
+source
+url
+brand
+model
+price
+year
+brand_origin_country
+sale_region
+license_plate
+mileage
+transmission
+drive_type
+color
+body_type
+steering_wheel
+engine_power
+engine_volume
+engine_model
+fuel_type
+octane
+powertrain_type
+description
+
+Дополнительное совместимое поле:
+
+powertrain
+
+InputApi преобразует powertrain в powertrain_type.
+
+Прогресс парсера
+----------------
+
+Прогресс нужно писать в stderr строкой, которая начинается с [PROGRESS].
+После префикса желательно писать JSON.
+
+Пример:
+
+[PROGRESS] {"stage":"Сбор ссылок","current":3,"total":10,"percent":30,"message":"Собрано 3 из 10 ссылок"}
+
+ModuleRunner распознаёт строки с [PROGRESS], логирует их и пробрасывает выше, чтобы WPF-клиент мог показать состояние процесса.
+
+Обычные диагностические сообщения парсер тоже пишет в stderr.
+
+Контракт анализатора
+--------------------
+
+Анализатор запускается из OutputPipelineManager.
+Цепочка обработки:
+
+Core -> OutputApi -> Analyzer -> Reports
+
+Анализатор получает на stdin один JSON-объект.
+Формат:
+
+{
+  "data": [
+    {
+      "source": "drom",
+      "url": "https://example.com/1",
+      "brand": "Toyota",
+      "model": "Camry",
+      "price": 2000000,
+      "year": 2020,
+      "checked_at": "2026-06-19 12:00:00"
+    }
+  ],
+  "meta": {
+    "count": 1,
+    "latestOnly": true,
+    "onlyChanged": false,
+    "filters": {
+      "brand": null,
+      "model": null,
+      "sale_region": null,
+      "year_from": null,
+      "year_to": null
+    }
+  }
+}
+
+Анализатор должен вернуть в stdout один JSON-объект результата.
+
+Пример простого результата:
+
+{
+  "status": "ok",
+  "recordsCount": 10,
+  "message": "Analysis completed"
+}
+
+Пример результата с HTML-отчётом:
+
+{
+  "status": "ok",
+  "file": "C:\\Projects\\AutoScope\\Reports\\MarketOverviewAnalyzer_2026-06-19_12-00-00.html",
+  "recordsCount": 10,
+  "message": "Report created"
+}
+
+Сейчас многие базовые анализаторы используют Analyzers/Lib/ReportUtils.py.
+Функция finish_report сохраняет HTML-файл и печатает JSON-результат в stdout.
+
+Ошибки модулей
+--------------
+
+Если модуль завершается с ненулевым кодом выхода, AutoScope считает запуск ошибочным.
+Если модуль вернул невалидный JSON в stdout, PipelineManager не сможет корректно обработать результат.
+
+Рекомендуемый подход для Python-модуля:
+
+try:
+    main()
+except Exception as error:
+    print(f"ERROR: {error}", file=sys.stderr, flush=True)
+    raise
+
+Для обычных логов:
+
+print("Диагностическое сообщение", file=sys.stderr, flush=True)
+
+Для машинного результата:
+
+print(json.dumps(result, ensure_ascii=False), flush=True)
+
+Не смешивать эти два потока.
+
+Минимальный Python-парсер
+------------------------
+
+import json
+import sys
+
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
+
+raw = sys.stdin.read()
+request = json.loads(raw)
+settings = request.get("parserSettings", {})
+
+item = {
+    "source": "test",
+    "url": "https://example.com/car/1",
+    "brand": "Toyota",
+    "model": "Camry",
+    "price": 2000000,
+    "year": 2020
+}
+
+print(json.dumps([item], ensure_ascii=False), flush=True)
+
+Минимальный Python-анализатор
+-----------------------------
+
+import json
+import sys
+
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
+
+raw = sys.stdin.read()
+payload = json.loads(raw)
+data = payload.get("data", [])
+
+result = {
+    "status": "ok",
+    "recordsCount": len(data),
+    "message": f"Received records: {len(data)}"
+}
+
+print(json.dumps(result, ensure_ascii=False), flush=True)
+
+Java и exe-модули
+-----------------
+
+Для Java модуль должен быть собран в .jar и читать stdin / писать stdout так же, как Python-модуль.
+AutoScope запускает Java так:
+
+java -Dfile.encoding=UTF-8 -jar module.jar
+
+Для exe-модуля AutoScope запускает сам файл. Контракт stdin/stdout/stderr остаётся таким же.
+
+Правила совместимости
+---------------------
+
+1. stdout — только JSON.
+2. stderr — любые логи и прогресс.
+3. Кодировка — UTF-8.
+4. Парсер может отдавать данные пачками через JSON Lines.
+5. Анализатор возвращает один JSON-объект.
+6. Минимальное поле объявления — url.
+7. Неизвестные поля объявления InputApi игнорирует.
+8. Ошибка runtime должна быть понятной: не найден Python, Java, модуль или зависимость.
+9. Модуль не должен менять структуру базы напрямую. Сохранением занимается Core.
+10. Отчёты анализаторов сохраняются в Reports.

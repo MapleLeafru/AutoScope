@@ -1,0 +1,22 @@
+{
+  "бензин": "gasoline",
+  "Бензин": "gasoline",
+  "petrol": "gasoline",
+  "gasoline": "gasoline",
+  "дизель": "diesel",
+  "Дизель": "diesel",
+  "diesel": "diesel",
+  "электро": "electric",
+  "Электро": "electric",
+  "электричество": "electric",
+  "electric": "electric",
+  "EV": "electric",
+  "ev": "electric",
+  "газ": "gas",
+  "Газ": "gas",
+  "LPG": "gas",
+  "lpg": "gas",
+  "гибрид": "hybrid",
+  "Гибрид": "hybrid",
+  "hybrid": "hybrid"
+}

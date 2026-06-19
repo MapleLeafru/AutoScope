@@ -1,0 +1,52 @@
+{
+  "jobId": "2a5f9489ffb54cbb94acced4dc922988",
+  "jobName": "stable_avito",
+  "enabled": true,
+  "pipelineType": "input",
+  "dbPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Databases\\avito_test.BaseDataBaseConfig.db",
+  "parserPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Parsers\\StableBaseAvitoParser.py",
+  "analyzerPath": "",
+  "parserSettings": {
+    "startUrl": "https://www.avito.ru/all/avtomobili/nissan/skyline-ASgBAgICAkTgtg36mCjitg2wsCg",
+    "maxCars": 20,
+    "streamBatchSize": 100,
+    "requestDelaySeconds": 4,
+    "retryCount": 3,
+    "rateLimitDelaySeconds": 5,
+    "extraSettings": {
+      "listingPageDelaySeconds": 5.0,
+      "cardDelaySeconds": 4.0,
+      "browserPageLoadTimeoutSeconds": 45,
+      "manualAccessWaitSeconds": 120,
+      "headless": false,
+      "warmupUrl": "https://www.avito.ru/",
+      "estimatedListingPageSize": 50
+    }
+  },
+  "apiSettings": {
+    "brandCountryEnrichment": true,
+    "transmissionNormalization": false,
+    "driveTypeNormalization": false,
+    "fuelTypeNormalization": false
+  },
+  "outputSettings": {
+    "latestOnly": true,
+    "onlyChanged": false,
+    "brand": "",
+    "model": "",
+    "saleRegion": "",
+    "yearFrom": null,
+    "yearTo": null
+  },
+  "runtimeSettings": {
+    "pythonPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Python\\python.exe",
+    "javaPath": "java"
+  },
+  "schedule": {
+    "type": "manual",
+    "everyHours": 0
+  },
+  "createdAt": "2026-06-12T22:35:13",
+  "lastRunAt": "",
+  "nextRunAt": ""
+}

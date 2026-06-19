@@ -24,7 +24,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="BaseDromParser.py" />
+    <Compile Include="BaseDromParserLegacy.py" />
     <Compile Include="BaseAutoRuParser.py" />
+    <Compile Include="TestParser.py" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="..\AutoScopeVenv\">

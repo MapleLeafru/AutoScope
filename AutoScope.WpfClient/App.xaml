@@ -1,0 +1,18 @@
+﻿<Application x:Class="AutoScope.WpfClient.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Styles/Themes/GraphiteBlue.xaml"/>
+                <ResourceDictionary Source="Styles/Controls.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <BitmapImage x:Key="AppIconImage" UriSource="pack://application:,,,/Resources/AppIcon.png"/>
+
+            <Style TargetType="{x:Type Window}">
+                <Setter Property="Icon" Value="{StaticResource AppIconImage}"/>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

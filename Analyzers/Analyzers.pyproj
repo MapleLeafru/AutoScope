@@ -4,7 +4,8 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d80acc66-7614-493b-a8c6-aa8f70812bb9</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>Analyzers.py</StartupFile>
+    <StartupFile>
+    </StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,10 +23,10 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Analyzers.py" />
+    <InterpreterReference Include="MSBuild|AutoScopeVenv|C:\Users\MaplLeaf\source\repos\AutoScope\Parsers\Parsers.pyproj" />
   </ItemGroup>
   <ItemGroup>
-    <InterpreterReference Include="MSBuild|AutoScopeVenv|C:\Users\MaplLeaf\source\repos\AutoScope\Parsers\Parsers.pyproj" />
+    <Compile Include="BaseHtmlAnalyzer.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

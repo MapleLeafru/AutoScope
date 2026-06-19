@@ -1,0 +1,47 @@
+{
+  "jobId": "c3e0eea4d3a347838a6e80901793f7de",
+  "jobName": "autoru_test_01",
+  "enabled": true,
+  "pipelineType": "input",
+  "dbPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Databases\\autoru_test_01.BaseDataBaseConfig.db",
+  "parserPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Parsers\\LightBaseAutoRuParser.py",
+  "analyzerPath": "",
+  "parserSettings": {
+    "startUrl": "https://auto.ru/cars/subaru/levorg-levorg/all/",
+    "maxCars": 200,
+    "streamBatchSize": 100,
+    "requestDelaySeconds": 1.2,
+    "retryCount": 3,
+    "rateLimitDelaySeconds": 5,
+    "extraSettings": {
+      "listingPageDelaySeconds": 6.0,
+      "estimatedListingPageSize": 37
+    }
+  },
+  "apiSettings": {
+    "brandCountryEnrichment": true,
+    "transmissionNormalization": false,
+    "driveTypeNormalization": false,
+    "fuelTypeNormalization": false
+  },
+  "outputSettings": {
+    "latestOnly": true,
+    "onlyChanged": false,
+    "brand": "",
+    "model": "",
+    "saleRegion": "",
+    "yearFrom": null,
+    "yearTo": null
+  },
+  "runtimeSettings": {
+    "pythonPath": "C:\\Users\\MaplLeaf\\source\\repos\\AutoScope\\Python\\python.exe",
+    "javaPath": "java"
+  },
+  "schedule": {
+    "type": "manual",
+    "everyHours": 0
+  },
+  "createdAt": "2026-06-10T19:13:13",
+  "lastRunAt": "2026-06-12T21:45:09",
+  "nextRunAt": ""
+}
